@@ -313,7 +313,7 @@ public class Graph<T, S> {
       
       return true;
   }
-  
+
   /**
    * Update the to node an arrow is pointing to
    * 
@@ -589,5 +589,4 @@ public class Graph<T, S> {
     tmp.append(']');
     return tmp.toString();
   }
-
 }

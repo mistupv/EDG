@@ -35,6 +35,7 @@ public class EDGFactoryNew
 		if (isOOLanguage)
 			LASTBuilder.addInheritanceInfomation(edg); // Only For OOPrograms With Inheritance 
 		generateDependencies();
+		deleteRemovableStructuralArcs();
 		return edg;
 	}
 	
@@ -69,27 +70,31 @@ public class EDGFactoryNew
 		final LDASTNodeInfo nodeInfo = node.getData().getInfo();
 		final LDASTNodeInfo ldNodeInfo = new LDASTNodeInfo(nodeInfo.getArchive(),nodeInfo.getClassName(),
 				nodeInfo.getLine(),nodeInfo.getConstruction());
-		
+
 		// Expr Node
-		final NodeInfo exprNodeInfo = new NodeInfo(fictitiousId--, NodeInfo.Type.Expression, "", ldNodeInfo);
-		final Node expr = new Node("expression", exprNodeInfo);
-		
+//		final NodeInfo exprNodeInfo = new NodeInfo(fictitiousId--, NodeInfo.Type.Expression, "", ldNodeInfo);
+//		final Node expr = new Node("expression", exprNodeInfo);
+
 		// Result Node
 		final NodeInfo resultNodeInfo = new NodeInfo(fictitiousId--, NodeInfo.Type.Result, "", ldNodeInfo);
 		final Node result = new Node("result", resultNodeInfo);
-		
+
 		final EdgeInfo edgeInfo = new EdgeInfo(EdgeInfo.Type.Structural);
-		
+
 		final Node parent = EDGTraverserNew.getParent(node);
-		
-		edg.addNode(expr);
+
+//		edg.addNode(expr);
 		edg.addNode(result);
-		
-		edg.updateToEdge(parent, node, EdgeInfo.Type.Structural, expr);
-//		edg.addEdge(parent, expr, 0, edgeInfo);
-		edg.addEdge(expr, node, 0, edgeInfo);
-		edg.addEdge(expr, result, 0, edgeInfo);
-		
+
+		// Remove the Structural edges if the parent is an expression
+		if (!parent.getData().isFictitious() && parent.getData().getInfo().isExpression())
+			edg.setRemovableEdge(parent, node, EdgeInfo.Type.Structural);
+
+//edg.removeEdge(parent, node, EdgeInfo.Type.Structural);
+
+		// Value arcs for between initial node and its result
+		edg.addEdge(node, result, 0, new EdgeInfo(EdgeInfo.Type.Value));
+
 		// Modify Value Arcs
 		switch(node.getData().getType())
 		{
@@ -100,24 +105,24 @@ public class EDGFactoryNew
 					treatDataConstructorExpressions(node, result);
 					break;
 				}
-			case Variable: // Variables que sean scope en una call, para no coger su result
-				// Solo 3 niveles (por si es un casting)
+			case Variable: // Variables scope of a call, don't add the result node to the slice
+				// 3 levels (in case it is a casting)
 				final Node grandParent = EDGTraverserNew.getParent(parent);
 				final Node grandGrandParent = EDGTraverserNew.getParent(grandParent);
-				if (parent.getData().getType() == NodeInfo.Type.Scope || 
+				if (parent.getData().getType() == NodeInfo.Type.Scope ||
 						grandParent.getData().getType() == NodeInfo.Type.Scope ||
 						grandGrandParent.getData().getType() == NodeInfo.Type.Scope)
 					break;
-// Cuando entre un result de un callee, el arco value solo sale desde el name y hay otro del scope al name
+			// When there is a result of a callee, the value arc is only joined from the name node, and there is another one from the scope to the name
 			default:
 				treatCommonNodes(node, result);
 				break;
 		}
-		
+
 		// Modify CFG Arcs to add Results to the CFG
 		final List<Edge> outgoingCFGEdges = node.getOutgoingEdges();
 		outgoingCFGEdges.removeIf(edge -> edge.getData().getType() != EdgeInfo.Type.ControlFlow);
-		
+
 		for (Edge CFGEdge : outgoingCFGEdges)
 		{
 			final Node to = CFGEdge.getTo();
@@ -127,18 +132,6 @@ public class EDGFactoryNew
 			edg.addEdge(e1);
 			edg.addEdge(e2);
 		}
-		
-		// Value arcs for leaf nodes
-		switch(node.getData().getType())
-		{
-			case Variable:
-			case Literal:
-			case DataConstructor:
-				edg.addEdge(node, result, 0, new EdgeInfo(EdgeInfo.Type.Value));
-				break;
-			default:
-				break;
-		}	
 	}
 
 	private static void treatCommonNodes(Node node, Node result)
@@ -206,6 +199,13 @@ public class EDGFactoryNew
 			final Edge e = new Edge(result, to, 0, new EdgeInfo(EdgeInfo.Type.Value, edgeConstraint));
 			edg.addEdge(e);
 		}
-		
+	}
+
+	private static void deleteRemovableStructuralArcs()
+	{
+		List<Edge> edges = edg.getEdges();
+		for (Edge edge : edges)
+			if (edge.isMarked())
+				edg.removeEdge(edge);
 	}
 }

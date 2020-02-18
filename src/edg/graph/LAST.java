@@ -82,7 +82,18 @@ public class LAST
 	{			
 		return this.graph.removeEdge(edge, edge.getFrom(), edge.getTo());
 	}
-	
+
+	public void setRemovableEdge(Node from, Node to, EdgeInfo.Type edgeType)
+	{
+		final List<Edge> incomingEdges = to.getIncomingEdges();
+		incomingEdges.removeIf(edge -> edge.getData().getType() != edgeType);
+
+		if (!incomingEdges.isEmpty())
+			for(Edge edge : incomingEdges)
+				if (edge.getFrom().equals(from))
+					edge.mark();
+	}
+
 	public boolean updateToEdge(Node from, Node to, EdgeInfo.Type edgeType, Node newTo)
 	{
 		final List<Edge> incomingEdges = to.getIncomingEdges();
