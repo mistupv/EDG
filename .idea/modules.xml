@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="ProjectModuleManager">
+    <modules>
+      <module fileurl="file://$PROJECT_DIR$/EDG/EDG.iml" filepath="$PROJECT_DIR$/EDG/EDG.iml" />
+      <module fileurl="file://$PROJECT_DIR$/e-knife.iml" filepath="$PROJECT_DIR$/e-knife.iml" />
+      <module fileurl="file://$PROJECT_DIR$/EDG/misc/misc.iml" filepath="$PROJECT_DIR$/EDG/misc/misc.iml" />
+    </modules>
+  </component>
+</project>
