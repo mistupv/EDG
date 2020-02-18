@@ -1,7 +1,5 @@
 package edg.constraint;
 
-import edg.constraint.SeekingConstraint.Operation;
-
 public class GlobalVariableConstraint extends SeekingConstraint
 {
 	private final String variableName;
@@ -49,9 +47,7 @@ public class GlobalVariableConstraint extends SeekingConstraint
 
 		if (!super.letThrough(gvConstraint))
 			return false;
-		if (!this.variableName.equals(gvConstraint.variableName) && !gvConstraint.variableName.equals("*"))
-			return false;
-		return true;
+		return this.variableName.equals(gvConstraint.variableName) || gvConstraint.variableName.equals("*");
 	}
 
 	public boolean equals(Object object)
@@ -65,9 +61,7 @@ public class GlobalVariableConstraint extends SeekingConstraint
 
 		if (!super.equals(constraint))
 			return false;
-		if (!this.variableName.equals(constraint.variableName))
-			return false;
-		return true;
+		return this.variableName.equals(constraint.variableName);
 	}
 	public String toString()
 	{

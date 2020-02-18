@@ -1,13 +1,11 @@
 package edg.graph;
 
+import edg.constraint.AsteriskConstraint;
 import edg.constraint.EdgeConstraint;
 import edg.constraint.EmptyConstraint;
-import edg.constraint.AsteriskConstraint;
 
-public class EdgeInfo
-{
-	public static enum Type
-	{
+public class EdgeInfo {
+	public enum Type {
 		ControlFlow,
 		Structural, Control,
 		Value, Flow,
@@ -52,8 +50,6 @@ public class EdgeInfo
 			return true;
 		if (this.constraint == null || edgeInfo.constraint == null)
 			return false;
-		if (!this.constraint.equals(edgeInfo.constraint))
-			return false;
-		return true;
+		return this.constraint.equals(edgeInfo.constraint);
 	}
 }

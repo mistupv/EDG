@@ -26,24 +26,26 @@ import java.util.List;
 
 /**
  * A named graph vertex with optional data.
- * 
+ *
  * @author Scott.Stark@jboss.org
  * @version $Revision$
  * @param <T, S>
  */
 public class Vertex<T, S> {
-  private List<Arrow<T, S>> incomingEdges;
+	private List<Arrow<T, S>> incomingEdges;
+	private List<Arrow<T, S>> outgoingEdges;
 
-  private List<Arrow<T, S>> outgoingEdges;
+	private List<Arrow<T, S>> incomingStructural;
+	private List<Arrow<T, S>> outgoingStructural;
 
-//  private String name;
-  protected String name;
+	//  private String name;
+	protected String name;
 
-  private boolean mark;
+	private boolean mark;
 
-  private int markState;
+	private int markState;
 
-  private T data;
+	private T data;
 
   /**
    * Calls this(null, null).
@@ -70,9 +72,11 @@ public class Vertex<T, S> {
    *          data associated with vertex
    */
   public Vertex(String n, T data) {
-    incomingEdges = new ArrayList<Arrow<T, S>>();
-    outgoingEdges = new ArrayList<Arrow<T, S>>();
-    name = n;
+	  incomingEdges = new ArrayList<Arrow<T, S>>();
+	  incomingStructural = new ArrayList<Arrow<T, S>>();
+	  outgoingEdges = new ArrayList<Arrow<T, S>>();
+	  outgoingStructural = new ArrayList<Arrow<T, S>>();
+	  name = n;
     mark = false;
     this.data = data;
   }
@@ -108,25 +112,37 @@ public class Vertex<T, S> {
    *          the edge to add
    * @return true if the edge was added, false otherwise
    */
-  public boolean addEdge(Arrow<T, S> e) {
-    if (e.getFrom() == this)
-      outgoingEdges.add(e);
-    else if (e.getTo() == this)
-      incomingEdges.add(e);
-    else
-      return false;
-    return true;
+  public boolean addEdge(Arrow<T, S> e)
+  {
+	  if (e.getFrom() == this)
+		  outgoingEdges.add(e);
+	  else if (e.getTo() == this)
+		  incomingEdges.add(e);
+	  else
+		  return false;
+	  return true;
   }
 
-  /**
-   * Add an outgoing edge ending at to.
-   * 
-   * @param to -
-   *          the destination vertex
-   * @param cost
-   *          the edge cost
-   */
-  public void addOutgoingEdge(Vertex<T, S> to, int cost) {
+	public boolean addStructural(Arrow<T, S> e)
+	{
+		if (e.getFrom() == this)
+			outgoingStructural.add(e);
+		else if (e.getTo() == this)
+			incomingStructural.add(e);
+		else
+			return false;
+		return true;
+	}
+
+	/**
+	 * Add an outgoing edge ending at to.
+	 *
+	 * @param to   -
+	 *             the destination vertex
+	 * @param cost the edge cost
+	 */
+	public void addOutgoingEdge(Vertex<T, S> to, int cost)
+	{
     Arrow<T, S> out = new Arrow<T, S>(this, to, cost);
     outgoingEdges.add(out);
   }
@@ -197,24 +213,30 @@ public class Vertex<T, S> {
     return incomingEdges.get(i);
   }
 
-  /**
-   * Get the incoming edges
-   * 
-   * @return incoming edge list
-   */
-  public List<Arrow<T, S>> getIncomingArrows() {
-    return this.incomingEdges;
-  }
+	/**
+	 * Get the incoming edges
+	 *
+	 * @return incoming edge list
+	 */
+	public List<Arrow<T, S>> getIncomingArrows()
+	{
+		return this.incomingEdges;
+	}
 
-  /**
-   * 
-   * @return the count of incoming edges
-   */
-  public int getOutgoingEdgeCount() {
-    return outgoingEdges.size();
-  }
+	public List<Arrow<T, S>> getIncomingStructuralArrows()
+	{
+		return this.incomingStructural;
+	}
 
-  /**
+	/**
+	 * @return the count of incoming edges
+	 */
+	public int getOutgoingEdgeCount()
+	{
+		return outgoingEdges.size();
+	}
+
+	/**
    * Get the ith outgoing edge
    * 
    * @param i
@@ -225,30 +247,36 @@ public class Vertex<T, S> {
     return outgoingEdges.get(i);
   }
 
-  /**
-   * Get the outgoing edges
-   * 
-   * @return outgoing edge list
-   */
-  public List<Arrow<T, S>> getOutgoingArrows() {
-    return this.outgoingEdges;
-  }
+	/**
+	 * Get the outgoing edges
+	 *
+	 * @return outgoing edge list
+	 */
+	public List<Arrow<T, S>> getOutgoingArrows()
+	{
+		return this.outgoingEdges;
+	}
 
-  /**
-   * Search the outgoing edges looking for edges whose's edge.to == dest.
-   * 
-   * @param dest
-   *          the destination
-   * @return the outgoing edges going to dest if one exists, empty list otherwise.
-   */
-  public List<Arrow<T, S>> findEdges(Vertex<T, S> dest) {
-    List<Arrow<T, S>> edges = new ArrayList<Arrow<T, S>>();
-    for (Arrow<T, S> e : outgoingEdges) {
-      if (e.getTo() == dest)
-        edges.add(e);
-    }
-    return edges;
-  }
+	public List<Arrow<T, S>> getOutgoingStructuralArrows()
+	{
+		return this.outgoingStructural;
+	}
+
+	/**
+	 * Search the outgoing edges looking for edges whose's edge.to == dest.
+	 *
+	 * @param dest the destination
+	 * @return the outgoing edges going to dest if one exists, empty list otherwise.
+	 */
+	public List<Arrow<T, S>> findEdges(Vertex<T, S> dest)
+	{
+		List<Arrow<T, S>> edges = new ArrayList<Arrow<T, S>>();
+		for (Arrow<T, S> e : outgoingEdges) {
+			if (e.getTo() == dest)
+				edges.add(e);
+		}
+		return edges;
+	}
 
   /**
    * Search the outgoing edges for a match to e.

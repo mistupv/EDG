@@ -1,35 +1,30 @@
 package edg;
 
+import edg.graph.*;
+import edg.traverser.LASTTraverser;
+
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 
-import edg.edge.EdgeGenerator;
-import edg.graph.EdgeInfo;
-import edg.graph.LAST;
-import edg.graph.Node;
-import edg.graph.NodeInfo;
-import edg.graph.VariableInfo;
-import edg.traverser.LASTTraverser;
-
 // TODO Caracteristicas de los lenguajes: single assignment, orden metodos y atributos, bloque aisla contextos
 // TODO Hay que crear las siguientes expresiones: compound pattern
-public class LASTBuilder
-{
-	public static int nextId = 0;
-	
-	public static enum Where { ParameterIn, Parameters, ParameterOut, ArgumentIn, Arguments, ArgumentOut, Guard, Scope, Name, Body, Condition, Then, Else, Selector, Cases, Selectable, Restrictions, Value,
-		Init, Update, Try, Catch, Finally, Throw, Reference, Iterator 
-		}
+public class LASTBuilder {
+    public static int nextId = 0;
 
-	// LAST
-	public static LAST createLAST(LDASTNodeInfo info)
-	{
-		LASTBuilder.nextId = 0;
+    public enum Where {
+        ParameterIn, Parameters, ParameterOut, ArgumentIn, Arguments, ArgumentOut, Guard, Scope, Name, Body, Condition, Then, Else, Selector, Cases, Selectable, Restrictions, Value,
+        Init, Update, Try, Catch, Finally, Throw, Reference, Iterator
+    }
 
-		final LAST last = new LAST();
-		final NodeInfo rootNodeInfo = new NodeInfo(LASTBuilder.nextId++, NodeInfo.Type.Root, "LAST", info);
+    // LAST
+    public static LAST createLAST(LDASTNodeInfo info)
+    {
+        LASTBuilder.nextId = 0;
+
+        final LAST last = new LAST();
+        final NodeInfo rootNodeInfo = new NodeInfo(LASTBuilder.nextId++, NodeInfo.Type.Root, "LAST", info);
 		final Node rootNode = new Node("LAST", rootNodeInfo);
 
 		last.setRootNode(rootNode);
@@ -548,12 +543,6 @@ public class LASTBuilder
 	{
 		final Node child = LASTTraverser.getChild(node, 0);
 		final NodeInfo.Type childType = child.getData().getType();
-
-		switch (childType)
-		{
-			default:
-				break;
-		}
 	}
 
 	// Add class inheritance information
@@ -968,63 +957,57 @@ public class LASTBuilder
 				final Node firstSibling = LASTTraverser.getChild(parent, 0);
 				final NodeInfo.Type siblingType = firstSibling.getData().getType();
 				switch(siblingType)
-				{
-					case Variable:
-					case Literal:
-					case DataConstructorAccess:
-					case DataConstructor:
-					case Operation:
-						if (isVariable)
-							return new VariableInfo(LASTBuilder.nextId++, parent.getData().getSDGId(), type, name, info);
-						return new NodeInfo(LASTBuilder.nextId++, parent.getData().getSDGId(), type, name, info);
-					default:	
-						return new NodeInfo(LASTBuilder.nextId++, type, name, info);
-				}
+                {
+                    case Variable:
+                    case Literal:
+                    case DataConstructorAccess:
+                    case DataConstructor:
+                    case Operation:
+                        if (isVariable)
+                            return new VariableInfo(LASTBuilder.nextId++, type, name, info);
+                        return new NodeInfo(LASTBuilder.nextId++, type, name, info);
+                    default:
+                        return new NodeInfo(LASTBuilder.nextId++, type, name, info);
+                }
 			case DefaultCase:
-				
-				final List<Node> children = LASTTraverser.getChildren(parent);
-				if (children.size() == 1)
-					return new NodeInfo(LASTBuilder.nextId++, parent.getData().getSDGId(), type, name, info);
-				
-				final Node lastChild = children.get(children.size() - 1);
-				if (lastChild.getData().getType() != NodeInfo.Type.DefaultCase)
-					return new NodeInfo(LASTBuilder.nextId++, lastChild.getData().getSDGId(), type, name, info);
-				
-				final Node penultimateChild = children.get(children.size() - 2);
-				return new NodeInfo(LASTBuilder.nextId++, penultimateChild.getData().getSDGId(), type, name, info);
-				
-			case Expression:
-				switch(parentType)
-				{
-					case Parameters:
-						final Node grandParent = LASTTraverser.getParent(parent);
-						if (grandParent.getData().getType() == NodeInfo.Type.CatchClause)
-							return new NodeInfo(LASTBuilder.nextId++, parent.getData().getSDGId(), type, name, info);
-					case Arguments:
-					case Body:
+
+                final List<Node> children = LASTTraverser.getChildren(parent);
+                if (children.size() == 1)
+                    return new NodeInfo(LASTBuilder.nextId++, type, name, info);
+
+                final Node lastChild = children.get(children.size() - 1);
+                if (lastChild.getData().getType() != NodeInfo.Type.DefaultCase)
+                    return new NodeInfo(LASTBuilder.nextId++, type, name, info);
+
+                final Node penultimateChild = children.get(children.size() - 2);
+                return new NodeInfo(LASTBuilder.nextId++, type, name, info);
+
+            case Expression:
+                switch (parentType)
+                {
+                    case Parameters:
+                        final Node grandParent = LASTTraverser.getParent(parent);
+                        if (grandParent.getData().getType() == NodeInfo.Type.CatchClause)
+                            return new NodeInfo(LASTBuilder.nextId++, type, name, info);
+                    case Arguments:
+                    case Body:
 					case Block:
 					case Module:
-					case Init:
-					case Update:
-					case Try:
-					case Finally:
-						return new NodeInfo(LASTBuilder.nextId++, type, name, info);
-					default: 
-						break;
-				}
-			default:	
-				if (isVariable)
-					return new VariableInfo(LASTBuilder.nextId++, parent.getData().getSDGId(), type, name, info);
-				return new NodeInfo(LASTBuilder.nextId++, parent.getData().getSDGId(), type, name, info);
-		}
+                    case Init:
+                    case Update:
+                    case Try:
+                    case Finally:
+                        return new NodeInfo(LASTBuilder.nextId++, type, name, info);
+                    default:
+                        break;
+                }
+            default:
+                if (isVariable)
+                    return new VariableInfo(LASTBuilder.nextId++, type, name, info);
+                return new NodeInfo(LASTBuilder.nextId++, type, name, info);
+        }
 	}
 
-	// Dependencies
-	public static void generateDependencies(LAST last)
-	{
-		EdgeGenerator.generateEdges(last);
-	}
-	
 	public static class ClassInfo
 	{
 		private Map<String, List<Node>> methods;

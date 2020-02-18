@@ -1,17 +1,11 @@
 package edg.work;
 
-import java.util.Collection;
-import java.util.HashSet;
-import java.util.Hashtable;
-import java.util.Iterator;
-import java.util.Map;
-import java.util.Map.Entry;
-import java.util.Set;
-
 import edg.graph.Node;
 
-public class WorkList
-{
+import java.util.*;
+import java.util.Map.Entry;
+
+public class WorkList {
 	private final Map<String, Set<Work>> doneWorks = new Hashtable<String, Set<Work>>();
 	private final Map<String, Set<Work>> pendingWorks = new Hashtable<String, Set<Work>>();
 
@@ -162,9 +156,6 @@ public class WorkList
 			return true;
 
 		final Set<Work> pendingWorks = this.getPendingWorks(key);
-		if (pendingWorks != null && pendingWorks.contains(work))
-			return true;
-
-		return false;
+		return pendingWorks != null && pendingWorks.contains(work);
 	}	
 }

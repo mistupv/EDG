@@ -1,14 +1,13 @@
 package edg.constraint;
 
-import java.util.LinkedList;
-import java.util.List;
-
 import edg.graph.Edge;
 import edg.graph.EdgeInfo;
 import edg.slicing.Phase;
 
-public class IgnoreEdgeConstraint extends NodeConstraint
-{
+import java.util.LinkedList;
+import java.util.List;
+
+public class IgnoreEdgeConstraint extends NodeConstraint {
 	private final List<EdgeInfo.Type> types = new LinkedList<EdgeInfo.Type>();
 
 	public IgnoreEdgeConstraint(EdgeInfo.Type type, EdgeInfo.Type... types)
@@ -32,9 +31,7 @@ public class IgnoreEdgeConstraint extends NodeConstraint
 
 		final IgnoreEdgeConstraint constraint = (IgnoreEdgeConstraint) object;
 
-		if (!this.types.equals(constraint.types))
-			return false;
-		return true;
+		return this.types.equals(constraint.types);
 	}
 	public String toString()
 	{

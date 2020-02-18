@@ -1,17 +1,17 @@
 package edg.constraint;
 
-import java.util.List;
-
 import edg.graph.Edge;
 import edg.graph.Node;
 import edg.graph.NodeInfo;
 import edg.slicing.Phase;
 import edg.traverser.EDGTraverser;
 
-public abstract class SeekingConstraint extends EdgeConstraint
-{
-	public enum Operation { Add, LetThrough, Remove }
-	public enum CompositeType { GlobalVariable, Exception }
+import java.util.List;
+
+public abstract class SeekingConstraint extends EdgeConstraint {
+	public enum Operation {Add, LetThrough, Remove}
+
+	public enum CompositeType {GlobalVariable, Exception}
 
 	protected final Operation operation;
 	protected final CompositeType compositeType;
@@ -44,9 +44,7 @@ public abstract class SeekingConstraint extends EdgeConstraint
 			return false;
 		if (constraint.operation != Operation.Add && constraint.operation != Operation.LetThrough)
 			return false;
-		if (this.compositeType != constraint.compositeType)
-			return false;
-		return true;
+		return this.compositeType == constraint.compositeType;
 	}
 
 	public boolean equals(Object object)
@@ -60,9 +58,7 @@ public abstract class SeekingConstraint extends EdgeConstraint
 
 		if (this.operation != constraint.operation)
 			return false;
-		if (this.compositeType != constraint.compositeType)
-			return false;
-		return true;
+		return this.compositeType == constraint.compositeType;
 	}
 	public String toString()
 	{

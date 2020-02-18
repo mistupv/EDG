@@ -1,17 +1,12 @@
 package edg.graph;
 
-import java.util.Comparator;
-import java.util.LinkedList;
-import java.util.List;
-
-import edg.LDASTNodeInfo;
-import edg.constraint.Constraints;
-import edg.constraint.GrammarConstraint;
 import edg.graphlib.Arrow;
 import edg.graphlib.Graph;
 import edg.graphlib.Vertex;
-import edg.slicing.SlicingCriterion;
-import edg.traverser.EDGTraverser;
+
+import java.util.Comparator;
+import java.util.LinkedList;
+import java.util.List;
 
 public class LAST
 {
@@ -58,47 +53,60 @@ public class LAST
 	{
 		final Edge e = new Edge(from, to, cost, data);
 
+		if (data.getType() == EdgeInfo.Type.Structural)
+			this.graph.addEdgeAndStructural(e);
 		return this.graph.addEdge(e);
 	}
+
 	public boolean addEdge(Edge e)
 	{
 		return this.graph.addEdge(e);
 	}
-	
-	public boolean removeEdge(Node from, Node to, EdgeInfo.Type edgeType)
+
+	public boolean addStructuralEdge(Node from, Node to)
+	{
+		return this.graph.addStructural(new Edge(from, to, 0, new EdgeInfo(EdgeInfo.Type.Structural)));
+	}
+
+	public boolean removeEDGEdge(Node from, Node to, EdgeInfo.Type edgeType)
 	{
 		final List<Edge> incomingEdges = to.getIncomingEdges();
 		incomingEdges.removeIf(edge -> edge.getData().getType() != edgeType);
-		
+
 		if (incomingEdges.isEmpty())
 			return false;
-		
-		for(Edge edge : incomingEdges)
-			this.graph.removeEdge(edge, from, to);
-		
+
+		for (Edge edge : incomingEdges)
+			this.graph.removeEDGEdge(edge, from, to);
+
 		return true;
 	}
+
 	public boolean removeEdge(Edge edge)
-	{			
+	{
 		return this.graph.removeEdge(edge, edge.getFrom(), edge.getTo());
 	}
 
 	public void setRemovableEdge(Node from, Node to, EdgeInfo.Type edgeType)
 	{
-		final List<Edge> incomingEdges = to.getIncomingEdges();
+		final List<Edge> incomingEdges = to.getIncomingStructuralEdges();
 		incomingEdges.removeIf(edge -> edge.getData().getType() != edgeType);
 
 		if (!incomingEdges.isEmpty())
-			for(Edge edge : incomingEdges)
+			for (Edge edge : incomingEdges)
 				if (edge.getFrom().equals(from))
+				{
+					from.getOutgoingEdges().remove(edge);
+					to.getIncomingEdges().remove(edge);
 					edge.mark();
+				}
 	}
 
 	public boolean updateToEdge(Node from, Node to, EdgeInfo.Type edgeType, Node newTo)
 	{
 		final List<Edge> incomingEdges = to.getIncomingEdges();
 		incomingEdges.removeIf(edge -> edge.getData().getType() != edgeType);
-		
+
 		if (incomingEdges.isEmpty())
 			return false;
 		

@@ -32,8 +32,6 @@ public class EdgeWork extends Work
 
 		if (!super.equals(edgeWork))
 			return false;
-		if (this.currentEdge != edgeWork.currentEdge)
-			return false;
-		return true;
+		return this.currentEdge == edgeWork.currentEdge;
 	}
 }

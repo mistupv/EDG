@@ -1,12 +1,11 @@
 package edg.constraint;
 
-import java.util.List;
-
 import edg.graph.Edge;
 import edg.slicing.Phase;
 
-public class AddNodeConstraint extends EdgeConstraint
-{
+import java.util.List;
+
+public class AddNodeConstraint extends EdgeConstraint {
 	private final NodeConstraint nodeConstraint;
 
 	public AddNodeConstraint(NodeConstraint nodeConstraint)
@@ -23,9 +22,7 @@ public class AddNodeConstraint extends EdgeConstraint
 
 		final AddNodeConstraint constraint = (AddNodeConstraint) object;
 
-		if (!this.nodeConstraint.equals(constraint.nodeConstraint))
-			return false;
-		return true;
+		return this.nodeConstraint.equals(constraint.nodeConstraint);
 	}
 	public String toString()
 	{

@@ -4,9 +4,8 @@ import java.util.HashSet;
 import java.util.Set;
 import java.util.Stack;
 
-public class Constraints
-{
-	public static enum Type { Node, Edge }
+public class Constraints {
+	public enum Type {Node, Edge}
 
 	protected final Set<NodeConstraint> nodeConstraints = new HashSet<NodeConstraint>();
 	protected final Stack<EdgeConstraint> edgeConstraints = new Stack<EdgeConstraint>();
@@ -15,6 +14,7 @@ public class Constraints
 	{
 		return this.nodeConstraints;
 	}
+
 	public void clearNodeConstraints()
 	{
 		this.nodeConstraints.clear();
@@ -74,10 +74,7 @@ public class Constraints
 			return false;
 		if (!this.nodeConstraints.equals(constraints.nodeConstraints))
 			return false;
-		if (!this.edgeConstraints.equals(constraints.edgeConstraints))
-			return false;
-
-		return true;
+		return this.edgeConstraints.equals(constraints.edgeConstraints);
 	}
 	public int hashCode()
 	{

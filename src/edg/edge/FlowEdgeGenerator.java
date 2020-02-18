@@ -1,40 +1,18 @@
 package edg.edge;
 
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Map;
+import edg.LASTBuilder.ClassInfo;
+import edg.constraint.*;
+import edg.graph.*;
+import edg.graph.VariableInfo.Context;
+import edg.traverser.ControlFlowTraverser;
+import edg.traverser.ControlFlowTraverser.NodeWork;
+import edg.traverser.EDGTraverser;
+import edg.traverser.LASTTraverser.Direction;
+
+import java.util.*;
 import java.util.Map.Entry;
-import java.util.Set;
-import java.util.StringTokenizer;
 import java.util.function.Function;
 import java.util.function.Predicate;
-
-import edg.constraint.AccessConstraint;
-import edg.constraint.AddNodeConstraint;
-import edg.constraint.Constraints;
-import edg.constraint.DataConstructorConstraint;
-import edg.constraint.EdgeConstraint;
-import edg.constraint.GlobalVariableConstraint;
-import edg.constraint.GrammarConstraint;
-import edg.constraint.IgnoreEdgeConstraint;
-import edg.constraint.NodeConstraint;
-import edg.constraint.PhaseConstraint;
-import edg.constraint.SeekingConstraint;
-import edg.graph.EDG;
-import edg.graph.Edge;
-import edg.graph.EdgeInfo;
-import edg.graph.Node;
-import edg.graph.NodeInfo;
-import edg.graph.VariableInfo;
-import edg.graph.VariableInfo.Context;
-import edg.slicing.Phase;
-import edg.traverser.ControlFlowTraverser;
-import edg.traverser.EDGTraverser;
-import edg.traverser.EDGTraverser.Direction;
-import edg.traverser.ControlFlowTraverser.NodeWork;
-import edg.ASTBuilder.ClassInfo;
 
 public class FlowEdgeGenerator extends EdgeGenerator
 {	
@@ -72,9 +50,7 @@ public class FlowEdgeGenerator extends EdgeGenerator
 				return false;
 			if (!this.uses.equals(state.uses))
 				return false;
-			if (!this.definitions.equals(state.definitions))
-				return false;
-			return true;
+			return this.definitions.equals(state.definitions);
 		}
 		public int hashCode()
 		{
@@ -120,9 +96,7 @@ public class FlowEdgeGenerator extends EdgeGenerator
 
 			final VariableId variableId = (VariableId) o;
 
-			if (!this.variableId.equals(variableId.variableId))
-				return false;
-			return true;
+			return this.variableId.equals(variableId.variableId);
 		}
 		public int hashCode()
 		{
@@ -253,8 +227,8 @@ public class FlowEdgeGenerator extends EdgeGenerator
 		while (!workList.isEmpty())
 		{
 			final Node clause = workList.remove(0);
-			final Node parametersNode = EDGTraverser.getChild(clause, 0);
-			final Node clauseResult = EDGTraverser.getChild(clause, 3);
+			final Node parametersNode = EDGTraverser.getChild(clause, NodeInfo.Type.ParameterIn);
+			final Node clauseResult = EDGTraverser.getChild(clause, NodeInfo.Type.Result);
 			final List<Node> callResults = EDGTraverser.getOutputs(clauseResult, EDGTraverser.Direction.Forwards);
 
 			final Function<NodeWork<State>, Set<NodeWork<State>>> newStates = new Function<NodeWork<State>, Set<NodeWork<State>>>() {
@@ -336,21 +310,23 @@ public class FlowEdgeGenerator extends EdgeGenerator
 		final EdgeConstraint ignoreConstraint = new AddNodeConstraint(nodeConstraint); // Constraint usada para las declaraciones
 		
 		for (Variable definitionVariable : definitionNodes)
-		{	
+		{
 			final VariableId variableId = definitionVariable.variableId;
-			final Node definitionNode = definitionVariable.node;			
-			
-			final boolean isDefinitionParameters = definitionNode.getData().getType() == NodeInfo.Type.Parameters;
-			final boolean isDefinitionCall = !isDefinitionParameters && EDGTraverser.getSibling(definitionNode, 0).getData().getType() == NodeInfo.Type.Call;
+			final Node definitionNode = definitionVariable.node;
+
+			final boolean isDefinitionParameters = definitionNode.getData().getType() == NodeInfo.Type.ParameterIn;
+			final boolean isDefinitionCall = !isDefinitionParameters &&
+											 EDGTraverser.getSibling(definitionNode, 0).getData().getType() ==
+											 NodeInfo.Type.Call;
 			final boolean isDefinitionVariable = !isDefinitionParameters && !isDefinitionCall;
-		
+
 			final Node definitionResultNode;
 			if (isDefinitionCall)
 			{
 				definitionResultNode = getArgumentOutNode(definitionNode);
-				
+
 // TODO ESTE TRATAMIENTO NO DEBE HACERSE AQUI, YA QUE ESTA CLASE ES COMUN A TODOS LOS SLICERS E INDEPENDIENTE DEL LENGUAJE
-				final Node callNode = EDGTraverser.getSibling(definitionNode,0);
+				final Node callNode = EDGTraverser.getSibling(definitionNode, 0);
 				final Node calleeNode = EDGTraverser.getChild(callNode,0);
 				final Node nameNode = EDGTraverser.getChild(calleeNode, 1);
 				final Node nameChild = EDGTraverser.getChild(nameNode, 0);
@@ -364,9 +340,12 @@ public class FlowEdgeGenerator extends EdgeGenerator
 			}
 			else
 			{
-				final Node definitionResultNode0 = EDGTraverser.getResult(definitionNode); 
-				final Node definitionResultNode1 = definitionResultNode0 == null ? definitionNode : definitionResultNode0;
-				definitionResultNode = definitionResultNode1.getData().getType() == NodeInfo.Type.Expression ? EDGTraverser.getResult(definitionResultNode1) : definitionResultNode1;
+				final Node definitionResultNode0 = EDGTraverser.getResult(definitionNode);
+				final Node definitionResultNode1 =
+						definitionResultNode0 == null ? definitionNode : definitionResultNode0;
+				definitionResultNode =
+						definitionResultNode1.getData().getType() == NodeInfo.Type.Expression ? EDGTraverser
+								.getResult(definitionResultNode1) : definitionResultNode1;
 			}
 			
 			final GlobalVariableConstraint addConstraint = new GlobalVariableConstraint(SeekingConstraint.Operation.Add, variableId.toString());
@@ -381,13 +360,15 @@ if (declarationNode == null) // Do not link variables not explicitly defined, th
 			final boolean isGlobalVariable = declarationNode != null && declarationNode.getData() instanceof VariableInfo && ((VariableInfo) declarationNode.getData()).isGlobal();
 			
 			// Declaration edges
-			if (declarationNode != null && declarationNode != definitionNode) 
+			if (declarationNode != null && declarationNode != definitionNode)
 				if (isDefinitionParameters)
-					this.edg.addEdge(declarationNode, definitionNode, 0, new EdgeInfo(EdgeInfo.Type.Input, letThroughConstraint));
+					this.edg.addEdge(declarationNode, definitionNode, 0,
+									 new EdgeInfo(EdgeInfo.Type.Flow, letThroughConstraint));
 				else if (isDefinitionVariable)
 				{
 					final Node definitionName = EDGTraverser.getSibling(definitionResultNode, 0);
-					this.edg.addEdge(declarationNode, definitionName, 0, new EdgeInfo(EdgeInfo.Type.Flow, ignoreConstraint));
+					this.edg.addEdge(declarationNode, definitionName, 0,
+									 new EdgeInfo(EdgeInfo.Type.Flow, ignoreConstraint));
 				}
 			
 /* 
@@ -420,77 +401,51 @@ if (declarationNode != null && declarationNode != definitionNode)
 				// INSIDE FUNCTIONS, GLOBALS & LOCALS
 				if(isDefinitionVariable && isUseVariable)
 				{
-					final Node sibling = EDGTraverser.getSibling(useNode1, 0);
-					if (sibling.getData().getType() == NodeInfo.Type.DataConstructorAccess) 
+					final Node sibling = EDGTraverser.getNodeFromRes(useNode1);
+					if (sibling.getData().getType() == NodeInfo.Type.DataConstructorAccess)
 					{
 						final Node variableIndex = variableId.getVariableIndex();
-						final Node index = EDGTraverser.getChild(EDGTraverser.getChild(sibling,1),0);
+						final Node index = EDGTraverser.getChild(sibling, NodeInfo.Type.Variable);
 						if (index.getData().getType() == NodeInfo.Type.Literal && variableIndex == null)
 						{
 							final String indexValue = index.getData().getName();
-							final EdgeConstraint dataConstructorConstraint = new DataConstructorConstraint(AccessConstraint.Operation.Add, indexValue);
-							this.edg.addEdge(definitionResultNode, useNode1, 0, new EdgeInfo(EdgeInfo.Type.Flow, dataConstructorConstraint));
-						}
-						else
-							this.edg.addEdge(definitionResultNode, useNode1, 0, new EdgeInfo(EdgeInfo.Type.Flow));	
+							final EdgeConstraint dataConstructorConstraint = new DataConstructorConstraint(
+									AccessConstraint.Operation.Add, indexValue);
+							this.edg.addEdge(definitionResultNode, useNode1, 0,
+											 new EdgeInfo(EdgeInfo.Type.Flow, dataConstructorConstraint));
+						} else
+							this.edg.addEdge(definitionResultNode, useNode1, 0, new EdgeInfo(EdgeInfo.Type.Flow));
 					}
 					else
 						this.edg.addEdge(definitionResultNode, useNode1, 0, new EdgeInfo(EdgeInfo.Type.Flow));
 				}
 				
-				
 				// ONLY GLOBALS
 				if (isGlobalVariable && definitionResultNode != useNode)
 				{
-// 					EDGES DEFINED CASE BY CASE:
-//					
-//					// EXPLICIT DEFINITION
-//					if (isDefinitionVariable && isUseCall) // La definición global escapa a la funcion (sale sin ser usada (lastNode) o se usa en otra llamada (useCall))
-//					{	
-//						this.edg.addEdge(useNode1, EDGTraverser.getResult(useNode), 0, new EdgeInfo(EdgeInfo.Type.Flow, addConstraint));
-//						this.edg.addEdge(definitionResultNode, useNode1, 0, new EdgeInfo(EdgeInfo.Type.Flow, removeConstraint));
-//					}
-//					else if (isDefinitionVariable && isUseLastNode)
-//						this.edg.addEdge(definitionResultNode, parametersNode, 0, new EdgeInfo(EdgeInfo.Type.Flow, removeConstraint));
-//					
-//					// PARAMETERS DEFINITION
-//					else if (isDefinitionParameters && isUseVariable) // Usos explicitos +GVname en los arcos 
-//						this.edg.addEdge(definitionNode, useNode1, 0, new EdgeInfo(EdgeInfo.Type.Flow, addConstraint));
-//					else if (isDefinitionParameters && isUseCall) 
-//					{	
-//						this.edg.addEdge(useNode1, EDGTraverser.getResult(useNode), 0, new EdgeInfo(EdgeInfo.Type.Flow, addConstraint));
-//						this.edg.addEdge(definitionNode, useNode1, 0, new EdgeInfo(EdgeInfo.Type.Flow, letThroughConstraint));
-//					}
-//					
-//					// CALL DEFINITION
-//					else if (isDefinitionCall && isUseVariable) 
-//						this.edg.addEdge(definitionResultNode, useNode1, 0, new EdgeInfo(EdgeInfo.Type.Flow, addConstraint));
-//					else if (isDefinitionCall && isUseCall) 
-//					{	
-//						this.edg.addEdge(useNode1, EDGTraverser.getResult(useNode), 0, new EdgeInfo(EdgeInfo.Type.Flow, addConstraint));
-//						this.edg.addEdge(definitionResultNode, useNode1, 0, new EdgeInfo(EdgeInfo.Type.Flow, letThroughConstraint));
-//					}
-//					else if (isDefinitionCall && isUseLastNode)
-//						this.edg.addEdge(definitionResultNode, parametersNode, 0, new EdgeInfo(EdgeInfo.Type.Flow, letThroughConstraint));
-//					
-					// EDGES GROUPED IN COMMON PERFORMANCE:
 					if (isUseCall)
-					{	
-						this.edg.addEdge(useNode1, EDGTraverser.getResult(useNode), 0, new EdgeInfo(EdgeInfo.Type.Flow, addConstraint));
+					{    // useNode1 is node argumentIn
+						this.edg.addEdge(useNode1, EDGTraverser.getResult(useNode), 0,
+										 new EdgeInfo(EdgeInfo.Type.Flow, addConstraint));
 						if (isDefinitionVariable)
-							this.edg.addEdge(definitionResultNode, useNode1, 0, new EdgeInfo(EdgeInfo.Type.Flow, removeConstraint));
+							this.edg.addEdge(definitionResultNode, useNode1, 0,
+											 new EdgeInfo(EdgeInfo.Type.Flow, removeConstraint));
 						else if (isDefinitionParameters)
-							this.edg.addEdge(definitionNode, useNode1, 0, new EdgeInfo(EdgeInfo.Type.Flow, letThroughConstraint));
+							this.edg.addEdge(definitionNode, useNode1, 0,
+											 new EdgeInfo(EdgeInfo.Type.Flow, letThroughConstraint));
 						else
-							this.edg.addEdge(definitionResultNode, useNode1, 0, new EdgeInfo(EdgeInfo.Type.Flow, letThroughConstraint));
-					}
-					else if (isDefinitionParameters && isUseVariable)
+							this.edg.addEdge(definitionResultNode, useNode1, 0,
+											 new EdgeInfo(EdgeInfo.Type.Flow, letThroughConstraint));
+					} else if (isDefinitionParameters && isUseVariable)
 					{
 						final List<Edge> calleeResults = EDGTraverser.getEdges(EDGTraverser.getParent(definitionNode), Direction.Backwards, EdgeInfo.Type.Input);
 						for (Edge calleeResult : calleeResults)
 						{
-							final Node clauseArgsOutNode = EDGTraverser.getSibling(EDGTraverser.getParent(calleeResult.getFrom()),3);
-							this.edg.addEdge(clauseArgsOutNode, definitionResultNode, 0, new EdgeInfo(EdgeInfo.Type.Output, letThroughConstraint));
+							final Node clauseArgsInNode = EDGTraverser
+									.getSibling(EDGTraverser.getParent(calleeResult.getFrom()),
+												NodeInfo.Type.ArgumentIn);
+							this.edg.addEdge(clauseArgsInNode, definitionResultNode, 0,
+											 new EdgeInfo(EdgeInfo.Type.Input, letThroughConstraint));
 						}
 						this.edg.addEdge(definitionNode, useNode1, 0, new EdgeInfo(EdgeInfo.Type.Flow, addConstraint));
 					}
@@ -498,22 +453,42 @@ if (declarationNode != null && declarationNode != definitionNode)
 						this.edg.addEdge(definitionResultNode, useNode1, 0, new EdgeInfo(EdgeInfo.Type.Flow, addConstraint));
 					else if (isDefinitionVariable && isUseLastNode)
 					{
-						final Node parametersNode = isUseLastNode ? EDGTraverser.getSibling(useNode,0) : null; 
-						this.edg.addEdge(definitionResultNode, parametersNode, 0, new EdgeInfo(EdgeInfo.Type.Flow, removeConstraint));
+						final Node parameterOutNode = EDGTraverser.getSibling(useNode, NodeInfo.Type.ParameterOut);
+						this.edg.addEdge(definitionResultNode, parameterOutNode, 0,
+										 new EdgeInfo(EdgeInfo.Type.Flow, removeConstraint));
 						final Node routineNode = EDGTraverser.getAncestor(definitionNode, NodeInfo.Type.Routine);
 						final String routineName = routineNode.getData().getName();
 						if (routineName.equals("<constructor>"))
-							this.edg.addEdge(definitionResultNode, useNode, 0, new EdgeInfo(EdgeInfo.Type.Flow, removeConstraint));
+							this.edg.addEdge(definitionResultNode, useNode, 0,
+											 new EdgeInfo(EdgeInfo.Type.Flow, removeConstraint));
 					}
 					else if (isDefinitionCall && isUseLastNode)
 					{
-						final Node parametersNode = isUseLastNode ? EDGTraverser.getSibling(useNode,0) : null; 
-						this.edg.addEdge(definitionResultNode, parametersNode, 0, new EdgeInfo(EdgeInfo.Type.Flow, letThroughConstraint));
+						final Node parametersNode = EDGTraverser.getSibling(useNode, NodeInfo.Type.ParameterOut);
+						this.edg.addEdge(definitionResultNode, parametersNode, 0,
+										 new EdgeInfo(EdgeInfo.Type.Flow, letThroughConstraint));
 					}
 					
 					// ARCOS ESPECIALES PARA COMUNICAR FUNCIONES Y COGER DEFINICION DE LA DECLARACION SI PROCEDE
 					if (isDefinitionCall)
-						this.edg.addEdge(EDGTraverser.getResult(EDGTraverser.getSibling(definitionResultNode, 0)), definitionResultNode, 0, new EdgeInfo(EdgeInfo.Type.Flow, removeConstraint));
+					{
+						// definitionResultNode here is Definition call argsOut Node
+						final Node calleeDefCallResult = EDGTraverser
+								.getResult(EDGTraverser.getSibling(definitionResultNode, 0));
+						this.edg.addEdge(calleeDefCallResult, definitionResultNode, 0,
+										 new EdgeInfo(EdgeInfo.Type.Flow, removeConstraint));
+
+						final List<Edge> calledFunctionClauseEdges = EDGTraverser
+								.getEdges(calleeDefCallResult, Direction.Forwards, EdgeInfo.Type.Input);
+						for (Edge clauseEdge : calledFunctionClauseEdges)
+						{
+							final Node clauseParameterOut = EDGTraverser
+									.getChild(clauseEdge.getTo(), NodeInfo.Type.ParameterOut);
+							this.edg.addEdge(clauseParameterOut, definitionResultNode, 0,
+											 new EdgeInfo(EdgeInfo.Type.Output, letThroughConstraint));
+						}
+
+					}
 					
 					// Arcos para coger la definicion en la declaracion de la funcion si la hubiera 
 // TODO Discutir si habria que coger esta definición cuando haya llamadas a esta funcion
@@ -521,7 +496,8 @@ if (declarationNode != null && declarationNode != definitionNode)
 					{
 						final Node declarationResultNode = EDGTraverser.getResult(declarationNode);
 						if (declarationResultNode != null)
-							this.edg.addEdge(declarationResultNode, definitionNode, 0, new EdgeInfo(EdgeInfo.Type.Output, removeConstraint));
+							this.edg.addEdge(declarationResultNode, definitionNode, 0,
+											 new EdgeInfo(EdgeInfo.Type.Input, removeConstraint));
 					}
 				}
 			}
@@ -569,23 +545,21 @@ if (declarationNode != null && declarationNode != definitionNode)
 				if (!variableId.equals(variableId0))
 					return false;
 				final String clazz0 = variableInfo.getInfo().getClassName();
-				if (clazz0.equals(clazz))
-					return true;
-				return false;
+				return clazz0.equals(clazz);
 			}
 		};
-		final ControlFlowTraverser.Configuration configuration = new ControlFlowTraverser.Configuration(ControlFlowTraverser.Direction.Backwards, false, false, true, false, true);
+		final ControlFlowTraverser.Configuration configuration = new ControlFlowTraverser.Configuration(
+				ControlFlowTraverser.Direction.Backwards, false, false, true, false, true);
 		final Set<Node> declaration = ControlFlowTraverser.traverse(definitionNode, configuration, collectAndStop);
 		if (!declaration.isEmpty())
 			return declaration.iterator().next();
 
-		
-		
+
 		// Global Variable Declaration
 		// AQUI USAR LA INFO DEL NODO CLASE		
 		final String variableName = variableId.getVariableName();
-		//final Node moduleNode = EDGTraverser.getAncestor(definitionNode, NodeInfo.Type.Module);
-		
+		//final Node moduleNode = EDGTraverserNew.getAncestor(definitionNode, NodeInfo.Type.Module);
+
 		final Node moduleNode = EDGTraverser.getModuleByName(edg, clazz);
 		final ClassInfo info = (ClassInfo) moduleNode.getData().getInfo().getInfo()[2];
 		final Node variableDeclaration = info.getVariables().get(variableName);
@@ -609,33 +583,33 @@ if (declarationNode != null && declarationNode != definitionNode)
 		
 		for (Node definitionNode : definitionNodes)
 		{
-			final Node grandParent = EDGTraverser.getParent(EDGTraverser.getParent(definitionNode));
-			if (grandParent.getData().getType() == NodeInfo.Type.DataConstructorAccess || grandParent.getData().getType() == NodeInfo.Type.FieldAccess)
+			final Node parent = EDGTraverser.getParent(definitionNode);
+			if (parent.getData().getType() == NodeInfo.Type.DataConstructorAccess ||
+				parent.getData().getType() == NodeInfo.Type.FieldAccess)
 			{
-				final Node dataAccessResultNode = EDGTraverser.getSibling(grandParent,1);
-				final Node index = EDGTraverser.getChild(EDGTraverser.getChild(grandParent,1),0);
+				final Node dataAccessResultNode = EDGTraverser.getResFromNode(parent);
+				final Node index = EDGTraverser.getChild(parent, NodeInfo.Type.Index);
 				final VariableId variableId = new VariableId(definitionNode.getData().getName(), index);
 				definitions.add(new Variable(variableId, dataAccessResultNode));
-			}
-			else
+			} else
 			{
 				final VariableId variableId = this.getVariableId(definitionNode);
 				definitions.add(new Variable(variableId, definitionNode));
 			}
 		}
 
-//		final Node grandParent = EDGTraverser.getParent(EDGTraverser.getParent(definitionNode));
+//		final Node grandParent = EDGTraverserNew.getParent(EDGTraverserNew.getParent(definitionNode));
 //		final boolean isEqualityContext = grandParent.getData().getType() == NodeInfo.Type.Equality;
 //		if(isEqualityContext)
 //		{
-//			final Node rightHandNode = EDGTraverser.getChild(grandParent,1);
-//			final Node child = EDGTraverser.getChild(rightHandNode,1);
+//			final Node rightHandNode = EDGTraverserNew.getChild(grandParent,1);
+//			final Node child = EDGTraverserNew.getChild(rightHandNode,1);
 //			if (child.getData().getType() == NodeInfo.Type.DataConstructor)
 //			{
 //				
 //			}
 //		}
-		
+
 		// Call nodes
 		for (Entry<Node, Set<State>> entry : this.callMap.entrySet())
 		{
@@ -725,34 +699,34 @@ if (declarationNode != null && declarationNode != definitionNode)
 	{
 		final Node clauseNode = EDGTraverser.getAncestor(node, NodeInfo.Type.Clause);
 		if (clauseNode != null)
-			return EDGTraverser.getChild(clauseNode, 3);
+			return EDGTraverser.getChild(clauseNode, NodeInfo.Type.Result);
 		return EDGTraverser.getResult(node);
 	}
 	private Node getArgumentsNode(Node node)
 	{
 		final Node callNode = EDGTraverser.getSibling(node, 0);
-		return EDGTraverser.getChild(callNode, 1);
+		return EDGTraverser.getChild(callNode, NodeInfo.Type.Arguments);
 	}
 	private Node getArgumentInNode(Node node)
 	{
 		final Node callNode = EDGTraverser.getSibling(node, 0);
-		return EDGTraverser.getChild(callNode, 2);
+		return EDGTraverser.getChild(callNode, NodeInfo.Type.ArgumentIn);
 	}
 	private Node getArgumentOutNode(Node node)
 	{
 		final Node callNode = EDGTraverser.getSibling(node, 0);
-		return EDGTraverser.getChild(callNode, 3);
+		return EDGTraverser.getChild(callNode, NodeInfo.Type.ArgumentOut);
 	}
 	
 //	private Node getArgumentInNode(Node node)
 //	{
 //		final Node argumentsNode = getArgumentsNode(node);
-//		return EDGTraverser.getChild(argumentsNode, EDGTraverser.getChildren(argumentsNode).size() - 2);
+//		return EDGTraverserNew.getChild(argumentsNode, EDGTraverserNew.getChildren(argumentsNode).size() - 2);
 //	}
 //	private Node getArgumentOutNode(Node node)
 //	{
 //		final Node argumentsNode = getArgumentsNode(node);
-//		return EDGTraverser.getChild(argumentsNode, EDGTraverser.getChildren(argumentsNode).size() - 1);
+//		return EDGTraverserNew.getChild(argumentsNode, EDGTraverserNew.getChildren(argumentsNode).size() - 1);
 //	}
 	
 	

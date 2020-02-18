@@ -33,9 +33,7 @@ public class ListConstraint extends AccessConstraint
 
 		if (!super.equals(constraint))
 			return false;
-		if (this.position != constraint.position)
-			return false;
-		return true;
+		return this.position == constraint.position;
 	}
 	public String toString()
 	{

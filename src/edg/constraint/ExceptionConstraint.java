@@ -1,13 +1,5 @@
 package edg.constraint;
 
-import java.util.List;
-
-import edg.graph.Edge;
-import edg.graph.Node;
-import edg.graph.NodeInfo;
-import edg.slicing.Phase;
-import edg.traverser.EDGTraverser;
-
 public class ExceptionConstraint extends SeekingConstraint {
 
 	private String field;
@@ -33,9 +25,7 @@ public class ExceptionConstraint extends SeekingConstraint {
 
 		final ExceptionConstraint exConstraint = (ExceptionConstraint) constraint;
 
-		if (!super.letThrough(exConstraint))
-			return false;
-		return true;
+		return super.letThrough(exConstraint);
 	}
 
 	public boolean equals(Object object)
@@ -47,10 +37,7 @@ public class ExceptionConstraint extends SeekingConstraint {
 
 		final ExceptionConstraint constraint = (ExceptionConstraint) object;
 
-		if (!super.equals(constraint))
-			return false;
-
-		return true;
+		return super.equals(constraint);
 	}
 	public String toString()
 	{

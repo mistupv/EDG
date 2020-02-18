@@ -1,15 +1,14 @@
 package edg.edge;
 
-import java.util.List;
-
 import edg.graph.EDG;
 import edg.graph.EdgeInfo;
 import edg.graph.Node;
 import edg.graph.NodeInfo;
 import edg.traverser.EDGTraverser;
 
-public class ControlEdgeGenerator extends EdgeGenerator
-{
+import java.util.List;
+
+public class ControlEdgeGenerator extends EdgeGenerator {
 	public ControlEdgeGenerator(EDG edg)
 	{
 		super(edg);
@@ -25,19 +24,20 @@ public class ControlEdgeGenerator extends EdgeGenerator
 	private void generateBodyEdges()
 	{
 		final List<Node> bodies = EDGTraverser.getNodes(this.edg, NodeInfo.Type.Body);
-		// ADDED UPDATE nodes in FOR loops, they also depend on the for condition, as it happens with body 
+		// ADDED UPDATE nodes in FOR loops, they also depend on the for condition, as it happens with body
 		bodies.addAll(EDGTraverser.getNodes(this.edg, NodeInfo.Type.Update));
 
 		for (Node body : bodies)
 		{
-			//final int bodyIndex = EDGTraverser.getChildIndex(body);
+			//final int bodyIndex = EDGTraverserNew.getChildIndex(body);
 			final List<Node> children = EDGTraverser.getSiblings(body);
 
 			// Node condition before node body (Doesn't work with do_while loop if we put the expressions in the appearance order 1) Body 2) Condition )
-			// for (int childIndex = 0; childIndex < bodyIndex; childIndex++) 
-			
+			// for (int childIndex = 0; childIndex < bodyIndex; childIndex++)
+
 			//for (int childIndex = 0; childIndex < bodies.size(); childIndex++) // Node condition after node body (Less efficient)
-			for (int childIndex = 0; childIndex < children.size(); childIndex++) // Node condition after node body (Less efficient)
+			for (int childIndex = 0; childIndex < children.size();
+				 childIndex++) // Node condition after node body (Less efficient)
 			{
 				final Node child = children.get(childIndex);
 				final NodeInfo.Type type = child.getData().getType();

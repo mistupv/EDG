@@ -31,8 +31,6 @@ public class NodeWork extends Work
 
 		if (!super.equals(nodeWork))
 			return false;
-		if (this.currentNode != nodeWork.currentNode)
-			return false;
-		return true;
+		return this.currentNode == nodeWork.currentNode;
 	}
 }

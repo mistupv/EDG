@@ -2,9 +2,8 @@ package edg.graph;
 
 import edg.LDASTNodeInfo;
 
-public class VariableInfo extends NodeInfo
-{
-	public static enum Context { Definition, Use, Def_Use, Declaration } // Def_Use es para unaryExpressions (i++ etc.)
+public class VariableInfo extends NodeInfo {
+	public enum Context {Definition, Use, Def_Use, Declaration} // Def_Use es para unaryExpressions (i++ etc.)
 
 	private boolean declaration;
 	private Context context;
@@ -14,9 +13,10 @@ public class VariableInfo extends NodeInfo
 	{
 		super(id, type, name, ldASTNodeInfo);
 	}
+
 	public VariableInfo(int id, int SDGId, Type type, String name, LDASTNodeInfo ldASTNodeInfo)
 	{
-		super(id, SDGId, type, name, ldASTNodeInfo);
+		super(id, type, name, ldASTNodeInfo);
 	}
 
 	public boolean isDeclaration()

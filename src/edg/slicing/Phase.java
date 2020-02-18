@@ -1,7 +1,6 @@
 package edg.slicing;
 
-public enum Phase
-{
+public enum Phase {
 	Construction,
 	SummaryGeneration(Construction),
 
@@ -10,11 +9,12 @@ public enum Phase
 
 	private final Phase parent;
 
-	private Phase()
+	Phase()
 	{
 		this(null);
 	}
-	private Phase(Phase parent)
+
+	Phase(Phase parent)
 	{
 		this.parent = parent;
 	}

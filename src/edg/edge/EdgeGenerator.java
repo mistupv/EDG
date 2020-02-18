@@ -1,17 +1,15 @@
 package edg.edge;
 
-import java.util.LinkedList;
-import java.util.List;
-
 import edg.graph.EDG;
-import edg.graph.LAST;
 import edg.graph.Node;
 import edg.graph.NodeInfo;
 import edg.graph.VariableInfo;
 import edg.traverser.EDGTraverser;
 
-public abstract class EdgeGenerator
-{
+import java.util.LinkedList;
+import java.util.List;
+
+public abstract class EdgeGenerator {
 //	public static void generateEdges(EDG edg)
 //	{
 //		new ControlFlowEdgeGenerator(edg).generate();
@@ -23,28 +21,6 @@ public abstract class EdgeGenerator
 //		// EXCEPTIONS
 //		new ExceptionEdgeGenerator(edg).generate();
 //	}
-
-	public static void generateEdges(LAST last) // CASTING PARA QUE NO DE ERRORES POR AHORA
-	{
-		new ControlFlowEdgeGenerator((EDG) last).generate();
-		new ControlEdgeGenerator((EDG) last).generate();
-		new InterproceduralEdgeGenerator((EDG) last).generate();
-		new FlowEdgeGenerator((EDG) last).generate();
-		new ValueEdgeGenerator((EDG) last).generateJava();
-		new SummaryEdgeGenerator((EDG) last).generate();
-		new ExceptionEdgeGenerator((EDG) last).generate();
-	}
-	
-	public static void generateEdges(EDG edg)
-	{
-		new ControlFlowEdgeGenerator(edg).generate();
-		new ControlEdgeGenerator(edg).generate();
-		new InterproceduralEdgeGenerator(edg).generate();
-		new FlowEdgeGenerator(edg).generate();
-		new ValueEdgeGenerator(edg).generateJava();
-		new SummaryEdgeGenerator(edg).generate();
-		new ExceptionEdgeGenerator(edg).generate();
-	}
 	
 	protected final EDG edg;
 

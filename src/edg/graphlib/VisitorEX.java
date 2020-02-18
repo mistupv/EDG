@@ -33,13 +33,12 @@ package edg.graphlib;
 public interface VisitorEX<T, S, E extends Exception> {
   /**
    * Called by the graph traversal methods when a vertex is first visited.
-   * 
+   *
    * @param g -
    *          the graph
    * @param v -
    *          the vertex being visited.
-   * @throws E
-   *           exception for any error
+   * @throws E exception for any error
    */
-  public void visit(Graph<T, S> g, Vertex<T, S> v) throws E;
+  void visit(Graph<T, S> g, Vertex<T, S> v) throws E;
 }

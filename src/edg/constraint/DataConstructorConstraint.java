@@ -34,9 +34,7 @@ public class DataConstructorConstraint extends AccessConstraint
 		if (this.index == null || constraint.index == null)
 			if (this.index != null || constraint.index != null)
 				return false;
-		if (this.index != null && !this.index.equals(constraint.index))
-			return false;
-		return true;
+		return this.index == null || this.index.equals(constraint.index);
 	}
 	public String toString()
 	{

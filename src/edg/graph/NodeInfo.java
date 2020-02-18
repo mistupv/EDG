@@ -1,13 +1,9 @@
 package edg.graph;
 
 import edg.LDASTNodeInfo;
-import edg.graph.VariableInfo.Context;
-import edg.traverser.EDGTraverser;
 
-public class NodeInfo
-{
-	public static enum Type
-	{
+public class NodeInfo {
+	public enum Type {
 		// Module
 		Module,
 
@@ -50,17 +46,10 @@ public class NodeInfo
 	private final Type type;
 	private final String name;
 	private final LDASTNodeInfo ldASTNodeInfo;
-	private final int SDGId;
 
 	public NodeInfo(int id, Type type, String name, LDASTNodeInfo ldASTNodeInfo)
 	{
-		this(id, -1, type,name,ldASTNodeInfo);
-	}
-
-	public NodeInfo(int id, int SDGId, Type type, String name, LDASTNodeInfo ldASTNodeInfo)
-	{
 		this.id = id;
-		this.SDGId = SDGId;
 		this.type = type;
 		this.name = name;
 		this.ldASTNodeInfo = ldASTNodeInfo;
@@ -69,10 +58,6 @@ public class NodeInfo
 	public int getId()
 	{
 		return this.id;
-	}
-	public int getSDGId()
-	{
-		return this.SDGId;
 	}
 	public Type getType()
 	{

@@ -1,25 +1,20 @@
 package edg.traverser;
 
+import edg.graph.*;
+
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Set;
 import java.util.function.Predicate;
 
-import edg.graph.LAST;
-import edg.graph.Edge;
-import edg.graph.EdgeInfo;
-import edg.graph.Node;
-import edg.graph.NodeInfo;
-import edg.graph.VariableInfo;
-import edg.graph.VariableInfo.Context;
-
-public class LASTTraverser
-{
-	public static enum Direction { Forwards, Backwards }
+public class LASTTraverser {
+	public enum Direction {Forwards, Backwards}
 
 	public static Node getNode(LAST last, int id)
 	{
-		return last.findNodeByData(null, ( o1, o2 ) -> o2.getId() - id);
+		return last.findNodeByData(null, (o1, o2) -> o2.getId() - id);
 	}
+
 	public static List<Node> getNodes(LAST last, NodeInfo.Type type)
 	{
 		final Node root = last.getRootNode();
@@ -89,7 +84,7 @@ public class LASTTraverser
 	}
 	public static Node getParent(Node node)
 	{
-		final List<Node> nodes = LASTTraverser.getNodes(node, Direction.Backwards, EdgeInfo.Type.Structural);
+		final List<Node> nodes = LASTTraverser.getStructuralNodes(node, Direction.Backwards);
 		if (nodes.size() > 1)
 			throw new RuntimeException("More than one parent");
 		if (nodes.isEmpty())
@@ -110,7 +105,7 @@ public class LASTTraverser
 	}
 	public static List<Node> getChildren(Node node)
 	{
-		return LASTTraverser.getNodes(node, Direction.Forwards, EdgeInfo.Type.Structural);
+		return LASTTraverser.getStructuralNodes(node, Direction.Forwards);
 	}
 	public static Node getChild(Node node, int childIndex)
 	{
@@ -159,6 +154,22 @@ public class LASTTraverser
 
 		return nodes;
 	}
+
+	public static List<Node> getStructuralNodes(Node node, Direction direction)
+	{
+		final List<Node> nodes = new LinkedList<Node>();
+		final List<Edge> edges = LASTTraverser.getStructuralEdges(node, direction);
+
+		for (Edge edge : edges)
+		{
+			final Node node0 = direction == Direction.Backwards ? edge.getFrom() : edge.getTo();
+			if (!nodes.contains(node0))
+				nodes.add(node0);
+		}
+
+		return nodes;
+	}
+
 	public static List<Node> getNodes(Node node, Direction direction, EdgeInfo.Type edgeType)
 	{
 		final List<Node> nodes = new LinkedList<Node>();
@@ -173,14 +184,22 @@ public class LASTTraverser
 
 		return nodes;
 	}
+
 	public static List<Edge> getEdges(Node node, Direction direction)
 	{
 		return direction == Direction.Backwards ? node.getIncomingEdges() : node.getOutgoingEdges();
 	}
+
+	public static List<Edge> getStructuralEdges(Node node, Direction direction)
+	{
+		return direction == Direction.Backwards ? node.getIncomingStructuralEdges() : node.getOutgoingStructuralEdges();
+	}
+
 	public static List<Edge> getEdges(Node node, Direction direction, EdgeInfo.Type edgeType)
 	{
 		final List<Edge> edges = new LinkedList<Edge>();
-		final List<Edge> allEdges = direction == Direction.Backwards ? node.getIncomingEdges() : node.getOutgoingEdges();
+		final List<Edge> allEdges =
+				direction == Direction.Backwards ? node.getIncomingEdges() : node.getOutgoingEdges();
 
 		for (Edge edge : allEdges)
 			if (edge.getData().getType() == edgeType)
@@ -226,7 +245,8 @@ public class LASTTraverser
 				return siblings.get(siblings.size() - 1);
 
 			case Variable:
-				return getVarResult(node, siblings);
+				return getResFromNode(node);
+			//return getVarResult(node, siblings);
 			// Last child
 			case Clause:
 			case Case:
@@ -247,16 +267,34 @@ public class LASTTraverser
 			case TypeCheck:
 			case TypeTransformation:
 				return siblings.get(siblings.size() - 1);
-				
+
 			// Others
 			case Root:
 			default:
 				throw new RuntimeException("Type not contemplated: " + info.getType());
 		}
 	}
-	
-	private static Node getVarResult(Node node, List<Node> siblings) {
-		
+
+	public static Node getResFromNode(Node node)
+	{
+		Set<Node> next = ControlFlowTraverser.step(node, ControlFlowTraverser.Direction.Forwards);
+		if (next.size() == 1)
+			return next.iterator().next();
+		throw new RuntimeException("The next element of a variable in the CFG is only its result");
+	}
+
+	public static Node getNodeFromRes(Node resNode)
+	{
+		Set<Node> next = ControlFlowTraverser.step(resNode, ControlFlowTraverser.Direction.Forwards);
+		if (next.size() == 1)
+			return next.iterator().next();
+		throw new RuntimeException("The next element of a variable in the CFG is only its result");
+	}
+
+	// PREVIOUS METHOD FOR DATA CONSTRUCTOR ACCESSES
+	private static Node getVarResult(Node node, List<Node> siblings)
+	{
+
 		final Node grandParentUseNode = LASTTraverser.getParent(LASTTraverser.getParent(node));
 		if (grandParentUseNode.getData().getType() == NodeInfo.Type.DataConstructorAccess)
 		{
@@ -300,74 +338,6 @@ public class LASTTraverser
 		}
 
 		return false;
-	}
-
-	// SDG Algorithm
-	public static List<Node> getNodesSameSDGId(Node node)
-	{
-		final int SDGId = node.getData().getSDGId();
-		final List<Node> sameIdNodes = new LinkedList<Node>();
-		
-		
-		if (node.getData().getId() != 0)
-			sameIdNodes.addAll(getAncestorsSameId(node, SDGId));
-		sameIdNodes.addAll(getChildrenSameId(node, SDGId));
-		
-//		final Node parent = getParent(node);
-//		final List<Node> siblings = getSiblings(node);
-//		final List<Node> children = getChildren(node);
-//		
-//		siblings.removeIf(sibling -> sibling == node || sibling.getData().getSDGId() != SDGId);
-//		children.removeIf(child -> child.getData().getSDGId() != SDGId);
-//		
-//		if (parent.getData().getSDGId() == SDGId)
-//			sameIdNodes.addAll(getAncestorsSameId(parent, SDGId));
-//		
-//		for (Node sibling : siblings)
-//			sameIdNodes.addAll(getChildrenSameId(sibling, SDGId));
-//		for (Node child : children)
-//			sameIdNodes.addAll(getChildrenSameId(child, SDGId));
-		
-		return sameIdNodes;
-	}
-	public static List<Node> getAncestorsSameId(Node node, int SDGId)
-	{
-		final List<Node> sameIdNodes = new LinkedList<Node>();
-		sameIdNodes.add(node);
-		
-		if (node.getData().getId() != 0)
-		{
-			final Node parent = getParent(node);
-		
-			if (parent.getData().getSDGId() == SDGId)
-				sameIdNodes.addAll(getAncestorsSameId(parent, SDGId));
-		}
-		
-		final List<Node> siblings = getSiblings(node);
-		siblings.removeIf(sibling -> sibling == node || sibling.getData().getSDGId() != SDGId);
-		
-		for (Node sibling : siblings)
-		{
-			sameIdNodes.add(sibling);
-			sameIdNodes.addAll(getChildrenSameId(sibling, SDGId));
-		}
-		
-		return sameIdNodes;
-	}
-	public static List<Node> getChildrenSameId(Node node, int SDGId)
-	{
-		final List<Node> sameIdNodes = new LinkedList<Node>();
-		
-		final List<Node> children = getChildren(node);
-		children.removeIf(child -> child.getData().getSDGId() != SDGId);
-		
-		for (Node child : children)
-		{
-			sameIdNodes.add(child);
-			sameIdNodes.addAll(getChildrenSameId(child, SDGId));
-		}
-		
-		return sameIdNodes;
 	}
 
 	public static boolean isDefinedClass(LAST last, Node node)

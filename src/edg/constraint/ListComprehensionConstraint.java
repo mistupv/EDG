@@ -1,12 +1,11 @@
 package edg.constraint;
 
-import java.util.List;
-
 import edg.graph.Edge;
 import edg.slicing.Phase;
 
-public class ListComprehensionConstraint extends AccessConstraint
-{
+import java.util.List;
+
+public class ListComprehensionConstraint extends AccessConstraint {
 	public ListComprehensionConstraint(Operation operation)
 	{
 		super(operation, CompositeType.ListComprehension);
@@ -21,9 +20,7 @@ public class ListComprehensionConstraint extends AccessConstraint
 
 		final ListComprehensionConstraint constraint = (ListComprehensionConstraint) object;
 
-		if (!super.equals(constraint))
-			return false;
-		return true;
+		return super.equals(constraint);
 
 	}
 	public String toString()

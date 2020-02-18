@@ -1,13 +1,12 @@
 package edg.constraint;
 
-import java.util.Arrays;
-import java.util.List;
-
 import edg.graph.Edge;
 import edg.slicing.Phase;
 
-public class PhaseConstraint extends EdgeConstraint
-{
+import java.util.Arrays;
+import java.util.List;
+
+public class PhaseConstraint extends EdgeConstraint {
 	private final List<Phase> allowedPhases;
 
 	public PhaseConstraint(Phase... phases)
@@ -24,9 +23,7 @@ public class PhaseConstraint extends EdgeConstraint
 
 		final PhaseConstraint constraint = (PhaseConstraint) object;
 
-		if (this.allowedPhases.equals(constraint.allowedPhases))
-			return false;
-		return true;
+		return !this.allowedPhases.equals(constraint.allowedPhases);
 	}
 	public String toString()
 	{

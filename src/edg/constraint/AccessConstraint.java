@@ -1,14 +1,14 @@
 package edg.constraint;
 
-import java.util.List;
-
 import edg.graph.Edge;
 import edg.slicing.Phase;
 
-public abstract class AccessConstraint extends EdgeConstraint
-{
-	public enum Operation { Add, Remove }
-	public enum CompositeType { DataConstructor, List, ListComprehension }
+import java.util.List;
+
+public abstract class AccessConstraint extends EdgeConstraint {
+	public enum Operation {Add, Remove}
+
+	public enum CompositeType {DataConstructor, List, ListComprehension}
 
 	protected final Operation operation;
 	protected final CompositeType compositeType;
@@ -45,9 +45,7 @@ public abstract class AccessConstraint extends EdgeConstraint
 
 		if (this.operation != constraint.operation)
 			return false;
-		if (this.compositeType != constraint.compositeType)
-			return false;
-		return true;
+		return this.compositeType == constraint.compositeType;
 	}
 	public String toString()
 	{

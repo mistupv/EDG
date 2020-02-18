@@ -80,8 +80,9 @@ public class Graph<T, S> {
    */
   public boolean addVertex(Vertex<T, S> v) {
     boolean added = false;
-    if (verticies.contains(v) == false) {
-      added = verticies.add(v);
+    if (!verticies.contains(v))
+    {
+        added = verticies.add(v);
     }
     return added;
   }
@@ -114,8 +115,8 @@ public class Graph<T, S> {
    */
   public void setRootVertex(Vertex<T, S> root) {
     this.rootVertex = root;
-    if (verticies.contains(root) == false)
-      this.addVertex(root);
+      if (!verticies.contains(root))
+          this.addVertex(root);
   }
 
   /**
@@ -190,35 +191,90 @@ public class Graph<T, S> {
     int cost = e.getCost();
     S data = e.getData();
 
-    if (verticies.contains(from) == false)
-      throw new IllegalArgumentException("from is not in graph");
-    if (verticies.contains(to) == false)
-      throw new IllegalArgumentException("to is not in graph");
+      if (!verticies.contains(from))
+          throw new IllegalArgumentException("from is not in graph");
+      if (!verticies.contains(to))
+          throw new IllegalArgumentException("to is not in graph");
 
     List<Arrow<T, S>> es2 = from.findEdges(to);
 
     for (Arrow<T, S> e2 : es2)
       if (e2 != null && cost == e2.getCost() &&
-         ((data == null && e2.getData() == null) ||
-         (data != null && data.equals(e2.getData()))))
-        return false;
+          ((data == null && e2.getData() == null) ||
+           (data != null && data.equals(e2.getData()))))
+          return false;
 
-    from.addEdge(e);
-    to.addEdge(e);
-    edges.add(e);
-    return true;
+      from.addEdge(e);
+      to.addEdge(e);
+      edges.add(e);
+      return true;
   }
 
-  /**
-   * Insert a bidirectional Edge<T, S> in the graph
-   * 
-   * @param from -
-   *          the Edge<T, S> starting vertex
-   * @param to -
-   *          the Edge<T, S> ending vertex
-   * @param cost -
-   *          the Edge<T, S> weight/cost
-   * @return true if edges between both nodes were added, false otherwise
+    public boolean addEdgeAndStructural(Arrow<T, S> e)
+    {
+        Vertex<T, S> from = e.getFrom();
+        Vertex<T, S> to = e.getTo();
+        int cost = e.getCost();
+        S data = e.getData();
+
+        if (!verticies.contains(from))
+            throw new IllegalArgumentException("from is not in graph");
+        if (!verticies.contains(to))
+            throw new IllegalArgumentException("to is not in graph");
+
+        List<Arrow<T, S>> es2 = from.findEdges(to);
+
+        for (Arrow<T, S> e2 : es2)
+            if (e2 != null && cost == e2.getCost() &&
+                ((data == null && e2.getData() == null) ||
+                 (data != null && data.equals(e2.getData()))))
+                return false;
+
+        from.addStructural(e);
+        to.addStructural(e);
+        from.addEdge(e);
+        to.addEdge(e);
+        edges.add(e);
+        return true;
+    }
+
+    public boolean addStructural(Arrow<T, S> e)
+    {
+        Vertex<T, S> from = e.getFrom();
+        Vertex<T, S> to = e.getTo();
+        int cost = e.getCost();
+        S data = e.getData();
+
+        if (!verticies.contains(from))
+            throw new IllegalArgumentException("from is not in graph");
+        if (!verticies.contains(to))
+            throw new IllegalArgumentException("to is not in graph");
+
+        List<Arrow<T, S>> es2 = from.findEdges(to);
+
+        for (Arrow<T, S> e2 : es2)
+            if (e2 != null && cost == e2.getCost() &&
+                ((data == null && e2.getData() == null) ||
+                 (data != null && data.equals(e2.getData()))))
+                return false;
+
+        from.addStructural(e);
+        to.addStructural(e);
+        edges.add(e);
+        e.mark();
+        return true;
+    }
+
+    /**
+     * Insert a bidirectional Edge<T, S> in the graph
+     *
+     * @param from -
+     *          the Edge<T, S> starting vertex
+     * @param to -
+     *          the Edge<T, S> ending vertex
+     * @param cost -
+     *          the Edge<T, S> weight/cost
+     * @return true if edges between both nodes were added, false otherwise
    * @throws IllegalArgumentException
    *           if from/to are not verticies in the graph
    */
@@ -303,26 +359,40 @@ public class Graph<T, S> {
   public boolean removeEdge(Arrow<T, S> arrow, Vertex <T, S> from, Vertex<T, S> to) {
 	  int index = edges.indexOf(arrow);
 	  if (index == -1)
-		  return false;
-	  
-	  Arrow<T, S> e = edges.get(index);
-	 
-	  from.remove(e);
+          return false;
+
+      Arrow<T, S> e = edges.get(index);
+
+      from.remove(e);
       to.remove(e);
       edges.remove(e);
-      
+
       return true;
   }
 
-  /**
-   * Update the to node an arrow is pointing to
-   * 
-   ** @param from -
-   *          the edges starting vertex
-   * @param to -
-   *          the edges ending vertex
-   * @param newTo -
-   *          the new edges ending vertex
+    public boolean removeEDGEdge(Arrow<T, S> arrow, Vertex<T, S> from, Vertex<T, S> to)
+    {
+        int index = edges.indexOf(arrow);
+        if (index == -1)
+            return false;
+
+        Arrow<T, S> e = edges.get(index);
+
+        from.remove(e);
+        to.remove(e);
+
+        return true;
+    }
+
+    /**
+     * Update the to node an arrow is pointing to
+     *
+     ** @param from -
+     *          the edges starting vertex
+     * @param to -
+     *          the edges ending vertex
+     * @param newTo -
+     *          the new edges ending vertex
    * @return true if any edge exists, false otherwise
    */
   public boolean updateToEdge(Arrow<T, S> arrow, Vertex <T, S> from, Vertex<T, S> to, Vertex<T, S> newTo) { // ADDED
@@ -442,17 +512,20 @@ public class Graph<T, S> {
     if (visitor != null)
       visitor.visit(this, v);
     v.visit();
-    while (q.isEmpty() == false) {
-      v = q.removeFirst();
-      for (int i = 0; i < v.getOutgoingEdgeCount(); i++) {
-        Arrow<T, S> e = v.getOutgoingEdge(i);
-        Vertex<T, S> to = e.getTo();
-        if (!to.visited()) {
-          q.add(to);
-          if (visitor != null)
-            visitor.visit(this, to);
-          to.visit();
-        }
+      while (!q.isEmpty())
+      {
+          v = q.removeFirst();
+          for (int i = 0; i < v.getOutgoingEdgeCount(); i++)
+          {
+              Arrow<T, S> e = v.getOutgoingEdge(i);
+              Vertex<T, S> to = e.getTo();
+              if (!to.visited())
+              {
+                  q.add(to);
+                  if (visitor != null)
+                      visitor.visit(this, to);
+                  to.visit();
+              }
       }
     }
   }

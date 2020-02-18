@@ -51,9 +51,7 @@ public class SlicingCriterion
 			return false;
 		if (!this.name.equals(sc.name))
 			return false;
-		if (this.occurrence != sc.occurrence)
-			return false;
-		return true;
+		return this.occurrence == sc.occurrence;
 	}
 	public String toString()
 	{

@@ -40,9 +40,7 @@ public abstract class Work
 		// I think the formal out is not important
 		if (this.initialNode != work.initialNode)
 			return false;
-		if (!this.constraints.equals(work.constraints))
-			return false;
-		return true;
+		return this.constraints.equals(work.constraints);
 	}
 	public int hashCode()
 	{

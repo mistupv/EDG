@@ -1,10 +1,5 @@
 package edg;
 
-import java.io.File;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Map;
-
 import edg.constraint.EdgeConstraint;
 import edg.graph.EDG;
 import edg.graph.Edge;
@@ -12,15 +7,20 @@ import edg.graph.EdgeInfo;
 import edg.graph.Node;
 import misc.Misc;
 
-public class DotFactory
-{
-	public static void createDot(File outputFile, EDG edg)
-	{
-		DotFactory.createDot(outputFile, edg, null, null, null);
-	}
-	public static void createDot(File outputFile, EDG edg, Map<EdgeInfo.Type, Boolean> edgeFlags)
-	{
-		DotFactory.createDot(outputFile, edg, null, null, edgeFlags);
+import java.io.File;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Map;
+
+public class DotFactory {
+    public static void createDot(File outputFile, EDG edg)
+    {
+        DotFactory.createDot(outputFile, edg, null, null, null);
+    }
+
+    public static void createDot(File outputFile, EDG edg, Map<EdgeInfo.Type, Boolean> edgeFlags)
+    {
+        DotFactory.createDot(outputFile, edg, null, null, edgeFlags);
 	}
 	public static void createDot(File outputFile, EDG edg, Node slicingCriterion, List<Node> slice)
 	{
@@ -69,26 +69,25 @@ public class DotFactory
 
 	private static String parseNode(Node node, boolean sliceCriterion, boolean sliceNode)
 	{
-		
-		final String id = node.getData().getId() + "";
-		final String SDGid = node.getData().getSDGId() + "";
-		final String name = node.getName().replace("\n", "\\n");
-		String text = "";
 
-		text += id + " ";
-		text += "[";
-		text += "shape=ellipse ";
-		text += "penwidth=" + (sliceCriterion ? "4" : "1") + " ";
-		text += "style=filled ";
-		text += "color=\"" + (sliceCriterion ? "blue" : "gray") + "\" ";
-		text += "label=\"" + "Id = " + id + "\\n" + "SDGId = " + SDGid + "\\n" + name + "\" ";
-		text += "fontcolor=\"" + (sliceNode ? "blue" : "black") + "\" ";
-		text += "fillcolor=\"" + (sliceNode ? "green" : "gray") + "\" ";
-		text = text.trim();
-		text += "]";
+        final String id = node.getData().getId() + "";
+        final String name = node.getName().replace("\n", "\\n");
+        String text = "";
 
-		return text;
-	}
+        text += id + " ";
+        text += "[";
+        text += "shape=ellipse ";
+        text += "penwidth=" + (sliceCriterion ? "4" : "1") + " ";
+        text += "style=filled ";
+        text += "color=\"" + (sliceCriterion ? "blue" : "gray") + "\" ";
+        text += "label=\"" + "Id = " + id + "\\n" + name + "\" ";
+        text += "fontcolor=\"" + (sliceNode ? "blue" : "black") + "\" ";
+        text += "fillcolor=\"" + (sliceNode ? "green" : "gray") + "\" ";
+        text = text.trim();
+        text += "]";
+
+        return text;
+    }
 	private static String parseEdge(Edge edge)
 	{
 		final EdgeInfo.Type edgeType = edge.getData().getType();
@@ -99,19 +98,20 @@ public class DotFactory
 
 // TODO Borrame
 			
-if (edgeType != EdgeInfo.Type.Structural) {
-final List<EdgeInfo.Type> ignoreEdgeTypes = Arrays.asList(EdgeInfo.Type.ControlFlow);
-final List<EdgeInfo.Type> edgeTypes = Arrays.asList(); // Introducir aqui el tipo de arcos que quieres mostrar
-final int[] boundNodeIds = {}; // Introducir aqui los extremos del intervalo en el que se quieren ver los arcos
-final List<Integer> nodesIds = Arrays.asList(); // Introducir aqui los nodos de los que se quieren ver los arcos
+if (edgeType != EdgeInfo.Type.Structural)
+{
+    final List<EdgeInfo.Type> ignoreEdgeTypes = Arrays.asList(EdgeInfo.Type.ControlFlow);
+    final List<EdgeInfo.Type> edgeTypes = Arrays.asList(); // Introducir aqui el tipo de arcos que quieres mostrar
+    final int[] boundNodeIds = {}; // Introducir aqui los extremos del intervalo en el que se quieren ver los arcos
+    final List<Integer> nodesIds = Arrays.asList(); // Introducir aqui los nodos de los que se quieren ver los arcos
 
-if (ignoreEdgeTypes.contains(edgeType))
-return "";
-if (!edgeTypes.isEmpty() && !edgeTypes.contains(edgeType))
-return "";
-if (boundNodeIds.length == 2)
-if (idFrom < boundNodeIds[0] || idTo < boundNodeIds[0] || idFrom > boundNodeIds[1] || idTo > boundNodeIds[1])
-return "";
+    if (ignoreEdgeTypes.contains(edgeType))
+        return "";
+    if (!edgeTypes.isEmpty() && !edgeTypes.contains(edgeType))
+        return "";
+    if (boundNodeIds.length == 2)
+        if (idFrom < boundNodeIds[0] || idTo < boundNodeIds[0] || idFrom > boundNodeIds[1] || idTo > boundNodeIds[1])
+            return "";
 if (!nodesIds.isEmpty() && !nodesIds.contains(idFrom) && !nodesIds.contains(idTo))
 return "";
 }
@@ -122,19 +122,22 @@ return "";
 			text += "label=\"" + constraint + "\", ";
 
 		switch (edgeType)
-		{
-			case Structural:
-				text += "color=black, ";
-				text += "penwidth=3";
-				break;
-			case ControlFlow:
-				text += "color=red, ";
-				text += "penwidth=3, ";
-				text += "constraint=false";
-				break;
-			case Control:
-				text += "color=orange, ";
-				text += "constraint=false, ";
+        {
+            case Structural:
+                if (edge.isMarked())
+                    text += "color=green, ";
+                else
+                    text += "color=black, ";
+                text += "penwidth=3";
+                break;
+            case ControlFlow:
+                text += "color=red, ";
+                text += "penwidth=3, ";
+                text += "constraint=false";
+                break;
+            case Control:
+                text += "color=orange, ";
+                text += "constraint=false, ";
 				text += "penwidth=3";
 				break;
 			case Value:

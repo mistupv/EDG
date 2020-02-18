@@ -1,16 +1,16 @@
 package edg.edge;
 
-import java.util.LinkedList;
-import java.util.List;
-
-import edg.graph.EDG;
-import edg.graph.Node;
-import edg.graph.NodeInfo;
-import edg.graph.EdgeInfo;
 import edg.constraint.ExceptionConstraint;
 import edg.constraint.SeekingConstraint.Operation;
+import edg.graph.EDG;
+import edg.graph.EdgeInfo;
+import edg.graph.Node;
+import edg.graph.NodeInfo;
 import edg.traverser.EDGTraverser;
-import edg.traverser.EDGTraverser.Direction;
+import edg.traverser.LASTTraverser.Direction;
+
+import java.util.LinkedList;
+import java.util.List;
 
 public class ExceptionEdgeGenerator extends EdgeGenerator{
 
@@ -62,11 +62,11 @@ public class ExceptionEdgeGenerator extends EdgeGenerator{
 //				this.edg.addEdge(child, node, 0, new EdgeInfo(EdgeInfo.Type.Exception, new ExceptionConstraint(null))); // MISSING OPERATION
 //			if (child.getData().getType() == NodeInfo.Type.Call)
 //			{
-//				 final Node functionName = EDGTraverser.getChild(child, 0);
+//				 final Node functionName = EDGTraverserNew.getChild(child, 0);
 //				 final List<Node> functionClauses = this.getRelatedClauses(functionName);
 //				 for (Node functionClause : functionClauses)
 //				 {	 
-//					 final Node exceptionReturn = EDGTraverser.getChild(child, EDGTraverser.getChildren(child).size() - 1);
+//					 final Node exceptionReturn = EDGTraverserNew.getChild(child, EDGTraverserNew.getChildren(child).size() - 1);
 //					 this.edg.addEdge(functionClause, exceptionReturn, 0, new EdgeInfo(EdgeInfo.Type.Output));
 //					 this.generateExceptionEdges(functionClause);
 //				 }
@@ -81,26 +81,27 @@ public class ExceptionEdgeGenerator extends EdgeGenerator{
 		final List<Node> calledFunctionResults = EDGTraverser.getOutputs(callResultNode, Direction.Backwards);
 		for (Node functionResult : calledFunctionResults)
 		{
-			if (!exceptionGeneratedClauses.contains(functionResult))
-			{
-				exceptionGeneratedClauses.add(functionResult);
-				final Node functionClause = EDGTraverser.getParent(functionResult);
-				this.generate(functionClause, info);
-				this.edg.addEdge(functionResult, callResultNode, 0, new EdgeInfo(EdgeInfo.Type.Output, new ExceptionConstraint(Operation.LetThrough)));
-			}
-		}
-	}
-	
-	private static enum Way { Forwards, Backwards }
-	
-	private List<Node> generate(Node node, EdgeInfo info)
-	{
-		final NodeInfo.Type type = node.getData().getType();
-		final List<Node> children = EDGTraverser.getChildren(node);
+            if (!exceptionGeneratedClauses.contains(functionResult))
+            {
+                exceptionGeneratedClauses.add(functionResult);
+                final Node functionClause = EDGTraverser.getParent(functionResult);
+                this.generate(functionClause, info);
+                this.edg.addEdge(functionResult, callResultNode, 0,
+                                 new EdgeInfo(EdgeInfo.Type.Output, new ExceptionConstraint(Operation.LetThrough)));
+            }
+        }
+    }
 
-		if (type != NodeInfo.Type.Break && type != NodeInfo.Type.Return)
-			if (children.isEmpty())
-				return this.generateSingleNode(node);
+    private enum Way {Forwards, Backwards}
+
+    private List<Node> generate(Node node, EdgeInfo info)
+    {
+        final NodeInfo.Type type = node.getData().getType();
+        final List<Node> children = EDGTraverser.getChildren(node);
+
+        if (type != NodeInfo.Type.Break && type != NodeInfo.Type.Return)
+            if (children.isEmpty())
+                return this.generateSingleNode(node);
 
 		switch (type)
 		{

@@ -110,9 +110,8 @@ public class Arrow<T, S> {
 
   /**
    * Get the ending vertex
-   * 
-   * @param new ending vertex
-   * 
+   *
+   * @param newTo ending vertex
    */
   
   public void updateTo(Vertex<T, S> newTo) { // ADDED

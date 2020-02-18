@@ -1,24 +1,20 @@
 package edg.graph;
 
-import java.util.Comparator;
-import java.util.LinkedList;
-import java.util.List;
-
 import edg.LDASTNodeInfo;
 import edg.constraint.Constraints;
 import edg.constraint.GrammarConstraint;
-import edg.graphlib.Arrow;
-import edg.graphlib.Graph;
-import edg.graphlib.Vertex;
 import edg.slicing.SlicingCriterion;
 import edg.traverser.EDGTraverser;
 
-public class EDG extends LAST
-{
+import java.util.Comparator;
+import java.util.List;
+
+public class EDG extends LAST {
 	public EDG()
 	{
-		
+
 	}
+
 	public EDG(LAST last)
 	{
 		this.graph = last.graph; 
@@ -53,7 +49,7 @@ public class EDG extends LAST
 		if (nodes.isEmpty())
 			return null;
 		final Node node = nodes.get(scOccurrence - 1);
-		return EDGTraverser.getResult(node);
+		return EDGTraverser.getResFromNode(node);
 	}
 
 	/*****************/
@@ -123,30 +119,6 @@ public class EDG extends LAST
 		{
 			return structureTime + controlFlowTime + controlTime + interproceduralTime + flowTime + 
 					 valueTime + summaryTime + exceptionTime;
-		}
-		public double getGenerationSDGTime(EDG edg)
-		{
-			final int SDGNodeCount = countSDGNodes(edg);
-			final int EDGNodeCount = edg.getNodes().size();
-			final double structureSDGTime = structureTime / EDGNodeCount * SDGNodeCount;
-			final double controlFlowSDGTime = controlFlowTime / EDGNodeCount * SDGNodeCount;
-			final double flowSDGTime = flowTime - ((SDGNodeCount * flowTime)/(2 * EDGNodeCount));
-			
-			return structureSDGTime + controlFlowSDGTime + controlTime + 
-					interproceduralTime + flowSDGTime + summaryTime;
-		}
-		
-		private int countSDGNodes(EDG edg)
-		{
-			final List<Integer> sdgNodeNumbers = new LinkedList<Integer>();
-			final List<Node> edgNodes = edg.getNodes();
-			for (Node node : edgNodes)
-			{
-				final int sdgId = node.getData().getSDGId();
-				if (!sdgNodeNumbers.contains(sdgId))
-					sdgNodeNumbers.add(sdgId);
-			}
-			return sdgNodeNumbers.size();
 		}
 	}
 }

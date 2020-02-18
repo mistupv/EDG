@@ -31,11 +31,11 @@ package edg.graphlib;
 public interface Visitor<T, S> {
   /**
    * Called by the graph traversal methods when a vertex is first visited.
-   * 
+   *
    * @param g -
    *          the graph
    * @param v -
    *          the vertex being visited.
    */
-  public void visit(Graph<T, S> g, Vertex<T, S> v);
+  void visit(Graph<T, S> g, Vertex<T, S> v);
 }

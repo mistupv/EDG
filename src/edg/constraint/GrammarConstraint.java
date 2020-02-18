@@ -1,16 +1,15 @@
 package edg.constraint;
 
-import java.util.LinkedList;
-import java.util.List;
-
 import edg.config.Config;
 import edg.graph.Edge;
 import edg.graph.Grammar;
 import edg.graph.Node;
 import edg.slicing.Phase;
 
-public class GrammarConstraint extends EdgeConstraint
-{
+import java.util.LinkedList;
+import java.util.List;
+
+public class GrammarConstraint extends EdgeConstraint {
 	private final Config config = Config.getConfig();
 	private final Grammar grammar;
 	private final Node refNode;
@@ -37,9 +36,7 @@ public class GrammarConstraint extends EdgeConstraint
 
 		if (this.grammar != constraint.grammar)
 			return false;
-		if (this.refNode != constraint.refNode)
-			return false;
-		return true;
+		return this.refNode == constraint.refNode;
 	}
 	public String toString()
 	{
