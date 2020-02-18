@@ -20,7 +20,8 @@ public class NodeInfo
 		Call, Callee, Scope, Name, Arguments,
 		ListComprehension, Restrictions, Generator, Filter, Value,
 		Loop, // <- DEPRECATED 
-		CLoop, FLoop, RLoop,
+		CLoop, FLoop, RLoop, // LOOPS
+		ExHandler, Try, Catch, Finally, CatchClause, // EXCEPTIONS
 
 		// Others
 		Body, Guard,
@@ -35,6 +36,7 @@ public class NodeInfo
 		TypeTransformation,
 		Type,
 		ArgumentIn, ArgumentOut
+		
 	}
 
 	private final int id;

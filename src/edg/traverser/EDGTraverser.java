@@ -219,6 +219,7 @@ public class EDGTraverser
 			case Case:
 			case Expression:
 			case Generator:
+			case Callee:
 				return children.get(children.size() - 1);
 
 			// Last child (optional)

@@ -439,6 +439,7 @@ public abstract class EDGFactory
 			this.processElement(function, 2, 2);
 		branch.setWhere(Where.Arguments);
 		this.processElements(arguments);
+//		ASTBuilder.addArgumentsInOut(this.edg, callId,Where.Arguments, null); // Nodes In-Out as children of arguments node
 		this.branches.pop();
 	}
 	protected <R, S> void addListComprehension(Iterable<R> restrictions, S value, LDASTNodeInfo info)
@@ -581,6 +582,51 @@ public abstract class EDGFactory
 		ASTBuilder.addContinue(this.edg, parentId, where, dstId, info);
 	}
 
+	// Exceptions
+	protected <R, S, T> void addExHandler(Iterable<R> tryExpressions, Iterable<S> catchClauses, Iterable<T> finallyExpressions, LDASTNodeInfo info)
+	{
+		final R[] tryExpressions0 = this.getArray(tryExpressions);
+		final S[] catchClauses0 = this.getArray(catchClauses); 
+		final T[] finallyExpressions0 = this.getArray(finallyExpressions);
+		this.addExHandler(tryExpressions0, catchClauses0, finallyExpressions0, info);
+	}
+	protected <R, S, T> void addExHandler(R[] tryExpressions, S[] catchClauses, T[] finallyExpressions, LDASTNodeInfo info)
+	{
+		final Branch parent = this.branches.peek();
+		final int parentId = parent.getNodeId();
+		final Where where = parent.getWhere();
+		final int tryId = ASTBuilder.addExHandler(this.edg, parentId, where, info);
+		final Branch branch = this.branches.push(new Branch(tryId, NodeInfo.Type.ExHandler, info));
+
+		branch.setWhere(Where.Try);
+		this.processElements(tryExpressions);
+		branch.setWhere(Where.Catch);
+		this.processElements(catchClauses);
+		branch.setWhere(Where.Finally);
+		this.processElements(finallyExpressions);
+		this.branches.pop();
+
+	}
+	protected <R, S, T> void addCatchClause(R parameter, S guard, Iterable<T> catchBlock, LDASTNodeInfo info)
+	{
+		final T[] catchBlock0 = this.getArray(catchBlock);
+		this.addCatchClause(parameter, guard, catchBlock0, info);
+	}
+	protected <R, S, T> void addCatchClause(R parameter, S guard, T[] catchBlock, LDASTNodeInfo info)
+	{
+		final Branch parent = this.branches.peek();
+		final int parentId = parent.getNodeId();
+		final Where where = parent.getWhere();
+		final int catchClauseId = ASTBuilder.addCatchClause(this.edg, parentId, where, info);
+		final Branch branch = this.branches.push(new Branch(catchClauseId, NodeInfo.Type.CatchClause, info));
+		
+		branch.setWhere(Where.Parameters);
+		this.processElement(parameter,1,1);
+		branch.setWhere(Where.Body);
+		this.processElements(catchBlock);
+		this.branches.pop();
+	}
+	
 	@SuppressWarnings("unchecked")
 	private <R> R[] getArray(Iterable<R> iterable)
 	{

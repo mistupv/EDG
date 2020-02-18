@@ -39,6 +39,7 @@ public class InterproceduralEdgeGenerator extends EdgeGenerator
 		final Node callee = EDGTraverser.getChild(call, 0);
 		final Node calleeResultNode = EDGTraverser.getChild(callee, 2);
 		final Node arguments = EDGTraverser.getChild(call, 1);
+		final Node argumentsIn = EDGTraverser.getChild(call, 2);
 		final List<Node> argumentNodes = EDGTraverser.getChildren(arguments);
 
 		for (Node matchingClause : matchingClauses)
@@ -57,7 +58,8 @@ public class InterproceduralEdgeGenerator extends EdgeGenerator
 				if (argumentResult != null && parameterResult != null)
 					this.edg.addEdge(argumentResult, parameterResult, 0, new EdgeInfo(EdgeInfo.Type.Input, new PhaseConstraint(Phase.Input)));
 			}
-			this.edg.addEdge(arguments, parameters, 0, new EdgeInfo(EdgeInfo.Type.Call, new PhaseConstraint(Phase.Input)));
+			//this.edg.addEdge(arguments, parameters, 0, new EdgeInfo(EdgeInfo.Type.Call, new PhaseConstraint(Phase.Input)));
+			this.edg.addEdge(argumentsIn, parameters, 0, new EdgeInfo(EdgeInfo.Type.Call, new PhaseConstraint(Phase.Input)));
 		}
 	}
 	private List<Node> getPossibleClauses(Node call)

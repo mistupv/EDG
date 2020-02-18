@@ -279,7 +279,7 @@ public class FlowEdgeGenerator extends EdgeGenerator
 	}
 
 	// Add edges
-	private void addEdges()
+	private void addEdges0()
 	{
 
 		final List<Variable> definitionNodes = this.getDefinitions();
@@ -596,7 +596,29 @@ if (declarationNode != null && declarationNode != definitionNode)
 	{
 		final Node callNode = EDGTraverser.getSibling(node, 0);
 		return EDGTraverser.getChild(callNode, 1);
-	}	
+	}
+	private Node getArgumentInNode(Node node)
+	{
+		final Node callNode = EDGTraverser.getSibling(node, 0);
+		return EDGTraverser.getChild(callNode, 2);
+	}
+	private Node getArgumentOutNode(Node node)
+	{
+		final Node callNode = EDGTraverser.getSibling(node, 0);
+		return EDGTraverser.getChild(callNode, 3);
+	}
+	
+//	private Node getArgumentInNode(Node node)
+//	{
+//		final Node argumentsNode = getArgumentsNode(node);
+//		return EDGTraverser.getChild(argumentsNode, EDGTraverser.getChildren(argumentsNode).size() - 2);
+//	}
+//	private Node getArgumentOutNode(Node node)
+//	{
+//		final Node argumentsNode = getArgumentsNode(node);
+//		return EDGTraverser.getChild(argumentsNode, EDGTraverser.getChildren(argumentsNode).size() - 1);
+//	}
+	
 	
 	private String getScopeClass(Node callResult) // EN CASO DE QUE LA VARIABLE GLOBAL QUE SE MODIFICA PERTENEZCA A OTRA CLASE, HAY QUE SABER A QUE CLASE PERTENECE
 	{
@@ -614,7 +636,166 @@ if (declarationNode != null && declarationNode != definitionNode)
 			final String moduleName = moduleRefType == NodeInfo.Type.Variable ? moduleRef.getData().getInfo().getInfo()[1].toString() : null;
 			return moduleRefType == NodeInfo.Type.Literal ? moduleRef.getData().getName() : moduleName;
 		}
-	}	
+	}
+	
+	
+	/* *****NEW ADDEDGES ***** */
+	private void addEdges()
+	{
+
+		final List<Variable> definitionNodes = this.getDefinitions();
+		final NodeConstraint nodeConstraint = new IgnoreEdgeConstraint(EdgeInfo.Type.Value);
+		final EdgeConstraint ignoreConstraint = new AddNodeConstraint(nodeConstraint); // Constraint usada para las declaraciones
+		
+		for (Variable definitionVariable : definitionNodes)
+		{	
+			final VariableId variableId = definitionVariable.variableId;
+			final Node definitionNode = definitionVariable.node;			
+			
+			final boolean isDefinitionParameters = definitionNode.getData().getType() == NodeInfo.Type.Parameters;
+			final boolean isDefinitionCall = !isDefinitionParameters && EDGTraverser.getSibling(definitionNode, 0).getData().getType() == NodeInfo.Type.Call;
+			final boolean isDefinitionVariable = !isDefinitionParameters && !isDefinitionCall;
+		
+			final Node definitionResultNode;
+			if (isDefinitionCall)
+				definitionResultNode = getArgumentOutNode(definitionNode);
+			else
+			{
+				final Node definitionResultNode0 = EDGTraverser.getResult(definitionNode); 
+				final Node definitionResultNode1 = definitionResultNode0 == null ? definitionNode : definitionResultNode0;
+				definitionResultNode = definitionResultNode1.getData().getType() == NodeInfo.Type.Expression ? EDGTraverser.getResult(definitionResultNode1) : definitionResultNode1;
+			}
+			
+			final GlobalVariableConstraint addConstraint = new GlobalVariableConstraint(SeekingConstraint.Operation.Add, variableId.toString());
+			final GlobalVariableConstraint letThroughConstraint = new GlobalVariableConstraint(SeekingConstraint.Operation.LetThrough, variableId.toString());
+			final GlobalVariableConstraint removeConstraint = new GlobalVariableConstraint(SeekingConstraint.Operation.Remove, variableId.toString());
+					
+			final String className = isDefinitionCall ? this.getScopeClass(EDGTraverser.getParent(definitionResultNode)) : definitionNode.getData().getInfo().getClassName();
+			final Node declarationNode = this.getDeclaration(variableId, className, definitionNode);
+			final boolean isGlobalVariable = declarationNode != null && declarationNode.getData() instanceof VariableInfo && ((VariableInfo) declarationNode.getData()).isGlobal();
+			
+			// Declaration edges
+			if (declarationNode != null && declarationNode != definitionNode) 
+				if (isDefinitionParameters)
+					this.edg.addEdge(declarationNode, definitionNode, 0, new EdgeInfo(EdgeInfo.Type.Flow, ignoreConstraint));
+				else if (isDefinitionVariable)
+					this.edg.addEdge(declarationNode, definitionResultNode, 0, new EdgeInfo(EdgeInfo.Type.Flow, ignoreConstraint));
+			
+/* 
+ * CODIGO DAVID, NO SE PARA QUE SIRVE PERO TIENE QUE VER CON LAS DEFINICIONES EN PARAMETERS
+ * 
+if (declarationNode != null && declarationNode != definitionNode)
+	if (isDefinitionParameters)
+	{
+		final GrammarConstraint grammarConstraint = new GrammarConstraint(this.edg.getGrammar(), declarationNode);
+		final Constraints production = new Constraints();
+		production.pushEdgeConstraint(new PhaseConstraint(Phase.Input));
+		production.pushEdgeConstraint(removeConstraint);
+		this.edg.addProduction(grammarConstraint, production);
+		this.edg.addEdge(declarationNode, definitionResultNode, 0, new EdgeInfo(EdgeInfo.Type.Input, grammarConstraint));
+	}
+	else
+		this.edg.addEdge(declarationNode, definitionResultNode, 0, new EdgeInfo(EdgeInfo.Type.Flow, ignoreConstraint));
+ * 
+ */		
+			// Definitions
+			final Node lastNode = this.getLastNode(definitionNode);
+			final Set<Node> usesNodes = this.getUses(variableId, definitionNode, lastNode);
+			for (Node useNode : usesNodes)
+			{
+				final boolean isUseLastNode = useNode == lastNode;
+				final boolean isUseCall = !isUseLastNode && EDGTraverser.getSibling(useNode, 0).getData().getType() == NodeInfo.Type.Call;
+				final boolean isUseVariable = !isUseLastNode && !isUseCall;
+				final Node useNode1 = !isUseCall ? EDGTraverser.getResult(useNode) : getArgumentInNode(useNode);
+				
+				// INSIDE FUNCTIONS, GLOBALS & LOCALS
+				if(isDefinitionVariable && isUseVariable)
+					this.edg.addEdge(definitionResultNode, useNode1, 0, new EdgeInfo(EdgeInfo.Type.Flow));
+				
+				// ONLY GLOBALS
+				if (isGlobalVariable && definitionResultNode != useNode)
+				{
+// 					EDGES DEFINED CASE BY CASE:
+//					
+//					// EXPLICIT DEFINITION
+//					if (isDefinitionVariable && isUseCall) // La definición global escapa a la funcion (sale sin ser usada (lastNode) o se usa en otra llamada (useCall))
+//					{	
+//						this.edg.addEdge(useNode1, EDGTraverser.getResult(useNode), 0, new EdgeInfo(EdgeInfo.Type.Flow, addConstraint));
+//						this.edg.addEdge(definitionResultNode, useNode1, 0, new EdgeInfo(EdgeInfo.Type.Flow, removeConstraint));
+//					}
+//					else if (isDefinitionVariable && isUseLastNode)
+//						this.edg.addEdge(definitionResultNode, parametersNode, 0, new EdgeInfo(EdgeInfo.Type.Flow, removeConstraint));
+//					
+//					// PARAMETERS DEFINITION
+//					else if (isDefinitionParameters && isUseVariable) // Usos explicitos +GVname en los arcos 
+//						this.edg.addEdge(definitionNode, useNode1, 0, new EdgeInfo(EdgeInfo.Type.Flow, addConstraint));
+//					else if (isDefinitionParameters && isUseCall) 
+//					{	
+//						this.edg.addEdge(useNode1, EDGTraverser.getResult(useNode), 0, new EdgeInfo(EdgeInfo.Type.Flow, addConstraint));
+//						this.edg.addEdge(definitionNode, useNode1, 0, new EdgeInfo(EdgeInfo.Type.Flow, letThroughConstraint));
+//					}
+//					
+//					// CALL DEFINITION
+//					else if (isDefinitionCall && isUseVariable) 
+//						this.edg.addEdge(definitionResultNode, useNode1, 0, new EdgeInfo(EdgeInfo.Type.Flow, addConstraint));
+//					else if (isDefinitionCall && isUseCall) 
+//					{	
+//						this.edg.addEdge(useNode1, EDGTraverser.getResult(useNode), 0, new EdgeInfo(EdgeInfo.Type.Flow, addConstraint));
+//						this.edg.addEdge(definitionResultNode, useNode1, 0, new EdgeInfo(EdgeInfo.Type.Flow, letThroughConstraint));
+//					}
+//					else if (isDefinitionCall && isUseLastNode)
+//						this.edg.addEdge(definitionResultNode, parametersNode, 0, new EdgeInfo(EdgeInfo.Type.Flow, letThroughConstraint));
+//					
+					// EDGES GROUPED IN COMMON PERFORMANCE:
+					if (isUseCall)
+					{	
+						this.edg.addEdge(useNode1, EDGTraverser.getResult(useNode), 0, new EdgeInfo(EdgeInfo.Type.Flow, addConstraint));
+						if (isDefinitionVariable)
+							this.edg.addEdge(definitionResultNode, useNode1, 0, new EdgeInfo(EdgeInfo.Type.Flow, removeConstraint));
+						else if (isDefinitionParameters)
+							this.edg.addEdge(definitionNode, useNode1, 0, new EdgeInfo(EdgeInfo.Type.Flow, letThroughConstraint));
+						else
+							this.edg.addEdge(definitionResultNode, useNode1, 0, new EdgeInfo(EdgeInfo.Type.Flow, letThroughConstraint));
+					}
+					else if (isDefinitionParameters && isUseVariable) 
+						this.edg.addEdge(definitionNode, useNode1, 0, new EdgeInfo(EdgeInfo.Type.Flow, addConstraint));
+					else if (isDefinitionCall && isUseVariable) 
+						this.edg.addEdge(definitionResultNode, useNode1, 0, new EdgeInfo(EdgeInfo.Type.Flow, addConstraint));
+					else if (isDefinitionVariable && isUseLastNode)
+					{
+						final Node parametersNode = isUseLastNode ? EDGTraverser.getSibling(useNode,0) : null; 
+						this.edg.addEdge(definitionResultNode, parametersNode, 0, new EdgeInfo(EdgeInfo.Type.Flow, removeConstraint));
+					}
+					else if (isDefinitionCall && isUseLastNode)
+					{
+						final Node parametersNode = isUseLastNode ? EDGTraverser.getSibling(useNode,0) : null; 
+						this.edg.addEdge(definitionResultNode, parametersNode, 0, new EdgeInfo(EdgeInfo.Type.Flow, letThroughConstraint));
+					}
+					
+					// ARCOS ESPECIALES PARA COMUNICAR FUNCIONES Y COGER DEFINICION DE LA DECLARACION SI PROCEDE
+					if (isDefinitionCall)
+					{
+						final List<Edge> clauseResults = EDGTraverser.getEdges(definitionNode, Direction.Backwards, EdgeInfo.Type.Output);
+						for (Edge clauseResult : clauseResults)
+						{
+							final Node clauseParametersNode = EDGTraverser.getSibling(clauseResult.getFrom(),0);
+							this.edg.addEdge(clauseParametersNode, definitionResultNode, 0, new EdgeInfo(EdgeInfo.Type.Output, letThroughConstraint));
+							this.edg.addEdge(EDGTraverser.getResult(EDGTraverser.getSibling(definitionResultNode, 0)), definitionResultNode, 0, new EdgeInfo(EdgeInfo.Type.Flow, removeConstraint));
+						}
+					}
+					
+					// Arcos para coger la definicion en la declaracion de la funcion si la hubiera 
+// TODO Discutir si habria que coger esta definición cuando haya llamadas a esta funcion
+					if (isDefinitionParameters)
+					{
+						final Node declarationResultNode = EDGTraverser.getResult(declarationNode);
+						if (declarationResultNode != null)
+							this.edg.addEdge(declarationResultNode, definitionNode, 0, new EdgeInfo(EdgeInfo.Type.Input, removeConstraint));	
+					}
+				}
+			}
+		}
+	}		
 	
 	
 }

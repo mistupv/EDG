@@ -78,6 +78,10 @@ public class ControlFlowEdgeGenerator extends EdgeGenerator
 			case Update:
 			case TypeCheck:	//ADDED
 			case TypeTransformation: //ADDED
+			// EXCEPTIONS
+			case Try:
+			case CatchClause:
+			case Finally:
 				return this.generateStructure(node, Way.Forwards);
 
 			case Equality:
@@ -101,6 +105,10 @@ public class ControlFlowEdgeGenerator extends EdgeGenerator
 				return this.generateCLoopStructure(node);
 			case RLoop:
 				return this.generateRLoopStructure(node);
+				
+			case ExHandler:
+				return this.generateExHandlerStructure(node);
+			case Catch:
 				
 			case Break:
 			case Return:
@@ -310,7 +318,6 @@ public class ControlFlowEdgeGenerator extends EdgeGenerator
 
 		return nodes;
 	}
-
 	private List<Node> generateRLoopStructure(Node node)
 	{
 		final List<Node> nodes = new LinkedList<Node>();
@@ -327,6 +334,45 @@ public class ControlFlowEdgeGenerator extends EdgeGenerator
 		nodes.addAll(conditionResultNodes);
 
 		return nodes;
+	}
+	
+	private List<Node> generateExHandlerStructure(Node node)
+	{
+		final List<Node> nodes = new LinkedList<Node>();
+		final Node tryChild = EDGTraverser.getChild(node, NodeInfo.Type.Try);
+		final Node catchChild = EDGTraverser.getChild(node, NodeInfo.Type.Catch);
+		final Node finallyChild = EDGTraverser.getChild(node, NodeInfo.Type.Finally);
+		final List<Node> tryResultNodes = this.generate(tryChild);
+		final List<Node> catchResultNodes = this.generateCatchStructure(catchChild);
+		final List<Node> finallyResultNodes = this.generate(finallyChild);
+
+		this.edg.addEdge(node, tryChild, 0, this.controlFlowEdgeInfo);
+		for (Node resultNode : tryResultNodes)
+		{
+			this.edg.addEdge(resultNode, catchChild, 0, this.controlFlowEdgeInfo);
+			this.edg.addEdge(resultNode, finallyChild, 0, this.controlFlowEdgeInfo);
+		}
+		List<Node> catchClauses = EDGTraverser.getChildren(catchChild);
+		for (Node clause : catchClauses)
+			this.edg.addEdge(catchChild, clause, 0, this.controlFlowEdgeInfo);
+		for (Node resultNode : catchResultNodes)
+			this.edg.addEdge(resultNode, finallyChild, 0, this.controlFlowEdgeInfo);
+		nodes.addAll(finallyResultNodes);
+
+		return nodes;
+	}
+	
+	private List<Node> generateCatchStructure(Node node)
+	{
+		List<Node> catchResultNodes = new LinkedList<Node>();
+		List<Node> catchClauses = EDGTraverser.getChildren(node);
+		for (Node clause : catchClauses)
+		{
+			this.edg.addEdge(node, clause, 0, this.controlFlowEdgeInfo);
+			List<Node> resultNodes = this.generate(clause);
+			catchResultNodes.addAll(resultNodes);
+		}
+		return catchResultNodes;
 	}
 	
 	private List<Node> generateJumpStructure(Node node)

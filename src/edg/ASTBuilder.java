@@ -17,7 +17,7 @@ public class ASTBuilder
 {
 	public static int nextId = 0;
 	public static enum Where { Parameters, Arguments, Guard, Scope, Name, Body, Condition, Then, Else, Selector, Cases, Selectable, Restrictions, Value,
-		Init, Update // ADDED SERGIO NEW LOOP
+		Init, Update, Try, Catch, Finally // ADDED SERGIO NEW LOOP
 		}
 
 	// EDG
@@ -68,7 +68,7 @@ public class ASTBuilder
 
 		final Node clause = ASTBuilder.addNode(edg, parent, NodeInfo.Type.Clause, "clause", info);
 		//ASTBuilder.addNode(edg, clause, NodeInfo.Type.Parameters, "parameters", null);
-		ASTBuilder.addNode(edg, clause, NodeInfo.Type.Parameters, "parameters", info); // ADDED info to parameters to obtain de name of the class
+		ASTBuilder.addNode(edg, clause, NodeInfo.Type.Parameters, "parameters", info); // ADDED info to parameters to obtain the name of the class
 		ASTBuilder.addNode(edg, clause, NodeInfo.Type.Guard, "guard", null);
 		ASTBuilder.addNode(edg, clause, NodeInfo.Type.Body, "body", null);
 		ASTBuilder.addNode(edg, clause, NodeInfo.Type.Result, "result", null);
@@ -246,9 +246,44 @@ public class ASTBuilder
 		ASTBuilder.addNode(edg, callee, NodeInfo.Type.Name, "name", null);
 		ASTBuilder.addNode(edg, callee, NodeInfo.Type.Result, "result", null);
 		ASTBuilder.addNode(edg, call, NodeInfo.Type.Arguments, "arguments", null);
+		ASTBuilder.addNode(edg, call, NodeInfo.Type.ArgumentIn, "argsIn", null);
+		ASTBuilder.addNode(edg, call, NodeInfo.Type.ArgumentOut, "argsOut", null);
 		return call.getData().getId();
 	}
+//	public static void addArgumentsInOut(EDG edg, int callId, Where where, LDASTNodeInfo info)
+//	{
+//		final Node callNode = EDGTraverser.getNode(edg, callId);
+//		final Node argumentsNode = ASTBuilder.getCallChildNode(callNode, where);
+//		ASTBuilder.addNode(edg, argumentsNode, NodeInfo.Type.ArgumentIn, "in", null);
+//		ASTBuilder.addNode(edg, argumentsNode, NodeInfo.Type.ArgumentOut, "out", null);
+//	}
 
+	public static int addExHandler(EDG edg, int parentId, Where where, LDASTNodeInfo info)
+	{
+		final Node parent = ASTBuilder.getParentNode(edg, parentId, where);
+		final Node expression = ASTBuilder.addNode(edg, parent, NodeInfo.Type.Expression, "expression", null);
+		final Node exHandler = ASTBuilder.addNode(edg, expression, NodeInfo.Type.ExHandler, "exHandler", info);
+		ASTBuilder.addNode(edg, expression, NodeInfo.Type.Result, "result", null);
+		ASTBuilder.addNode(edg, exHandler, NodeInfo.Type.Try, "try", null);
+		ASTBuilder.addNode(edg, exHandler, NodeInfo.Type.Catch, "catch", null);
+		ASTBuilder.addNode(edg, exHandler, NodeInfo.Type.Finally, "finally", null);
+
+		return exHandler.getData().getId();
+	}
+	public static int addCatchClause(EDG edg, int parentId, Where where, LDASTNodeInfo info)
+	{
+		final Node parent = ASTBuilder.getParentNode(edg, parentId, where);
+		final Node catchClause = ASTBuilder.addNode(edg, parent, NodeInfo.Type.CatchClause, "clause", info);
+		
+		ASTBuilder.addNode(edg, catchClause, NodeInfo.Type.Parameters, "parameters", info); // ADDED info to parameters to obtain the name of the class
+		ASTBuilder.addNode(edg, catchClause, NodeInfo.Type.Guard, "guard", null);
+		ASTBuilder.addNode(edg, catchClause, NodeInfo.Type.Body, "body", null);
+		ASTBuilder.addNode(edg, catchClause, NodeInfo.Type.Result, "result", null);
+
+		return catchClause.getData().getId();
+	}
+	
+	
 	public static int addListComprehension(EDG edg, int parentId, Where where, LDASTNodeInfo info)
 	{
 		final Node parent = ASTBuilder.getParentNode(edg, parentId, where);
@@ -589,6 +624,21 @@ public class ASTBuilder
 				throw new RuntimeException("A loop cannot contain " + where);
 		}
 	}
+	private static Node getExhandlerChildNode(Node exHandler, Where where)
+	{
+		switch (where)
+		{
+			case Try:
+				return EDGTraverser.getChild(exHandler, NodeInfo.Type.Try);
+			case Catch:
+				return EDGTraverser.getChild(exHandler, NodeInfo.Type.Catch);
+			case Finally:
+				return EDGTraverser.getChild(exHandler, NodeInfo.Type.Finally);
+			default:
+				throw new RuntimeException("An exception handler cannot contain " + where);
+		}
+	}
+	
 	
 	// Common
 	public static List<Where> getWheres(NodeInfo.Type type)
@@ -663,6 +713,7 @@ public class ASTBuilder
 		switch (type)
 		{
 			case Clause:
+			case CatchClause:
 				return ASTBuilder.getClauseChildNode(parentNode, where);
 			case Call:
 				return ASTBuilder.getCallChildNode(parentNode, where);
@@ -684,6 +735,8 @@ public class ASTBuilder
 //case ForLoop:
 //	return ASTBuilder.getLoopChildNode(parentNode, where);
 //
+			case ExHandler:
+				return ASTBuilder.getExhandlerChildNode(parentNode, where); 
 				
 			case TypeCheck: // ADDED
 			case TypeTransformation: // ADDED
