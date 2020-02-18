@@ -4,7 +4,7 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.function.Predicate;
 
-import edg.graph.EDG;
+import edg.graph.LAST;
 import edg.graph.Edge;
 import edg.graph.EdgeInfo;
 import edg.graph.Node;
@@ -12,44 +12,44 @@ import edg.graph.NodeInfo;
 import edg.graph.VariableInfo;
 import edg.graph.VariableInfo.Context;
 
-public class EDGTraverser extends LASTTraverser
+public class LASTTraverser
 {
 	public static enum Direction { Forwards, Backwards }
 
-	public static Node getNode(EDG edg, int id)
+	public static Node getNode(LAST last, int id)
 	{
-		return edg.findNodeByData(null, ( o1, o2 ) -> o2.getId() - id);
+		return last.findNodeByData(null, ( o1, o2 ) -> o2.getId() - id);
 	}
-	public static List<Node> getNodes(EDG edg, NodeInfo.Type type)
+	public static List<Node> getNodes(LAST last, NodeInfo.Type type)
 	{
-		final Node root = edg.getRootNode();
+		final Node root = last.getRootNode();
 
-		return EDGTraverser.getDescendants(root, type);
+		return LASTTraverser.getDescendants(root, type);
 	}
-	public static List<Node> getNodes(EDG edg, Predicate<Node> predicate)
+	public static List<Node> getNodes(LAST last, Predicate<Node> predicate)
 	{
-		final Node root = edg.getRootNode();
+		final Node root = last.getRootNode();
 
-		return EDGTraverser.getDescendants(root, predicate);
+		return LASTTraverser.getDescendants(root, predicate);
 	}
 	public static List<Node> getDescendants(Node root)
 	{
-		return EDGTraverser.getDescendants(root, node -> true);
+		return LASTTraverser.getDescendants(root, node -> true);
 	}
 	public static List<Node> getDescendants(Node root, NodeInfo.Type type)
 	{
-		return EDGTraverser.getDescendants(root, node -> node.getData().getType() == type);
+		return LASTTraverser.getDescendants(root, node -> node.getData().getType() == type);
 	}
 	public static List<Node> getDescendants(Node root, Predicate<Node> predicate)
 	{
 		final List<Node> descendants = new LinkedList<Node>();
-		final List<Node> children = EDGTraverser.getChildren(root);
+		final List<Node> children = LASTTraverser.getChildren(root);
 
 		for (Node child : children)
 		{
 			if (predicate.test(child))
 				descendants.add(child);
-			descendants.addAll(EDGTraverser.getDescendants(child, predicate));
+			descendants.addAll(LASTTraverser.getDescendants(child, predicate));
 		}
 
 		return descendants;
@@ -59,7 +59,7 @@ public class EDGTraverser extends LASTTraverser
 		final List<Node> descendants = new LinkedList<Node>();
 
 		for (Node node : nodes)
-			if (EDGTraverser.isDescendant(root, node))
+			if (LASTTraverser.isDescendant(root, node))
 				descendants.add(node);
 
 		return descendants;
@@ -69,7 +69,7 @@ public class EDGTraverser extends LASTTraverser
 		Node ancestor = node;
 
 		while (ancestor != root && ancestor != null)
-			ancestor = EDGTraverser.getParent(ancestor);
+			ancestor = LASTTraverser.getParent(ancestor);
 
 		return ancestor != null;
 	}
@@ -81,7 +81,7 @@ public class EDGTraverser extends LASTTraverser
 
 		while (ancestorType != null && ancestorType != nodeType)
 		{
-			ancestor = EDGTraverser.getParent(ancestor);
+			ancestor = LASTTraverser.getParent(ancestor);
 			ancestorType = ancestor == null ? null : ancestor.getData().getType();
 		}
 
@@ -89,7 +89,7 @@ public class EDGTraverser extends LASTTraverser
 	}
 	public static Node getParent(Node node)
 	{
-		final List<Node> nodes = EDGTraverser.getNodes(node, Direction.Backwards, EdgeInfo.Type.Structural);
+		final List<Node> nodes = LASTTraverser.getNodes(node, Direction.Backwards, EdgeInfo.Type.Structural);
 		if (nodes.size() > 1)
 			throw new RuntimeException("More than one parent");
 		if (nodes.isEmpty())
@@ -98,23 +98,23 @@ public class EDGTraverser extends LASTTraverser
 	}
 	public static Node getSibling(Node node, int index)
 	{
-		final List<Node> siblings = EDGTraverser.getSiblings(node);
+		final List<Node> siblings = LASTTraverser.getSiblings(node);
 
 		return siblings.get(index);
 	}
 	public static List<Node> getSiblings(Node node)
 	{
-		final Node parent = EDGTraverser.getParent(node);
+		final Node parent = LASTTraverser.getParent(node);
 
-		return EDGTraverser.getChildren(parent);
+		return LASTTraverser.getChildren(parent);
 	}
 	public static List<Node> getChildren(Node node)
 	{
-		return EDGTraverser.getNodes(node, Direction.Forwards, EdgeInfo.Type.Structural);
+		return LASTTraverser.getNodes(node, Direction.Forwards, EdgeInfo.Type.Structural);
 	}
 	public static Node getChild(Node node, int childIndex)
 	{
-		final List<Node> children = EDGTraverser.getChildren(node);
+		final List<Node> children = LASTTraverser.getChildren(node);
 
 		return children.get(childIndex);
 	}
@@ -122,7 +122,7 @@ public class EDGTraverser extends LASTTraverser
 //SEARCH BY NODETYPE
 	public static Node getChild(Node node, NodeInfo.Type type)
 	{
-		final List<Node> children = EDGTraverser.getChildren(node);
+		final List<Node> children = LASTTraverser.getChildren(node);
 		
 		for (Node child: children)
 			if (child.getData().getType() == type)
@@ -131,24 +131,24 @@ public class EDGTraverser extends LASTTraverser
 	}
 	public static int getChildIndex(Node node)
 	{
-		final List<Node> siblings = EDGTraverser.getSiblings(node);
+		final List<Node> siblings = LASTTraverser.getSiblings(node);
 
 		return siblings.indexOf(node);
 	}
 
 	public static List<Node> getInputs(Node node, Direction direction)
 	{
-		return EDGTraverser.getNodes(node, direction, EdgeInfo.Type.Input);
+		return LASTTraverser.getNodes(node, direction, EdgeInfo.Type.Input);
 	}
 	public static List<Node> getOutputs(Node node, Direction direction)
 	{
-		return EDGTraverser.getNodes(node, direction, EdgeInfo.Type.Output);
+		return LASTTraverser.getNodes(node, direction, EdgeInfo.Type.Output);
 	}
 
 	public static List<Node> getNodes(Node node, Direction direction)
 	{
 		final List<Node> nodes = new LinkedList<Node>();
-		final List<Edge> edges = EDGTraverser.getEdges(node, direction);
+		final List<Edge> edges = LASTTraverser.getEdges(node, direction);
 
 		for (Edge edge : edges)
 		{
@@ -162,7 +162,7 @@ public class EDGTraverser extends LASTTraverser
 	public static List<Node> getNodes(Node node, Direction direction, EdgeInfo.Type edgeType)
 	{
 		final List<Node> nodes = new LinkedList<Node>();
-		final List<Edge> edges = EDGTraverser.getEdges(node, direction, edgeType);
+		final List<Edge> edges = LASTTraverser.getEdges(node, direction, edgeType);
 
 		for (Edge edge : edges)
 		{
@@ -192,14 +192,16 @@ public class EDGTraverser extends LASTTraverser
 	public static Node getResult(Node node)
 	{
 		final NodeInfo info = node.getData();
-		final List<Node> siblings = EDGTraverser.getSiblings(node);
-		final List<Node> children = EDGTraverser.getChildren(node);
+		final List<Node> siblings = LASTTraverser.getSiblings(node);
+		final List<Node> children = LASTTraverser.getChildren(node);
 
 		switch (info.getType())
 		{
 			// This expression
+			case DefaultCase:
 			case Result:
 			case Update:
+			case ParameterIn:
 				return node;
 
 			// Last sibling
@@ -255,19 +257,19 @@ public class EDGTraverser extends LASTTraverser
 	
 	private static Node getVarResult(Node node, List<Node> siblings) {
 		
-		final Node grandParentUseNode = EDGTraverser.getParent(EDGTraverser.getParent(node));
+		final Node grandParentUseNode = LASTTraverser.getParent(LASTTraverser.getParent(node));
 		if (grandParentUseNode.getData().getType() == NodeInfo.Type.DataConstructorAccess)
 		{
-			final Node parentNode = EDGTraverser.getParent(node);
-			if (EDGTraverser.getChildIndex(parentNode) == 0)
-				return EDGTraverser.getSibling(grandParentUseNode, 1);
+			final Node parentNode = LASTTraverser.getParent(node);
+			if (LASTTraverser.getChildIndex(parentNode) == 0)
+				return LASTTraverser.getSibling(grandParentUseNode, 1);
 		}
 		return siblings.get(siblings.size() - 1);
 	}
 	
-	public static Node getModuleByName(EDG edg, String name)
+	public static Node getModuleByName(LAST last, String name)
 	{
-		final List<Node> moduleNodes = EDGTraverser.getNodes(edg, NodeInfo.Type.Module);
+		final List<Node> moduleNodes = LASTTraverser.getNodes(last, NodeInfo.Type.Module);
 		
 		for (Node moduleNode : moduleNodes)
 		{
@@ -287,9 +289,9 @@ public class EDGTraverser extends LASTTraverser
 			if (ancestorType == NodeInfo.Type.Parameters || ancestorType == NodeInfo.Type.Selectable)
 				return true;
 
-			final Node ancestorParent = EDGTraverser.getParent(ancestor);
+			final Node ancestorParent = LASTTraverser.getParent(ancestor);
 			final NodeInfo.Type ancestorParentType = ancestorParent.getData().getType();
-			final int ancestorChildIndex = EDGTraverser.getChildIndex(ancestor);
+			final int ancestorChildIndex = LASTTraverser.getChildIndex(ancestor);
 			if ((ancestorParentType == NodeInfo.Type.Generator || ancestorParentType == NodeInfo.Type.Equality) && ancestorChildIndex == 0)
 				return true;
 
@@ -368,11 +370,11 @@ public class EDGTraverser extends LASTTraverser
 		return sameIdNodes;
 	}
 
-	public static boolean isDefinedClass(EDG edg, Node node)
+	public static boolean isDefinedClass(LAST last, Node node)
 	{
 		if (node.getData().getType() != NodeInfo.Type.Variable)
 			return true;
-		final List<Node> modules = EDGTraverser.getNodes(edg, NodeInfo.Type.Module);
+		final List<Node> modules = LASTTraverser.getNodes(last, NodeInfo.Type.Module);
 		final String nodeType =  node.getData().getInfo().getInfo()[1].toString();
 		for (Node module : modules)
 			if (module.getData().getName().equals(nodeType))

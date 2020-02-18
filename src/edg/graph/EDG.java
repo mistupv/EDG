@@ -13,55 +13,19 @@ import edg.graphlib.Vertex;
 import edg.slicing.SlicingCriterion;
 import edg.traverser.EDGTraverser;
 
-public class EDG
+public class EDG extends LAST
 {
+	public EDG()
+	{
+		
+	}
+	public EDG(LAST last)
+	{
+		this.graph = last.graph; 
+	}
 	/*****************/
 	/***** Nodes *****/
 	/*****************/
-	private final Graph<NodeInfo, EdgeInfo> graph = new Graph<NodeInfo, EdgeInfo>();
-	private final GraphGeneratorTimer ggt = new GraphGeneratorTimer();
-	
-	public Node getRootNode()
-	{
-		return (Node) this.graph.getRootVertex();
-	}
-	public List<Node> getNodes()
-	{
-		final List<Node> nodes = new LinkedList<Node>();
-		final List<Vertex<NodeInfo, EdgeInfo>> verticies = this.graph.getVerticies();
-
-		for (Vertex<NodeInfo, EdgeInfo> vertex : verticies)
-			nodes.add((Node) vertex);
-
-		return nodes;
-	}
-	public List<Edge> getEdges()
-	{
-		final List<Edge> edges = new LinkedList<Edge>();
-		final List<Arrow<NodeInfo, EdgeInfo>> arrows = this.graph.getArrows();
-
-		for (Arrow<NodeInfo, EdgeInfo> arrow : arrows)
-			edges.add((Edge) arrow);
-
-		return edges;
-	}
-
-	public void setRootNode(Node node)
-	{
-		this.graph.setRootVertex(node);
-	}
-
-	public boolean addNode(Node node)
-	{
-		return this.graph.addVertex(node);
-	}
-	public boolean addEdge(Node from, Node to, int cost, EdgeInfo data) throws IllegalArgumentException
-	{
-		final Edge e = new Edge(from, to, cost, data);
-
-		return this.graph.addEdge(e);
-	}
-
 	public Node getNode(SlicingCriterion sc)
 	{
 		if (sc == null)
@@ -91,20 +55,6 @@ public class EDG
 		final Node node = nodes.get(scOccurrence - 1);
 		return EDGTraverser.getResult(node);
 	}
-	public Node findNodeByData(NodeInfo data, Comparator<NodeInfo> compare)
-	{
-		return (Node) this.graph.findNodeByData(data, compare);
-	}
-	public List<Node> findNodesByData(NodeInfo data, Comparator<NodeInfo> compare)
-	{
-		final List<Node> nodes = new LinkedList<Node>();
-		final List<Vertex<NodeInfo, EdgeInfo>> verticies = this.graph.findVerticiesByData(data, compare);
-
-		for (Vertex<NodeInfo, EdgeInfo> vertex : verticies)
-			nodes.add((Node) vertex);
-
-		return nodes;
-	}
 
 	/*****************/
 	/**** Grammar ****/
@@ -125,10 +75,11 @@ public class EDG
 		this.grammar.addProduction(grammarConstraint, production);
 	}
 	
-	/**********************/
-	/**** Time Measure ****/
-	/**********************/
-
+	/**********************************/
+	/**** Generation Time Measurer ****/
+	/**********************************/
+	private final GraphGeneratorTimer ggt = new GraphGeneratorTimer();
+	
 	public void setStructureTime(double time) {	this.ggt.setStructureTime(time); }
 	public void setControlFlowTime(double time) {	this.ggt.setControlFlowTime(time); }
 	public void setControlTime(double time) {	this.ggt.setControlTime(time);	}

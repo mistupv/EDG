@@ -17,7 +17,7 @@ public class NodeInfo
 		// Expressions
 		List, DataConstructor, DataConstructorAccess, FieldAccess,
 		Block, Operation, Equality,
-		If, Condition,
+		If, Condition, Then, Else,
 		Switch, Selector, Cases, Case, DefaultCase, Selectable,
 		Call, Callee, Scope, Name, Arguments,
 		ListComprehension, Restrictions, Generator, Filter, Value,
@@ -38,7 +38,10 @@ public class NodeInfo
 		TypeTransformation,
 		Type,
 		Reference, Label,
-		ArgumentIn, ArgumentOut
+		ArgumentIn, ArgumentOut,
+		ParameterIn, ParameterOut,
+		
+		Index // To identify DataContructorAccess Indexes
 		
 		
 	}

@@ -6,23 +6,36 @@ public class LDASTNodeInfo
 	private String className;
 	private final long line;
 	private final String construction;
+	private final boolean isExpression;
 	private Object[] info;
 
 	public LDASTNodeInfo(long line, String construction, Object... info)
 	{
-		this(null, null, line, construction, info);
+		this(null, null, line, false, construction, info);
+	}
+	public LDASTNodeInfo(long line, boolean expression, String construction,  Object... info)
+	{
+		this(null, null, line, expression, construction, info);
 	}
 	public LDASTNodeInfo(String archive, long line, String construction, Object... info)
 	{
-		this(archive, null, line, construction, info);
+		this(archive, null, line, false, construction, info);
 	}
-	
+	public LDASTNodeInfo(String archive, long line, boolean expression, String construction, Object... info)
+	{
+		this(archive, null, line, expression, construction, info);
+	}
 	public LDASTNodeInfo(String archive, String className, long line, String construction, Object... info)
+	{
+		this(archive, className, line, false, construction, info);
+	}
+	public LDASTNodeInfo(String archive, String className, long line, boolean expression, String construction, Object... info)
 	{
 		this.archive = archive;
 		this.className = className;
 		this.line = line;
 		this.construction = construction;
+		this.isExpression = expression;
 		this.info = info;
 	}
 
@@ -41,6 +54,10 @@ public class LDASTNodeInfo
 	public String getConstruction()
 	{
 		return this.construction;
+	}
+	public boolean isExpression()
+	{
+		return this.isExpression;
 	}
 	public Object[] getInfo()
 	{

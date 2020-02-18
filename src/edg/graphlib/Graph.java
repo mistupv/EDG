@@ -292,6 +292,53 @@ public class Graph<T, S> {
   }
 
   /**
+   * Remove edges from the graph
+   * 
+   * @param from -
+   *          the edges starting vertex
+   * @param to -
+   *          the edges ending vertex
+   * @return true if any edge exists, false otherwise
+   */
+  public boolean removeEdge(Arrow<T, S> arrow, Vertex <T, S> from, Vertex<T, S> to) {
+	  int index = edges.indexOf(arrow);
+	  if (index == -1)
+		  return false;
+	  
+	  Arrow<T, S> e = edges.get(index);
+	 
+	  from.remove(e);
+      to.remove(e);
+      edges.remove(e);
+      
+      return true;
+  }
+  
+  /**
+   * Update the to node an arrow is pointing to
+   * 
+   ** @param from -
+   *          the edges starting vertex
+   * @param to -
+   *          the edges ending vertex
+   * @param newTo -
+   *          the new edges ending vertex
+   * @return true if any edge exists, false otherwise
+   */
+  public boolean updateToEdge(Arrow<T, S> arrow, Vertex <T, S> from, Vertex<T, S> to, Vertex<T, S> newTo) { // ADDED
+	  int index = edges.indexOf(arrow);
+	  if (index == -1)
+		  return false;
+	  
+	  Arrow<T, S> e = edges.get(index);
+	  to.remove(e);
+	  e.updateTo(newTo);
+	  newTo.addEdge(e);
+      
+      return true;
+  }
+  
+  /**
    * Clear the mark state of all verticies in the graph by calling clearMark()
    * on all verticies.
    * 

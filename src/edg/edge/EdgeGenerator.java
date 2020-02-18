@@ -1,10 +1,10 @@
 package edg.edge;
 
-import java.text.DecimalFormat;
 import java.util.LinkedList;
 import java.util.List;
 
 import edg.graph.EDG;
+import edg.graph.LAST;
 import edg.graph.Node;
 import edg.graph.NodeInfo;
 import edg.graph.VariableInfo;
@@ -24,57 +24,28 @@ public abstract class EdgeGenerator
 //		new ExceptionEdgeGenerator(edg).generate();
 //	}
 
-	public static void generateEdges(EDG edg)
+	public static void generateEdges(LAST last) // CASTING PARA QUE NO DE ERRORES POR AHORA
 	{
-		long start;
-		start = System.nanoTime();
-		new ControlFlowEdgeGenerator(edg).generate();
-		long cfedges = System.nanoTime();
-		//System.out.println("ControlFlow Arcs: "+(cfedges-start)/1000.0+" miliseconds");
-		edg.setControlFlowTime((cfedges-start)/1000000.0);
-		
-		start = System.nanoTime();
-		new ControlEdgeGenerator(edg).generate();
-		long controledges = System.nanoTime();
-		//System.out.println("Control Arcs: "+(controledges-start)/1000.0+" miliseconds");
-		edg.setControlTime((controledges-start)/1000000.0);
-
-		start = System.nanoTime();
-		new InterproceduralEdgeGenerator(edg).generate();
-		long ipedges = System.nanoTime();
-		//System.out.println("Interprocedural Arcs: "+(ipedges-start)/1000.0+" miliseconds");
-		edg.setInterproceduralTime((ipedges-start)/1000000.0);
-		
-		start = System.nanoTime();
-		new FlowEdgeGenerator(edg).generate();
-		long flowedges = System.nanoTime();
-		//System.out.println("Flow Arcs: "+(flowedges-start)/1000.0+" miliseconds");
-		edg.setFlowTime((flowedges-start)/1000000.0);
-		
-		start = System.nanoTime();
-		new ValueEdgeGenerator(edg).generateJava();
-		long valedges = System.nanoTime();
-		//System.out.println("Value Arcs: "+(valedges-start)/1000.0+" miliseconds");
-		edg.setValueTime((valedges-start)/1000000.0);
-		
-		start = System.nanoTime();
-		new SummaryEdgeGenerator(edg).generate();
-		long sumedges = System.nanoTime();
-		//System.out.println("Summary Arcs: "+(sumedges-start)/1000.0+" miliseconds");
-		edg.setSummaryTime((sumedges-start)/1000000.0);
-		
-		start = System.nanoTime();
-		new ExceptionEdgeGenerator(edg).generate();
-		long exedges = System.nanoTime();
-		//System.out.println("Exception Arcs: "+(exedges-start)/1000.0+" miliseconds");
-		edg.setExceptionTime((exedges-start)/1000000.0);
-		
-//		DecimalFormat df = new DecimalFormat("#.###");  
-//		System.out.println("EDG Generation Time: "+df.format(ggt.getGenerationEDGTime()));
-//		System.out.println("SDG Generation Time: "+df.format(ggt.getGenerationSDGTime(edg)));
+		new ControlFlowEdgeGenerator((EDG) last).generate();
+		new ControlEdgeGenerator((EDG) last).generate();
+		new InterproceduralEdgeGenerator((EDG) last).generate();
+		new FlowEdgeGenerator((EDG) last).generate();
+		new ValueEdgeGenerator((EDG) last).generateJava();
+		new SummaryEdgeGenerator((EDG) last).generate();
+		new ExceptionEdgeGenerator((EDG) last).generate();
 	}
 	
-
+	public static void generateEdges(EDG edg)
+	{
+		new ControlFlowEdgeGenerator(edg).generate();
+		new ControlEdgeGenerator(edg).generate();
+		new InterproceduralEdgeGenerator(edg).generate();
+		new FlowEdgeGenerator(edg).generate();
+		new ValueEdgeGenerator(edg).generateJava();
+		new SummaryEdgeGenerator(edg).generate();
+		new ExceptionEdgeGenerator(edg).generate();
+	}
+	
 	protected final EDG edg;
 
 	public EdgeGenerator(EDG edg)

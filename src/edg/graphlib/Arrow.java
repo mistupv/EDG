@@ -109,6 +109,17 @@ public class Arrow<T, S> {
   }
 
   /**
+   * Get the ending vertex
+   * 
+   * @param new ending vertex
+   * 
+   */
+  
+  public void updateTo(Vertex<T, S> newTo) { // ADDED
+	    to = newTo;
+	  }
+
+  /**
    * Get the starting vertex
    * 
    * @return starting vertex
@@ -137,7 +148,7 @@ public class Arrow<T, S> {
    * @param data
    *          The data to set.
    */
-  public void setData(S data) {
+  public void setData(S data) { 
     this.data = data;
   }
 

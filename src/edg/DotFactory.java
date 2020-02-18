@@ -100,7 +100,7 @@ public class DotFactory
 			
 if (edgeType != EdgeInfo.Type.Structural) {
 final List<EdgeInfo.Type> ignoreEdgeTypes = Arrays.asList(EdgeInfo.Type.ControlFlow);
-final List<EdgeInfo.Type> edgeTypes = Arrays.asList();//, EdgeInfo.Type.Value, EdgeInfo.Type.Input, EdgeInfo.Type.Output, EdgeInfo.Type.Call); // Introducir aqui el tipo de arcos que quieres mostrar
+final List<EdgeInfo.Type> edgeTypes = Arrays.asList();//EdgeInfo.Type.Value, EdgeInfo.Type.Flow, EdgeInfo.Type.Output, EdgeInfo.Type.Input); // Introducir aqui el tipo de arcos que quieres mostrar
 final int[] boundNodeIds = {}; // Introducir aqui los extremos del intervalo en el que se quieren ver los arcos
 final List<Integer> nodesIds = Arrays.asList(); // Introducir aqui los nodos de los que se quieren ver los arcos
 
