@@ -7,6 +7,7 @@ import edg.PdfFactory;
 import edg.graph.EDG;
 import edg.graph.Node;
 import edg.slicing.ConstrainedAlgorithm;
+import edg.slicing.SDGAlgorithm;
 import edg.slicing.SlicingAlgorithm;
 import edg.slicing.SlicingCriterion;
 import eknife.CodeFactory;
@@ -58,7 +59,7 @@ public class JavaTest
 		
 		final String className = "Test.java";
 //		final SlicingCriterion slicingCriterion = new SlicingCriterion(className, 5, "p", 1); // Test.java
-		final SlicingCriterion slicingCriterion = new SlicingCriterion(className, 7, "a", 2); // Test.java
+		final SlicingCriterion slicingCriterion = new SlicingCriterion(className, 6, "x", 1); // Test.java
 		
 //		final String className = "Test2.java";
 //		final SlicingCriterion slicingCriterion = new SlicingCriterion(className, 8, "minMN", 1); // Test.java
@@ -77,7 +78,7 @@ public class JavaTest
 //		final SlicingCriterion slicingCriterion = new SlicingCriterion(className, 31, "f0", 1); // LoopBounds.java
 
 //		final String className = "LoopBoundsGV.java";
-//		final SlicingCriterion slicingCriterion = new SlicingCriterion(className, 38, "n", 1); // LoopBoundsGV.java
+//		final SlicingCriterion slicingCriterion = new SlicingCriterion(className, 26, "n", 1); // LoopBoundsGV.java
 		
 //		final String className = "TypeChecker.java";
 //		final SlicingCriterion slicingCriterion = new SlicingCriterion(className, 42, "v", 1); // TypeChecker.java
@@ -142,9 +143,39 @@ public class JavaTest
 		final List<Node> slice = slicingAlgorithm.slice(SC); 
 		//final List<Node> slice = new LinkedList<Node>(); // EMPTY SLICE
 
+		System.out.println("************************");
+		System.out.println("****** EDG SLICE *******");
+		System.out.println("************************\n");
+		
 		DotFactory.createDot(outputDotFile, edg, SC, slice);
 		PdfFactory.createPdf(outputPdfFile, outputDotFile);
 		CodeFactory.createCode(Language.Java, outputJavaFile, edg, slice);
+		
+		// SDG SLICE
+		
+		System.out.println("************************");
+		System.out.println("****** SDG SLICE *******");
+		System.out.println("************************\n");
+		
+		final String outputDotPathSDG = codebase + "outputSDG.dot";
+		final String outputPdfPathSDG = codebase + "outputSDG.pdf";
+		final String outputJavaPathSDG = codebase + "outputSDG.java";
+		final File outputDotFileSDG = new File(outputDotPathSDG);
+		final File outputPdfFileSDG = new File(outputPdfPathSDG);
+		final File outputJavaFileSDG = new File(outputJavaPathSDG);
+		
+		final SlicingAlgorithm slicingSDGAlgorithm = new SDGAlgorithm();
+		final List<Node> SDGSlice = slicingSDGAlgorithm.slice(SC); 
+		
+		DotFactory.createDot(outputDotFileSDG, edg, SC, SDGSlice);
+		PdfFactory.createPdf(outputPdfFileSDG, outputDotFileSDG);
+		CodeFactory.createCode(Language.Java, outputJavaFileSDG, edg, SDGSlice);
+		
+		slice.removeIf(sliceNode -> sliceNode.getData().isFictitious());
+		SDGSlice.removeIf(sliceNode -> sliceNode.getData().isFictitious());
+		
+		System.out.println("Total EDG Nodes: "+slice.size());
+		System.out.println("Total SDG Nodes: "+SDGSlice.size());
 	}
 
 	private static void testGlobalVariables(Config config) {

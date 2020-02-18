@@ -491,8 +491,9 @@ this.addVariableToContext(new VariableRecord(name.getName(), modifiers, type));
 		final VariableDeclarationExpr variableDeclaration = foreach.getVariable();
 		final Expression iterableExpr = foreach.getIterable();
 		final Statement body = foreach.getBody();
-		
 		final List<Statement> bodyStatements = body instanceof BlockStmt ? ((BlockStmt) body).getStatements() : new LinkedList<Statement>();
+		if (bodyStatements.isEmpty() && body instanceof ExpressionStmt)
+			bodyStatements.add(body);
 		final LDASTNodeInfo ldNodeInfo = new LDASTNodeInfo(line, "foreach");
 		
 		super.addForeach(variableDeclaration, iterableExpr, bodyStatements, ldNodeInfo);
