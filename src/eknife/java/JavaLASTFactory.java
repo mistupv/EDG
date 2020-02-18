@@ -1,91 +1,26 @@
 package eknife.java;
 
-import java.io.File;
-import java.util.Arrays;
-import java.util.EnumSet;
-import java.util.LinkedList;
-import java.util.List;	
-import java.util.Map;
-import java.util.Optional;
-import java.util.Stack;
-
 import com.github.javaparser.JavaParser;
-import com.github.javaparser.ast.Node;
-import com.github.javaparser.ast.ArrayCreationLevel;
-import com.github.javaparser.ast.CompilationUnit;
-import com.github.javaparser.ast.Modifier;
-import com.github.javaparser.ast.NodeList;
-import com.github.javaparser.ast.body.BodyDeclaration;
-import com.github.javaparser.ast.body.CallableDeclaration;
-import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration;
-import com.github.javaparser.ast.body.ConstructorDeclaration;
-import com.github.javaparser.ast.body.FieldDeclaration;
-import com.github.javaparser.ast.body.MethodDeclaration;
-import com.github.javaparser.ast.body.Parameter;
-import com.github.javaparser.ast.body.TypeDeclaration;
-import com.github.javaparser.ast.body.VariableDeclarator;
-import com.github.javaparser.ast.expr.ArrayAccessExpr;
-import com.github.javaparser.ast.expr.ArrayCreationExpr;
-import com.github.javaparser.ast.expr.ArrayInitializerExpr;
-import com.github.javaparser.ast.expr.AssignExpr;
-import com.github.javaparser.ast.expr.BinaryExpr;
-import com.github.javaparser.ast.expr.BooleanLiteralExpr;
-import com.github.javaparser.ast.expr.CastExpr;
-import com.github.javaparser.ast.expr.CharLiteralExpr;
-import com.github.javaparser.ast.expr.ClassExpr;
-import com.github.javaparser.ast.expr.ConditionalExpr;
-import com.github.javaparser.ast.expr.DoubleLiteralExpr;
-import com.github.javaparser.ast.expr.EnclosedExpr;
-import com.github.javaparser.ast.expr.Expression;
-import com.github.javaparser.ast.expr.FieldAccessExpr;
-import com.github.javaparser.ast.expr.InstanceOfExpr;
-import com.github.javaparser.ast.expr.IntegerLiteralExpr;
-import com.github.javaparser.ast.expr.LongLiteralExpr;
-import com.github.javaparser.ast.expr.MethodCallExpr;
-import com.github.javaparser.ast.expr.NameExpr;
-import com.github.javaparser.ast.expr.NullLiteralExpr;
-import com.github.javaparser.ast.expr.ObjectCreationExpr;
-import com.github.javaparser.ast.expr.SimpleName;
-import com.github.javaparser.ast.expr.StringLiteralExpr;
-import com.github.javaparser.ast.expr.SuperExpr;
-import com.github.javaparser.ast.expr.ThisExpr;
-import com.github.javaparser.ast.expr.UnaryExpr;
-import com.github.javaparser.ast.expr.VariableDeclarationExpr;
-import com.github.javaparser.ast.stmt.AssertStmt;
-import com.github.javaparser.ast.stmt.BlockStmt;
-import com.github.javaparser.ast.stmt.BreakStmt;
-import com.github.javaparser.ast.stmt.CatchClause;
-import com.github.javaparser.ast.stmt.ContinueStmt;
-import com.github.javaparser.ast.stmt.DoStmt;
-import com.github.javaparser.ast.stmt.EmptyStmt;
-import com.github.javaparser.ast.stmt.ExplicitConstructorInvocationStmt;
-import com.github.javaparser.ast.stmt.ExpressionStmt;
-import com.github.javaparser.ast.stmt.ForStmt;
-import com.github.javaparser.ast.stmt.ForeachStmt;
-import com.github.javaparser.ast.stmt.IfStmt;
-import com.github.javaparser.ast.stmt.LabeledStmt;
-import com.github.javaparser.ast.stmt.ReturnStmt;
-import com.github.javaparser.ast.stmt.Statement;
-import com.github.javaparser.ast.stmt.SwitchEntryStmt;
-import com.github.javaparser.ast.stmt.SwitchStmt;
-import com.github.javaparser.ast.stmt.ThrowStmt;
-import com.github.javaparser.ast.stmt.TryStmt;
-import com.github.javaparser.ast.stmt.WhileStmt;
+import com.github.javaparser.ast.*;
+import com.github.javaparser.ast.body.*;
+import com.github.javaparser.ast.expr.*;
+import com.github.javaparser.ast.stmt.*;
 import com.github.javaparser.ast.type.ArrayType;
 import com.github.javaparser.ast.type.ClassOrInterfaceType;
 import com.github.javaparser.ast.type.PrimitiveType;
 import com.github.javaparser.ast.type.Type;
-
+import edg.LASTBuilder.Where;
 import edg.LASTFactory;
 import edg.LDASTNodeInfo;
-import edg.LASTBuilder.Where;
 import edg.graph.LAST;
 import edg.graph.NodeInfo;
 import misc.Misc;
 
-public class JavaLASTFactory extends LASTFactory
-{
-	
+import java.io.File;
+import java.util.*;
+
+public class JavaLASTFactory extends LASTFactory {
+
 	/********************************************************************************************************************************/
 	/************************************************************ STATIC ************************************************************/
 	/********************************************************************************************************************************/
@@ -93,10 +28,12 @@ public class JavaLASTFactory extends LASTFactory
 	{
 		return JavaLASTFactory.createLAST(sourcePath, true);
 	}
+
 	public static LAST createLAST(String sourcePath, boolean generateArcs)
 	{
 		final File programFile = new File(sourcePath);
-		final List<File> files = programFile.isFile() ? Arrays.asList(programFile) : Misc.getFiles(programFile, new String[] { ".java" }, true);
+		final List<File> files = programFile.isFile() ? Arrays.asList(programFile) : Misc
+				.getFiles(programFile, new String[]{".java"}, true);
 		final JavaLASTFactory lastFactory = new JavaLASTFactory(sourcePath);
 
 		return lastFactory.createLAST(generateArcs, files);
@@ -129,7 +66,7 @@ public class JavaLASTFactory extends LASTFactory
 					if (type instanceof ClassOrInterfaceDeclaration)
 						classes.add((ClassOrInterfaceDeclaration) type);
 			}
-		 
+
 			final LAST last = super.createLAST(generateArcs, classes, ldNodeInfo);
 			if (generateArcs)
 			{
@@ -137,13 +74,13 @@ public class JavaLASTFactory extends LASTFactory
 				new ValueEdgeGenerator(last).generate();
 			}
 			return last;
-		}
-		catch (Exception e)
+		} catch (Exception e)
 		{
 			e.printStackTrace();
 			return null;
 		}
 	}
+
 	protected void processElement(Object element, Map<String, Object> info)
 	{
 		if (this.needsReturn(info))
@@ -230,7 +167,7 @@ public class JavaLASTFactory extends LASTFactory
 			this.process((StringLiteralExpr) element);
 		else if (element instanceof NullLiteralExpr)
 			this.process((NullLiteralExpr) element);
-		//ADDED
+			//ADDED
 		else if (element instanceof LabeledStmt)
 			this.process((LabeledStmt) element);
 		else if (element instanceof UnaryExpr)
@@ -245,7 +182,7 @@ public class JavaLASTFactory extends LASTFactory
 			this.process((CatchClause) element);
 		else if (element instanceof ThrowStmt)
 			this.process((ThrowStmt) element);
-		// SUPER & THIS
+			// SUPER & THIS
 		else if (element instanceof SuperExpr)
 			this.process((SuperExpr) element);
 		else if (element instanceof ThisExpr)
@@ -256,7 +193,7 @@ public class JavaLASTFactory extends LASTFactory
 			this.process((EmptyStmt) element);
 		else if (element instanceof AssertStmt)
 			this.process((AssertStmt) element);
-		
+
 		else if (element instanceof ClassExpr)
 			this.process((ClassExpr) element);
 		else
@@ -266,7 +203,7 @@ public class JavaLASTFactory extends LASTFactory
 	// Return
 	private boolean needsReturn(Map<String, Object> info)
 	{
-		final Branch parent = (Branch) info.get("parent");
+		final LASTFactory.Branch parent = (LASTFactory.Branch) info.get("parent");
 		if (parent == null)
 			return false;
 
@@ -286,14 +223,15 @@ public class JavaLASTFactory extends LASTFactory
 				return false;
 		}
 	}
+
 	private void processReturn(Object expression, Map<String, Object> info)
 	{
-		@SuppressWarnings("unchecked")
-		final List<Branch> ancestors = (List<Branch>) info.get("ancestors");
+		@SuppressWarnings("unchecked") final List<LASTFactory.Branch> ancestors = (List<LASTFactory.Branch>) info
+				.get("ancestors");
 
 		for (int ancestorIndex = ancestors.size() - 1; ancestorIndex >= 0; ancestorIndex--)
 		{
-			final Branch ancestor = ancestors.get(ancestorIndex);
+			final LASTFactory.Branch ancestor = ancestors.get(ancestorIndex);
 			final NodeInfo.Type type = ancestor.getNodeType();
 			if (type != NodeInfo.Type.If)
 				continue;
@@ -307,15 +245,15 @@ public class JavaLASTFactory extends LASTFactory
 
 	// Structure
 	private void process(ClassOrInterfaceDeclaration _class)
-	{	
+	{
 		final String archive = new File(this.codebase).getName();
-		final long line = _class.getRange().get().begin.line;  
+		final long line = _class.getRange().get().begin.line;
 		final String className = _class.getNameAsString();
 		final List<BodyDeclaration<?>> members = new LinkedList<BodyDeclaration<?>>();
 		final NodeList<BodyDeclaration<?>> members0 = _class.getMembers();
-		
+
 		final NodeList<ClassOrInterfaceType> extended = _class.getExtendedTypes();
-		
+
 		final String extended0;
 		if (extended.isEmpty())
 			extended0 = "";
@@ -324,20 +262,22 @@ public class JavaLASTFactory extends LASTFactory
 			final ClassOrInterfaceType extendedClassName = extended.get(0);
 			extended0 = extendedClassName.toString();
 		}
-		
+
 		final NodeList<ClassOrInterfaceType> implemented = _class.getImplementedTypes();
-		
+
 		//final LDASTNodeInfo ldNodeInfo = new LDASTNodeInfo(archive, className + ".java", line, "class", extended, implemented);
 		final LDASTNodeInfo ldNodeInfo = new LDASTNodeInfo(archive, className, line, "class", extended0, implemented);
-		
+
 		for (BodyDeclaration<?> member : members0)
-			if (member instanceof FieldDeclaration || member instanceof CallableDeclaration || member instanceof ClassOrInterfaceDeclaration)
-				members.add((BodyDeclaration<?>) member);
+			if (member instanceof FieldDeclaration || member instanceof CallableDeclaration ||
+				member instanceof ClassOrInterfaceDeclaration)
+				members.add(member);
 
 		this.createContext();
 		super.addModule(className, members, ldNodeInfo);
 		this.destroyContext();
 	}
+
 	private void process(FieldDeclaration field, Map<String, Object> info)
 	{
 		final NodeList<VariableDeclarator> variables = field.getVariables();
@@ -347,40 +287,44 @@ public class JavaLASTFactory extends LASTFactory
 		{
 			final long line = variable.getRange().get().begin.line;
 			final Type type = variable.getType();
-			final Expression initializer = variable.getInitializer().isPresent() ? variable.getInitializer().get() : null;
-			
+			final Expression initializer = variable.getInitializer().isPresent() ? variable.getInitializer()
+																						   .get() : null;
+
 			if (initializer == null)
 			{
 				final String name = variable.getName().getIdentifier();
 				final LDASTNodeInfo ldNodeInfo = new LDASTNodeInfo(line, "field", modifiers, type);
 				// TODO Incorrecto, este tipo de fields ("private int v;") no son definiciones, solo declaraciones... TABUM
 				//super.addVariable(name, true, true, true, ldNodeInfo); 
-this.addVariableToContext(new VariableRecord(name, modifiers, type)); // Añadir Global Vars al contexto
-				super.addVariable(name, true, false, false, true, ldNodeInfo); // Son Globales y no son ni definicion ni uso, solo declaracion
-			}
-			else
+				this.addVariableToContext(new VariableRecord(name, modifiers, type)); // Añadir Global Vars al contexto
+				super.addVariable(name, true, false, false, true,
+								  ldNodeInfo); // Son Globales y no son ni definicion ni uso, solo declaracion
+			} else
 			{
-				final LDASTNodeInfo ldNodeInfo0 = new LDASTNodeInfo(line, true,"name", modifiers, type);
+				final LDASTNodeInfo ldNodeInfo0 = new LDASTNodeInfo(line, true, "name", modifiers, type);
 				final Variable name = new Variable(variable.getName(), true, true, false, ldNodeInfo0);
 				final LDASTNodeInfo ldNodeInfo = new LDASTNodeInfo(line, true, "field");
-this.addVariableToContext(new VariableRecord(name.getName(), modifiers, type));
+				this.addVariableToContext(new VariableRecord(name.getName(), modifiers, type));
 				super.addEquality(name, initializer, ldNodeInfo);
 			}
 		}
 	}
+
 	private void process(CallableDeclaration<?> callable, Map<String, Object> info)
 	{
-		final Branch parent = (Branch) info.get("parent");
+		final LASTFactory.Branch parent = (LASTFactory.Branch) info.get("parent");
 		final NodeInfo.Type parentType = parent.getNodeType();
 		final long line = callable.getRange().get().begin.line;
 
 		switch (parentType)
 		{
 			case Module:
-				final String name = callable instanceof MethodDeclaration ? callable.getName().getIdentifier() : "<constructor>";
+				final String name = callable instanceof MethodDeclaration ? callable.getName()
+																					.getIdentifier() : "<constructor>";
 				final List<CallableDeclaration<?>> clauses = new LinkedList<CallableDeclaration<?>>();
 				final EnumSet<Modifier> modifiers = callable.getModifiers();
-				final Type type = callable instanceof MethodDeclaration ? ((MethodDeclaration) callable).getType() : null;
+				final Type type = callable instanceof MethodDeclaration ? ((MethodDeclaration) callable)
+						.getType() : null;
 				final LDASTNodeInfo ldNodeInfo0 = new LDASTNodeInfo(line, "callable", modifiers, type);
 				clauses.add(callable);
 				super.addRoutine(name, clauses, ldNodeInfo0);
@@ -388,7 +332,9 @@ this.addVariableToContext(new VariableRecord(name.getName(), modifiers, type));
 			case Routine:
 				currentLabels.clear();
 				final List<Parameter> parameters = callable.getParameters();
-				final BlockStmt body = callable instanceof MethodDeclaration ? ((MethodDeclaration) callable).getBody().get() : ((ConstructorDeclaration) callable).getBody();
+				final BlockStmt body = callable instanceof MethodDeclaration ? ((MethodDeclaration) callable).getBody()
+																											 .get() : ((ConstructorDeclaration) callable)
+						.getBody();
 				final List<Statement> statements = body.getStatements();
 				final LDASTNodeInfo ldNodeInfo = new LDASTNodeInfo(line, "callable");
 				this.createNewContext();
@@ -406,6 +352,7 @@ this.addVariableToContext(new VariableRecord(name.getName(), modifiers, type));
 		final Expression expression = expressionStatement.getExpression();
 		this.processElement(expression, info);
 	}
+
 	private void process(BlockStmt blockStatement)
 	{
 		final long line = blockStatement.getRange().get().begin.line;
@@ -416,6 +363,7 @@ this.addVariableToContext(new VariableRecord(name.getName(), modifiers, type));
 		super.addBlock(statements, ldNodeInfo);
 		this.destroyContext();
 	}
+
 	private void process(ArrayInitializerExpr arrayInitializer)
 	{
 		final long line = arrayInitializer.getRange().get().begin.line;
@@ -424,103 +372,118 @@ this.addVariableToContext(new VariableRecord(name.getName(), modifiers, type));
 
 		super.addDataConstructor(values, ldNodeInfo);
 	}
+
 	private void process(ArrayAccessExpr arrayAccess)
 	{
 		final long line = arrayAccess.getRange().get().begin.line;
-		final Object name = this.treatExpression(arrayAccess.getName(), false, false, true, line); // ESTO ESTA MAL, un DATA ACCESS no siempre es un uso 
+		final Object name = this.treatExpression(arrayAccess.getName(), false, false, true,
+												 line); // ESTO ESTA MAL, un DATA ACCESS no siempre es un uso
 		final Object index = this.treatExpression(arrayAccess.getIndex(), false, false, true, line);
 		final LDASTNodeInfo ldNodeInfo = new LDASTNodeInfo(line, true, "array access");
 
 		super.addDataConstructorAccess(name, index, ldNodeInfo);
 	}
+
 	private void process(ArrayCreationExpr arrayCreation)
 	{
 		final long line = arrayCreation.getRange().get().begin.line;
 		final List<ArrayCreationLevel> levels = arrayCreation.getLevels();
-		final LDASTNodeInfo ldNodeInfo = new LDASTNodeInfo(line, true, "array creation"); 
+		final LDASTNodeInfo ldNodeInfo = new LDASTNodeInfo(line, true, "array creation");
 		final Literal scope = new Literal(arrayCreation.getElementType(), ldNodeInfo);
-		
-		final LDASTNodeInfo functionNodeInfo = new LDASTNodeInfo(line, true, "array creation", levels); // info[0] = levels
+
+		final LDASTNodeInfo functionNodeInfo = new LDASTNodeInfo(line, true, "array creation",
+																 levels); // info[0] = levels
 		final Literal function = new Literal(arrayCreation, "<arrayConstructor>", functionNodeInfo);
 		final List<Expression> arguments = new LinkedList<Expression>();
-		
+
 		super.addCall(scope, function, arguments, ldNodeInfo);
 	}
+
 	private void process(LabeledStmt labeledStmt)
 	{
 		final long line = labeledStmt.getRange().get().begin.line;
 		final String labelText = labeledStmt.getLabel().getIdentifier();
 		final Statement statement = labeledStmt.getStatement();
-		final LDASTNodeInfo ldNodeInfo = new LDASTNodeInfo(line, "labeled statement"); 
-		
+		final LDASTNodeInfo ldNodeInfo = new LDASTNodeInfo(line, "labeled statement");
+
 		super.addLabel(labelText, statement, ldNodeInfo);
 	}
-	
+
 	// Exceptions
 	private void process(TryStmt _try)
 	{
 		final long line = _try.getRange().get().begin.line;
-		
+
 		final Optional<BlockStmt> tryBlock = _try.getTryBlock();
 		final List<CatchClause> catchClauses = _try.getCatchClauses();
-		final Optional<BlockStmt>	finallyBlock = _try.getFinallyBlock();
-		
-		final List<Statement> tryStatements = tryBlock.isPresent() ? tryBlock.get().getStatements() : new LinkedList<Statement>();
+		final Optional<BlockStmt> finallyBlock = _try.getFinallyBlock();
+
+		final List<Statement> tryStatements = tryBlock.isPresent() ? tryBlock.get()
+																			 .getStatements() : new LinkedList<Statement>();
 		// SOMETHING TODO WITH catchClauses
-		
-		final List<Statement> finallyStatements = finallyBlock.isPresent() ? finallyBlock.get().getStatements() : new LinkedList<Statement>();
+
+		final List<Statement> finallyStatements = finallyBlock.isPresent() ? finallyBlock.get()
+																						 .getStatements() : new LinkedList<Statement>();
 		final LDASTNodeInfo ldNodeInfo = new LDASTNodeInfo(line, "exHandler");
 
 		super.addExHandler(tryStatements, catchClauses, finallyStatements, ldNodeInfo);
 	}
+
 	private void process(CatchClause catchClause)
 	{
 		final long line = catchClause.getRange().get().begin.line;
 		final Parameter parameter = catchClause.getParameter();
 		final List<Statement> statements = catchClause.getBody().getStatements();
-		
+
 		final LDASTNodeInfo ldNodeInfo = new LDASTNodeInfo(line, "catchClause");
 		super.addCatchClause(parameter, null, statements, ldNodeInfo);
 	}
+
 	private void process(ThrowStmt _throw)
 	{
 		final long line = _throw.getRange().get().begin.line;
 		final Expression expression = _throw.getExpression();
-		
+
 		final LDASTNodeInfo ldNodeInfo = new LDASTNodeInfo(line, "throw");
 		super.addThrow(expression, ldNodeInfo);
 	}
-	
+
 	private void process(ForeachStmt foreach)
 	{
 		final long line = foreach.getRange().get().begin.line;
 		final VariableDeclarationExpr variableDeclaration = foreach.getVariable();
 		final Expression iterableExpr = foreach.getIterable();
 		final Statement body = foreach.getBody();
-		final List<Statement> bodyStatements = body instanceof BlockStmt ? ((BlockStmt) body).getStatements() : new LinkedList<Statement>();
+		final List<Statement> bodyStatements = body instanceof BlockStmt ? ((BlockStmt) body)
+				.getStatements() : new LinkedList<Statement>();
 		if (bodyStatements.isEmpty() && body instanceof ExpressionStmt)
 			bodyStatements.add(body);
 		final LDASTNodeInfo ldNodeInfo = new LDASTNodeInfo(line, "foreach");
-		
+
 		super.addForeach(variableDeclaration, iterableExpr, bodyStatements, ldNodeInfo);
 	}
+
 	private void process(ReturnStmt _return, Map<String, Object> info)
 	{
 		final long line = _return.getRange().get().begin.line;
-		final Object expression = !_return.getExpression().isPresent() ? null : this.treatExpression(_return.getExpression().get(), false, false, true, line);
+		final Object expression = !_return.getExpression().isPresent() ? null : this
+				.treatExpression(_return.getExpression().get(), false, false, true, line);
 		final int id = this.getJumpDestiny(info, NodeInfo.Type.Clause);
 		final LDASTNodeInfo ldNodeInfo = new LDASTNodeInfo(line, "return");
 
 		super.addReturn(expression, id, ldNodeInfo);
 	}
+
 	private void process(BreakStmt _break, Map<String, Object> info)
 	{
 		final long line = _break.getRange().get().begin.line;
-		final int id = this.getJumpDestiny(info, NodeInfo.Type.Switch,  NodeInfo.Type.CLoop, NodeInfo.Type.RLoop, NodeInfo.Type.FLoop ); // Y un break en un loop?
+		final int id = this.getJumpDestiny(info, NodeInfo.Type.Switch, NodeInfo.Type.CLoop, NodeInfo.Type.RLoop,
+										   NodeInfo.Type.FLoop); // Y un break en un loop?
 		final LDASTNodeInfo ldNodeInfo = new LDASTNodeInfo(line, "break");
 
 		super.addBreak(id, ldNodeInfo);
 	}
+
 	private void process(ContinueStmt _continue, Map<String, Object> info)
 	{
 		final long line = _continue.getRange().get().begin.line;
@@ -534,19 +497,22 @@ this.addVariableToContext(new VariableRecord(name.getName(), modifiers, type));
 				jumpId = -1; // When the label is not found, return label -1
 		else
 			jumpId = this.getJumpDestiny(info, NodeInfo.Type.CLoop, NodeInfo.Type.RLoop, NodeInfo.Type.FLoop);
-		
+
 		final LDASTNodeInfo ldNodeInfo = new LDASTNodeInfo(line, "continue");
-		
+
 		super.addContinue(jumpId, labelText, ldNodeInfo);
 	}
+
 	private void process(IfStmt _if)
 	{
 		final long line = _if.getRange().get().begin.line;
 		final Expression condition = _if.getCondition();
 		final Statement then = _if.getThenStmt();
 		final Statement _else = _if.getElseStmt().isPresent() ? _if.getElseStmt().get() : null;
-		final List<Statement> thenStatements = then instanceof BlockStmt ? ((BlockStmt) then).getStatements() : new LinkedList<Statement>();
-		final List<Statement> elseStatements = _else instanceof BlockStmt ? ((BlockStmt) _else).getStatements() : new LinkedList<Statement>();
+		final List<Statement> thenStatements = then instanceof BlockStmt ? ((BlockStmt) then)
+				.getStatements() : new LinkedList<Statement>();
+		final List<Statement> elseStatements = _else instanceof BlockStmt ? ((BlockStmt) _else)
+				.getStatements() : new LinkedList<Statement>();
 		final LDASTNodeInfo ldNodeInfo = new LDASTNodeInfo(line, "if");
 
 		if (!(then instanceof BlockStmt))
@@ -555,6 +521,7 @@ this.addVariableToContext(new VariableRecord(name.getName(), modifiers, type));
 			elseStatements.add(_else);
 		super.addIf(condition, thenStatements, elseStatements, ldNodeInfo);
 	}
+
 	private void process(SwitchStmt _switch)
 	{
 		final long line = _switch.getRange().get().begin.line;
@@ -564,6 +531,7 @@ this.addVariableToContext(new VariableRecord(name.getName(), modifiers, type));
 
 		super.addSwitch(selector, entries, ldNodeInfo);
 	}
+
 	private void process(SwitchEntryStmt _case)
 	{
 		final long line = _case.getRange().get().begin.line;
@@ -576,51 +544,56 @@ this.addVariableToContext(new VariableRecord(name.getName(), modifiers, type));
 			final Expression label = _case.getLabel().get();
 			//selectables.add(label);
 			super.addCase(label, null, statements, ldNodeInfo);
-		}
-		else
+		} else
 			super.addDefaultCase(statements, ldNodeInfo);
 	}
+
 	private void process(WhileStmt _while)
 	{
 		final long line = _while.getRange().get().begin.line;
 		final Expression condition = _while.getCondition();
 		final Statement body = _while.getBody();
-		final List<Statement> bodyStatements = body instanceof BlockStmt ? ((BlockStmt) body).getStatements() : new LinkedList<Statement>();
+		final List<Statement> bodyStatements = body instanceof BlockStmt ? ((BlockStmt) body)
+				.getStatements() : new LinkedList<Statement>();
 		final LDASTNodeInfo ldNodeInfo = new LDASTNodeInfo(line, "while");
 
 		if (!(body instanceof BlockStmt))
 			bodyStatements.add(body);
 		super.addCondLoop(condition, bodyStatements, ldNodeInfo);
 	}
+
 	private void process(ForStmt _for)
 	{
 		final long line = _for.getRange().get().begin.line;
 		final List<Expression> initialization = _for.getInitialization();
 		final Optional<Expression> compare = _for.getCompare();
-		final Expression condition = compare.isPresent() ? compare.get(): null;
+		final Expression condition = compare.orElse(null);
 		final Statement body = _for.getBody();
 		final List<Expression> update = _for.getUpdate();
-		final List<Statement> bodyStatements = body instanceof BlockStmt ? ((BlockStmt) body).getStatements() : new LinkedList<Statement>();
+		final List<Statement> bodyStatements = body instanceof BlockStmt ? ((BlockStmt) body)
+				.getStatements() : new LinkedList<Statement>();
 		final LDASTNodeInfo ldNodeInfo = new LDASTNodeInfo(line, "for");
-		
+
 		if (!(body instanceof BlockStmt))
 			bodyStatements.add(body);
 		super.addForLoop(initialization, condition, bodyStatements, update, ldNodeInfo);
 	}
+
 	private void process(DoStmt _do)
 	{
 		final long line = _do.getRange().get().begin.line;
 		final Expression condition = _do.getCondition();
 		final Statement body = _do.getBody();
 
-		final List<Statement> bodyStatements = body instanceof BlockStmt ? ((BlockStmt) body).getStatements() : new LinkedList<Statement>();
+		final List<Statement> bodyStatements = body instanceof BlockStmt ? ((BlockStmt) body)
+				.getStatements() : new LinkedList<Statement>();
 		final LDASTNodeInfo ldNodeInfo = new LDASTNodeInfo(line, "do_while");
-		
+
 		if (!(body instanceof BlockStmt))
 			bodyStatements.add(body);
 		super.addRepeatLoop(condition, bodyStatements, ldNodeInfo);
 	}
-	
+
 	// Expressions
 	private void process(EnclosedExpr enclosedExpr, Map<String, Object> info)
 	{
@@ -628,6 +601,7 @@ this.addVariableToContext(new VariableRecord(name.getName(), modifiers, type));
 		info.put("enclosed", true);
 		this.processElement(inner, info);
 	}
+
 	private void process(VariableDeclarationExpr variableDeclaration)
 	{
 		final NodeList<VariableDeclarator> variables = variableDeclaration.getVariables();
@@ -638,26 +612,28 @@ this.addVariableToContext(new VariableRecord(name.getName(), modifiers, type));
 			final long line = variable.getRange().get().begin.line;
 			final Type type = variable.getType();
 
-			final Expression initializer = variable.getInitializer().isPresent() ? variable.getInitializer().get() : null;
+			final Expression initializer = variable.getInitializer().isPresent() ? variable.getInitializer()
+																						   .get() : null;
 
 			if (initializer == null)
 			{
 				final String name = variable.getName().getIdentifier();
 				final LDASTNodeInfo ldNodeInfo = new LDASTNodeInfo(line, true, "var", modifiers, type);
-this.addVariableToContext(new VariableRecord(name, modifiers, type));
+				this.addVariableToContext(new VariableRecord(name, modifiers, type));
 				super.addVariable(name, true, true, false, false, ldNodeInfo);
-			}
-			else
+			} else
 			{
 				final LDASTNodeInfo ldNodeInfo0 = new LDASTNodeInfo(line, true, "name", modifiers, type);
-				final Variable name = new Variable(variable.getName(), true, true, false, ldNodeInfo0); // TODO THIS IS NOT ALWAYS A VARIABLE
+				final Variable name = new Variable(variable.getName(), true, true, false,
+												   ldNodeInfo0); // TODO THIS IS NOT ALWAYS A VARIABLE
 				final Object initializer0 = this.treatExpression(initializer, false, false, true, line);
 				final LDASTNodeInfo ldNodeInfo = new LDASTNodeInfo(line, true, "var");
-this.addVariableToContext(new VariableRecord(name.getName(), modifiers, type));
+				this.addVariableToContext(new VariableRecord(name.getName(), modifiers, type));
 				super.addEquality(name, initializer0, ldNodeInfo);
 			}
 		}
 	}
+
 	private void process(AssignExpr assignation)
 	{
 		final long line = assignation.getRange().get().begin.line;
@@ -672,13 +648,13 @@ this.addVariableToContext(new VariableRecord(name.getName(), modifiers, type));
 		{
 			ldNodeInfo = new LDASTNodeInfo(line, true, "assign");
 			super.addEquality(target, value, ldNodeInfo);
-		}
-		else
-		{	
+		} else
+		{
 			ldNodeInfo = new LDASTNodeInfo(line, true, "assign", operator);
 			super.addEquality(operator, target, value, ldNodeInfo);
 		}
 	}
+
 	private void process(CastExpr cast, Map<String, Object> info)
 	{
 		boolean isEnclosedExpr = info.containsKey("enclosed");
@@ -692,13 +668,15 @@ this.addVariableToContext(new VariableRecord(name.getName(), modifiers, type));
 			final Variable var = (Variable) expression;
 			final Boolean declaration = var.declaration;
 			final String varName = var.getName();
-			
+
 			final VariableRecord newContextVariable = this.getVarByName(this.variableContexts.peek(), varName);
-			final boolean global = (declaration && this.variableContexts.size() == 1) || (!declaration && newContextVariable == null);
-			
-			final VariableRecord newContextVariable0 = global ? this.getVarByName(this.variableContexts.firstElement(), varName) : newContextVariable;
+			final boolean global =
+					(declaration && this.variableContexts.size() == 1) || (!declaration && newContextVariable == null);
+
+			final VariableRecord newContextVariable0 = global ? this
+					.getVarByName(this.variableContexts.firstElement(), varName) : newContextVariable;
 			EnumSet<Modifier> modifiers = newContextVariable0.varModifiers;
-			
+
 			this.createNewContext();
 			this.addVariableToContext(new VariableRecord(varName, modifiers, (Type) type));
 			if (isEnclosedExpr)
@@ -706,22 +684,23 @@ this.addVariableToContext(new VariableRecord(name.getName(), modifiers, type));
 			else
 				super.addTypeTransformation(type, expression, ldNodeInfo);
 			this.destroyContext();
-		}
-
-		else
+		} else
 			super.addTypeTransformation(type, expression, ldNodeInfo, isEnclosedExpr);
 	}
+
 	private void process(MethodCallExpr methodCall)
 	{
 		final long line = methodCall.getRange().get().begin.line;
 		final Expression scope = methodCall.getScope().isPresent() ? methodCall.getScope().get() : null;
 		final LDASTNodeInfo ldNodeInfo0 = new LDASTNodeInfo(line, true, "name", "name");
 		final Literal function = new Literal(methodCall.getName(), ldNodeInfo0);
-		final List<Object> arguments = this.treatExpressions(methodCall.getArguments(), false, false, true, line); // TODO Paso de argumentos por referencia, OJO!!
+		final List<Object> arguments = this.treatExpressions(methodCall.getArguments(), false, false, true,
+															 line); // TODO Paso de argumentos por referencia, OJO!!
 		final LDASTNodeInfo ldNodeInfo = new LDASTNodeInfo(line, true, "method");
 
 		super.addCall(scope, function, arguments, ldNodeInfo);
 	}
+
 	private void process(BinaryExpr binaryExpression)
 	{
 		final long line = binaryExpression.getRange().get().begin.line;
@@ -735,6 +714,7 @@ this.addVariableToContext(new VariableRecord(name.getName(), modifiers, type));
 		operands.add(right);
 		super.addOperation(operation, operands, ldNodeInfo);
 	}
+
 	private void process(UnaryExpr unaryExpression)
 	{
 		final long line = unaryExpression.getRange().get().begin.line;
@@ -742,10 +722,11 @@ this.addVariableToContext(new VariableRecord(name.getName(), modifiers, type));
 		final boolean isPostfix = unaryExpression.isPostfix(); // DECIDIR SI ES ++i o i++ 
 		//final LDASTNodeInfo ldNodeInfo = new LDASTNodeInfo(line, "unary", postfix);
 		final LDASTNodeInfo ldNodeInfo = new LDASTNodeInfo(line, true, "unary", isPostfix);
-		
+
 		final Object operand = this.treatExpression(unaryExpression.getExpression(), false, true, true, line);
 		super.addUnaryOperation(operation, operand, ldNodeInfo);
 	}
+
 	private void process(ObjectCreationExpr objectCreationExpression)
 	{
 		final long line = objectCreationExpression.getRange().get().begin.line;
@@ -756,6 +737,7 @@ this.addVariableToContext(new VariableRecord(name.getName(), modifiers, type));
 
 		super.addCall(scope, function, arguments, ldNodeInfo);
 	}
+
 	private void process(ConditionalExpr ternaryExpr)
 	{
 		final long line = ternaryExpr.getRange().get().begin.line;
@@ -770,15 +752,17 @@ this.addVariableToContext(new VariableRecord(name.getName(), modifiers, type));
 		elseStatements.add(_else);
 		super.addIf(condition, thenStatements, elseStatements, ldNodeInfo);
 	}
+
 	private void process(InstanceOfExpr instanceOfExpr)
 	{
 		final long line = instanceOfExpr.getRange().get().begin.line;
 		final Object expression = this.treatExpression(instanceOfExpr.getExpression(), false, false, true, line);
 		final Object type = instanceOfExpr.getType();
 		final LDASTNodeInfo ldNodeInfo = new LDASTNodeInfo(line, true, "typecheck");
-		
+
 		super.addTypeCheck(expression, type, ldNodeInfo);
 	}
+
 	private void process(SuperExpr superExpr) // TODO: Treat super & this properly
 	{
 		final long line = superExpr.getRange().get().begin.line;
@@ -787,6 +771,7 @@ this.addVariableToContext(new VariableRecord(name.getName(), modifiers, type));
 
 		super.addSuperReference("super", ldNodeInfo);
 	}
+
 	private void process(ThisExpr thisExpr)
 	{
 		final long line = thisExpr.getRange().get().begin.line;
@@ -795,18 +780,20 @@ this.addVariableToContext(new VariableRecord(name.getName(), modifiers, type));
 
 		super.addSuperReference("this", ldNodeInfo);
 	}
+
 	private void process(ExplicitConstructorInvocationStmt eciExpr) // super(x)
 	{
 		final long line = eciExpr.getRange().get().begin.line;
 		final LDASTNodeInfo ldNodeInfo = new LDASTNodeInfo(line, "explicit constructor invocation");
 		final boolean isThis = eciExpr.isThis();
-		final Literal scope = isThis ? new Literal(new SimpleName("this"), ldNodeInfo) : new Literal(new SimpleName("super"), ldNodeInfo);
+		final Literal scope = isThis ? new Literal(new SimpleName("this"), ldNodeInfo) : new Literal(
+				new SimpleName("super"), ldNodeInfo);
 		final Literal function = new Literal(eciExpr, "<constructor>", ldNodeInfo);
 		final List<Expression> arguments = eciExpr.getArguments();
-		
+
 		super.addCall(scope, function, arguments, ldNodeInfo);
 	}
-	
+
 	// Types
 	private void process(ClassExpr _clazz)
 	{
@@ -820,34 +807,37 @@ this.addVariableToContext(new VariableRecord(name.getName(), modifiers, type));
 		else
 			value = "";
 		final LDASTNodeInfo ldNodeInfo = new LDASTNodeInfo(line, true, "class expression");
-		
+
 		super.addType(value, ldNodeInfo);
 	}
+
 	private void process(ClassOrInterfaceType type)
 	{
 		final long line = type.getRange().get().begin.line;
 		final String value = type.getNameAsString();
 		final LDASTNodeInfo ldNodeInfo = new LDASTNodeInfo(line, "type");
-		
+
 		super.addType(value, ldNodeInfo);
 	}
+
 	private void process(ArrayType type)
 	{
 		final long line = type.getRange().get().begin.line;
 		final String value = type.getComponentType().toString();
 		final LDASTNodeInfo ldNodeInfo = new LDASTNodeInfo(line, "arrayType", "arrayType");
-		
+
 		super.addType(value, ldNodeInfo);
 	}
+
 	private void process(PrimitiveType type)
 	{
 		final long line = type.getRange().get().begin.line;
 		final String value = type.asString();
 		final LDASTNodeInfo ldNodeInfo = new LDASTNodeInfo(line, "type", type.getType());
-		
+
 		super.addType(value, ldNodeInfo);
 	}
-	
+
 	// Variables
 	private void process(Parameter parameter)
 	{
@@ -857,30 +847,33 @@ this.addVariableToContext(new VariableRecord(name.getName(), modifiers, type));
 		final LDASTNodeInfo ldNodeInfo = new LDASTNodeInfo(line, true, "var", type);
 
 //		this.addVariableToContext(name); TYPE VARIABLE 
-this.addVariableToContext(new VariableRecord(name, type));
-		
+		this.addVariableToContext(new VariableRecord(name, type));
+
 		super.addVariable(name, true, true, false, false, ldNodeInfo);
 	}
-	private void process(FieldAccessExpr fieldAccessExpression, Map<String,Object> info)
+
+	private void process(FieldAccessExpr fieldAccessExpression, Map<String, Object> info)
 	{
 		final long line = fieldAccessExpression.getRange().get().begin.line;
 		//final String value = fieldAccessExpression.toString();
-		
+
 		final Optional<Expression> scopeExpr = fieldAccessExpression.getScope();
 		final SimpleName nameExpr = fieldAccessExpression.getName();
-		
+
 		//final Variable scopeVar = scopeExpr.isPresent() ? new Variable(scopeExpr.get(), false, false, true, new LDASTNodeInfo(line, "var")) : null; // Correct Logic
-		final Variable scopeVar = scopeExpr.isPresent() ? new Variable(scopeExpr.get(), false, true, true, new LDASTNodeInfo(line, true, "var")) : null; // Patch to pick up the object declaration in a Field Access
+		final Variable scopeVar = scopeExpr.isPresent() ? new Variable(scopeExpr.get(), false, true, true,
+																	   new LDASTNodeInfo(line, true,
+																						 "var")) : null; // Patch to pick up the object declaration in a Field Access
 		final Variable nameVar;
-		
-		if((boolean)info.get("patternZone"))
+
+		if ((boolean) info.get("patternZone"))
 			nameVar = new Variable(nameExpr, false, true, false, new LDASTNodeInfo(line, true, "var"));
 		else
 			nameVar = new Variable(nameExpr, false, false, true, new LDASTNodeInfo(line, true, "var"));
-		
+
 		final LDASTNodeInfo ldNodeInfo = new LDASTNodeInfo(line, true, "field");
 		super.addFieldAccess(scopeVar, nameVar, ldNodeInfo);
-		
+
 //		final VariableRecord newContextVariable = this.getVarByName(this.variableContexts.peek(), scopeVar.name);
 //		final boolean global = (this.variableContexts.size() == 1 || newContextVariable == null);
 //		
@@ -904,53 +897,57 @@ this.addVariableToContext(new VariableRecord(name, type));
 //		
 //		super.addVariable(value, false, false, true, true, ldNodeInfo);
 	}
+
 	private void process(NameExpr nameExpression)
 	{
 		final long line = nameExpression.getRange().get().begin.line;
 		final String name = nameExpression.getNameAsString();
-		
+
 		final VariableRecord newContextVariable = this.getVarByName(this.variableContexts.peek(), name);
 		final boolean global = (this.variableContexts.size() == 1 || newContextVariable == null);
-		
-		final VariableRecord newContextVariable0 = global ? this.getVarByName(this.variableContexts.firstElement(), name) : newContextVariable;	
+
+		final VariableRecord newContextVariable0 = global ? this
+				.getVarByName(this.variableContexts.firstElement(), name) : newContextVariable;
 		final boolean isStaticClassname = newContextVariable0 == null;
-		
+
 		final Object[] info;
 		if (!isStaticClassname)
 		{
 			info = new Object[2];
-			info[0] = newContextVariable0.varModifiers; 
+			info[0] = newContextVariable0.varModifiers;
 			info[1] = newContextVariable0.varType;
-		}
-		else
+		} else
 		{
 			info = new Object[2];
 			info[0] = null; // TODO must be an empty list of modifiers
 			info[1] = name;
 		}
-		
+
 		final LDASTNodeInfo ldNodeInfo = new LDASTNodeInfo(line, true, "var", info);
-		super.addVariable(name, false, true, true, global, ldNodeInfo); 
+		super.addVariable(name, false, true, true, global, ldNodeInfo);
 	}
+
 	private void process(SimpleName simpleName)
 	{
 		final long line = simpleName.getRange().get().begin.line;
 		final String name = simpleName.getId();
-		
+
 		final VariableRecord newContextVariable = this.getVarByName(this.variableContexts.peek(), name);
 		final boolean global = (this.variableContexts.size() == 1 || newContextVariable == null);
-		
-		final VariableRecord newContextVariable0 = global ? this.getVarByName(this.variableContexts.firstElement(), name) : newContextVariable;	
+
+		final VariableRecord newContextVariable0 = global ? this
+				.getVarByName(this.variableContexts.firstElement(), name) : newContextVariable;
 		final Object[] info = {newContextVariable0.varModifiers, newContextVariable0.varType};
 		final LDASTNodeInfo ldNodeInfo = new LDASTNodeInfo(line, true, "var", info);
 
 		super.addVariable(name, false, false, true, false, ldNodeInfo);  // TODO REVISAR SimpleName
 	}
+
 	private void process(Variable variable)
 	{
-		if(variable.node instanceof ArrayAccessExpr)
+		if (variable.node instanceof ArrayAccessExpr)
 			processArrayAccess(variable);
-		else	
+		else
 			processVar(variable);
 	}
 
@@ -961,24 +958,26 @@ this.addVariableToContext(new VariableRecord(name, type));
 		final boolean definition = variable.definition;
 		final boolean use = variable.use;
 		final VariableRecord newContextVariable = this.getVarByName(this.variableContexts.peek(), name);
-		final boolean global = (declaration && this.variableContexts.size() == 1) || (!declaration && newContextVariable == null);
-		
-		final VariableRecord newContextVariable0 = global ? this.getVarByName(this.variableContexts.firstElement(), name) : newContextVariable;
-		
+		final boolean global =
+				(declaration && this.variableContexts.size() == 1) || (!declaration && newContextVariable == null);
+
+		final VariableRecord newContextVariable0 = global ? this
+				.getVarByName(this.variableContexts.firstElement(), name) : newContextVariable;
+
 //final LDASTNodeInfo ldNodeInfo = new LDASTNodeInfo(line, "var", modifiers, type);
-		
+
 		final LDASTNodeInfo ldNodeInfo;
-		if(!declaration && newContextVariable0 != null)
+		if (!declaration && newContextVariable0 != null)
 		{
 			final Object[] info = {newContextVariable0.varModifiers, newContextVariable0.varType};
-			ldNodeInfo = new LDASTNodeInfo(variable.ldNodeInfo.getArchive(),variable.ldNodeInfo.getClassName(),
-											variable.ldNodeInfo.getLine(), variable.ldNodeInfo.isExpression(),
-											variable.ldNodeInfo.getConstruction(), info);
-		}
-		else
+			ldNodeInfo = new LDASTNodeInfo(variable.ldNodeInfo.getArchive(), variable.ldNodeInfo.getClassName(),
+										   variable.ldNodeInfo.getLine(), variable.ldNodeInfo.isExpression(),
+										   variable.ldNodeInfo.getConstruction(), info);
+		} else
 			ldNodeInfo = variable.ldNodeInfo;
 		super.addVariable(name, declaration, definition, use, global, ldNodeInfo);
 	}
+
 	private void processArrayAccess(Variable variable)
 	{
 		final ArrayAccessExpr expression = (ArrayAccessExpr) variable.node;
@@ -987,19 +986,20 @@ this.addVariableToContext(new VariableRecord(name, type));
 //		final String varIndex = expression.getIndex().toString();
 //		final String name = varName+"["+varIndex+"]";
 		final LDASTNodeInfo ldNodeInfo = variable.ldNodeInfo;
-		
-		final Object name0 = this.treatExpression(expression.getName(), variable.declaration, variable.definition, variable.use, line);
+
+		final Object name0 = this
+				.treatExpression(expression.getName(), variable.declaration, variable.definition, variable.use, line);
 		final Object index0 = this.treatExpression(expression.getIndex(), false, false, true, line);
-		
+
 		super.addDataConstructorAccess(name0, index0, ldNodeInfo);
-		
+
 //		final VariableRecord newContextVariable = this.getVarByName(this.variableContexts.peek(), varName);
 //		final boolean global = (declaration && this.variableContexts.size() == 1) || (!declaration && newContextVariable == null);
-		
+
 //		final VariableRecord newContextVariable0 = global ? this.getVarByName(this.variableContexts.firstElement(), name) : newContextVariable;
-		
+
 //final LDASTNodeInfo ldNodeInfo = new LDASTNodeInfo(line, "var", modifiers, type);
-		
+
 //		final LDASTNodeInfo ldNodeInfo;
 //		if(!declaration && newContextVariable0 != null)
 //		{
@@ -1021,6 +1021,7 @@ this.addVariableToContext(new VariableRecord(name, type));
 
 		super.addLiteral(value + "", ldNodeInfo);
 	}
+
 	private void process(CharLiteralExpr _char)
 	{
 		final long line = _char.getRange().get().begin.line;
@@ -1029,6 +1030,7 @@ this.addVariableToContext(new VariableRecord(name, type));
 
 		super.addLiteral(value + "", ldNodeInfo);
 	}
+
 	private void process(DoubleLiteralExpr _double)
 	{
 		final long line = _double.getRange().get().begin.line;
@@ -1037,6 +1039,7 @@ this.addVariableToContext(new VariableRecord(name, type));
 
 		super.addLiteral(value + "", ldNodeInfo);
 	}
+
 	private void process(IntegerLiteralExpr integer)
 	{
 		final long line = integer.getRange().get().begin.line;
@@ -1045,6 +1048,7 @@ this.addVariableToContext(new VariableRecord(name, type));
 
 		super.addLiteral(value, ldNodeInfo);
 	}
+
 	private void process(LongLiteralExpr _long)
 	{
 		final long line = _long.getRange().get().begin.line;
@@ -1053,6 +1057,7 @@ this.addVariableToContext(new VariableRecord(name, type));
 
 		super.addLiteral(value, ldNodeInfo);
 	}
+
 	private void process(StringLiteralExpr string)
 	{
 		final long line = string.getRange().get().begin.line;
@@ -1061,6 +1066,7 @@ this.addVariableToContext(new VariableRecord(name, type));
 
 		super.addLiteral(value, ldNodeInfo);
 	}
+
 	private void process(NullLiteralExpr _null)
 	{
 		final long line = _null.getRange().get().begin.line;
@@ -1068,6 +1074,7 @@ this.addVariableToContext(new VariableRecord(name, type));
 
 		super.addLiteral("null", ldNodeInfo);
 	}
+
 	private void process(Literal literal)
 	{
 		final String name = literal.getName();
@@ -1081,12 +1088,14 @@ this.addVariableToContext(new VariableRecord(name, type));
 	{
 		// No representation TODO: (Analyze the representation for these statements in JavaCodeFactory)
 	}
+
 	private void process(AssertStmt stmt)
 	{
 		// No representation TODO: (Analyze the representation for these statements in JavaCodeFactory)
 	}
-	
-	private List<Object> treatExpressions(List<Expression> expressions, boolean declaration, boolean definition, boolean use, long line)
+
+	private List<Object> treatExpressions(List<Expression> expressions, boolean declaration, boolean definition,
+										  boolean use, long line)
 	{
 		final List<Object> elements = new LinkedList<Object>();
 
@@ -1095,7 +1104,9 @@ this.addVariableToContext(new VariableRecord(name, type));
 
 		return elements;
 	}
-	private Object treatExpression(Expression expression, boolean declaration, boolean definition, boolean use, long line)
+
+	private Object treatExpression(Expression expression, boolean declaration, boolean definition, boolean use,
+								   long line)
 	{
 		if (expression instanceof NameExpr)
 			return new Variable(expression, declaration, definition, use, new LDASTNodeInfo(line, true, "var"));
@@ -1106,17 +1117,18 @@ this.addVariableToContext(new VariableRecord(name, type));
 
 	private int getJumpDestiny(Map<String, Object> info, NodeInfo.Type... seekingTypes)
 	{
-		@SuppressWarnings("unchecked")
-		final List<Branch> ancestors = (List<Branch>) info.get("ancestors");
+		@SuppressWarnings("unchecked") final List<LASTFactory.Branch> ancestors = (List<LASTFactory.Branch>) info
+				.get("ancestors");
 
 		for (int ancestorIndex = ancestors.size() - 1; ancestorIndex >= 0; ancestorIndex--)
 		{
-			final Branch ancestor = ancestors.get(ancestorIndex);
-			final NodeInfo.Type type = (NodeInfo.Type) ancestor.getNodeType();
+			final LASTFactory.Branch ancestor = ancestors.get(ancestorIndex);
+			final NodeInfo.Type type = ancestor.getNodeType();
 
 			for (NodeInfo.Type seekingType : seekingTypes)
 				if (seekingType == type)
-					switch(seekingType){
+					switch (seekingType)
+					{
 						case Switch:
 							return ancestor.getNodeId() + 2; // Node Cases
 						case CLoop:
@@ -1135,8 +1147,7 @@ this.addVariableToContext(new VariableRecord(name, type));
 		throw new RuntimeException("Wrong jump instruction");
 	}
 
-	static class Variable
-	{
+	static class Variable {
 		private final Node node;
 		private final String name;
 		private final boolean declaration;
@@ -1148,7 +1159,9 @@ this.addVariableToContext(new VariableRecord(name, type));
 		{
 			this(node, null, declaration, definition, use, ldNodeInfo);
 		}
-		public Variable(Node node, String name, boolean declaration, boolean definition, boolean use, LDASTNodeInfo ldNodeInfo)
+
+		public Variable(Node node, String name, boolean declaration, boolean definition, boolean use,
+						LDASTNodeInfo ldNodeInfo)
 		{
 			this.node = node;
 			this.name = name;
@@ -1162,6 +1175,7 @@ this.addVariableToContext(new VariableRecord(name, type));
 		{
 			return this.node.getRange().get().begin.line;
 		}
+
 		public String getName()
 		{
 			if (this.name != null)
@@ -1171,8 +1185,8 @@ this.addVariableToContext(new VariableRecord(name, type));
 			return this.node.toString();
 		}
 	}
-	private static class Literal
-	{
+
+	private static class Literal {
 		private final Node node;
 		private final String name;
 		private final LDASTNodeInfo ldNodeInfo;
@@ -1181,6 +1195,7 @@ this.addVariableToContext(new VariableRecord(name, type));
 		{
 			this(node, null, ldNodeInfo);
 		}
+
 		public Literal(Node node, String name, LDASTNodeInfo ldNodeInfo)
 		{
 			this.node = node;
@@ -1192,6 +1207,7 @@ this.addVariableToContext(new VariableRecord(name, type));
 		{
 			return this.node.getRange().get().begin.line;
 		}
+
 		public String getName()
 		{
 			if (this.name != null)
@@ -1199,52 +1215,59 @@ this.addVariableToContext(new VariableRecord(name, type));
 			return this.node.toString();
 		}
 	}
-	private static class VariableRecord
-	{
+
+	private static class VariableRecord {
 		private final String varName;
 		private final EnumSet<Modifier> varModifiers;
 		private final Type varType;
-		
+
 		public VariableRecord(String name, Type type)
 		{
 			this(name, null, type);
 		}
+
 		public VariableRecord(String name, EnumSet<Modifier> modifiers, Type type)
 		{
 			this.varName = name;
 			this.varModifiers = modifiers;
 			this.varType = type;
 		}
+
 		public Boolean isVarName(String name)
 		{
 			return name.equals(this.varName);
 		}
+
 		public Boolean equals(VariableRecord vr)
 		{
 			return this.varName.equals(vr.varName) && this.varType == vr.varType;
 		}
+
 		public String toString()
 		{
-			return "("+varName+","+varType+")";
+			return "(" + varName + "," + varType + ")";
 		}
 	}
-	
+
 	// Variable global/local
 	private Stack<List<VariableRecord>> variableContexts = new Stack<List<VariableRecord>>();
 
-	
+
 	private void createContext()
 	{
 		final List<VariableRecord> variableContext = new LinkedList<VariableRecord>();
-		final List<VariableRecord> lastVariableContext = this.variableContexts.size() == 0 ? new LinkedList<VariableRecord>() : this.variableContexts.peek();
+		final List<VariableRecord> lastVariableContext =
+				this.variableContexts.size() == 0 ? new LinkedList<VariableRecord>() : this.variableContexts.peek();
 
 		variableContext.addAll(lastVariableContext);
 		this.variableContexts.add(variableContext);
 	}
+
 	private void createNewContext()
 	{
 		this.variableContexts.add(new LinkedList<VariableRecord>());
 	}
+
 	private void addVariableToContext(VariableRecord record)
 	{
 		final String variableName = record.varName;
@@ -1255,10 +1278,11 @@ this.addVariableToContext(new VariableRecord(name, type));
 		if (!variableContext.contains(record))
 			variableContext.add(record);
 	}
+
 	private void destroyContext()
 	{
 		this.variableContexts.pop();
-	}	
+	}
 
 	private VariableRecord getVarByName(List<VariableRecord> context, String varName)
 	{
@@ -1267,5 +1291,5 @@ this.addVariableToContext(new VariableRecord(name, type));
 				return vr;
 		return null;
 	}
-	
+
 }

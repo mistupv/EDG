@@ -1,22 +1,23 @@
 package eknife;
 
-import java.io.File;
-import java.util.Hashtable;
-import java.util.List;
-import java.util.Map;
-
 import edg.DotFactory;
+import edg.EDGFactory;
 import edg.PdfFactory;
 import edg.graph.EDG;
 import edg.graph.EdgeInfo;
+import edg.graph.LAST;
 import edg.graph.Node;
 import edg.slicing.ConstrainedAlgorithm;
 import edg.slicing.SlicingAlgorithm;
 import edg.slicing.SlicingCriterion;
 
-public class EKnife
-{
-	public static enum Language { Java, Erlang, Php }
+import java.io.File;
+import java.util.Hashtable;
+import java.util.List;
+import java.util.Map;
+
+public class EKnife {
+	public enum Language {Java, Erlang, Php}
 
 	public static void main(String[] args)
 	{
@@ -198,7 +199,8 @@ public class EKnife
 		edgeFlags.put(EdgeInfo.Type.Output, (boolean) arguments[16]);
 		edgeFlags.put(EdgeInfo.Type.Summary, (boolean) arguments[17]);
 
-		final EDG edg = EDGFactory.createEDG(language, inputPath, edges);
+		final LAST last = LASTFactory.createLAST(Language.Java, inputPath, edges);
+		final EDG edg = EDGFactory.createEDG(last);
 		final SlicingCriterion slicingCriterion = new SlicingCriterion(archive, line, name, occurrence);
 		final Node SC = edg.getNode(slicingCriterion);
 		final SlicingAlgorithm slicingAlgorithm = new ConstrainedAlgorithm();

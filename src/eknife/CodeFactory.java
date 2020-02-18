@@ -1,11 +1,12 @@
 package eknife;
 
-import java.io.File;
-import java.util.List;
-
 import edg.graph.EDG;
 import edg.graph.Node;
 import eknife.EKnife.Language;
+import eknife.java.JavaCodeFactory;
+
+import java.io.File;
+import java.util.List;
 
 public class CodeFactory
 {
@@ -18,14 +19,14 @@ public class CodeFactory
 		switch (language)
 		{
 			case Java:
-				eknife.java.JavaCodeFactoryNew.createJavaFile(outputFile, edg, slice);
+				JavaCodeFactory.createJavaFile(outputFile, edg, slice);
 				break;
-			case Erlang:
-				eknife.erlang.ErlangCodeFactory.createErlangFile(outputFile, edg, slice);
-				break;
-			case Php:
-				eknife.php.PhpCodeFactory.createPhpFile(outputFile, edg, slice);
-				break;
+//			case Erlang:
+//				eknife.erlang.ErlangCodeFactory.createErlangFile(outputFile, edg, slice);
+//				break;
+//			case Php:
+//				eknife.php.PhpCodeFactory.createPhpFile(outputFile, edg, slice);
+//				break;
 			default:
 				throw new RuntimeException("Language not contemplated: " + language);
 		}
