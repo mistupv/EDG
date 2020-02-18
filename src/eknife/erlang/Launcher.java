@@ -1,4 +1,4 @@
-package eknife.erlang.launcher;
+package eknife.erlang;
 
 import com.ericsson.otp.erlang.OtpErlangAtom;
 import com.ericsson.otp.erlang.OtpErlangObject;

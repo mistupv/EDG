@@ -7,20 +7,18 @@ public class EDGFactory
 {
 	public static EDG createEDG(Language language, String sourcePath)
 	{
-		return EDGFactory.createEDG(language, sourcePath, true, true);
+		return EDGFactory.createEDG(language, sourcePath, true);
 	}
-	public static EDG createEDG(Language language, String sourcePath, boolean createDependencies)
-	{
-		return EDGFactory.createEDG(language, sourcePath, createDependencies, true);
-	}
-	public static EDG createEDG(Language language, String sourcePath, boolean createDependencies, boolean constraintsActivated)
+	public static EDG createEDG(Language language, String sourcePath, boolean generateArcs)
 	{
 		switch (language)
 		{
 			case Java:
-				return eknife.java.EDGFactory.createEDG(sourcePath, createDependencies, constraintsActivated);
+				return eknife.java.JavaEDGFactory.createEDG(sourcePath, generateArcs);
 			case Erlang:
-				return eknife.erlang.EDGFactory.createEDG(sourcePath, createDependencies, constraintsActivated);
+				return eknife.erlang.ErlangEDGFactory.createEDG(sourcePath, generateArcs);
+			case Php:
+				return eknife.php.PhpEDGFactory.createEDG(sourcePath, generateArcs);
 			default:
 				throw new RuntimeException("Language not contemplated: " + language);
 		}

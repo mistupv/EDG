@@ -9,18 +9,23 @@ import eknife.EKnife.Language;
 
 public class CodeFactory
 {
-	public static File createCode(Language language, String outputPath, EDG edg)
+	public static void createCode(Language language, File outputFile, EDG edg)
 	{
-		return CodeFactory.createCode(language, outputPath, edg, null);
+		CodeFactory.createCode(language, outputFile, edg, null);
 	}
-	public static File createCode(Language language, String outputPath, EDG edg, List<Node> slice)
+	public static void createCode(Language language, File outputFile, EDG edg, List<Node> slice)
 	{
 		switch (language)
 		{
 			case Java:
-				return eknife.java.JavaFactory.createJavaFile(outputPath, edg, slice);
+				eknife.java.JavaCodeFactory.createJavaFile(outputFile, edg, slice);
+				break;
 			case Erlang:
-				return eknife.erlang.ErlangFactory.createErlangFile(outputPath, edg, slice);
+				eknife.erlang.ErlangCodeFactory.createErlangFile(outputFile, edg, slice);
+				break;
+			case Php:
+				eknife.php.PhpCodeFactory.createPhpFile(outputFile, edg, slice);
+				break;
 			default:
 				throw new RuntimeException("Language not contemplated: " + language);
 		}
