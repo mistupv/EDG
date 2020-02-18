@@ -2,11 +2,9 @@ package edg;
 
 import java.io.File;
 import java.util.List;
-import java.util.Map;
 
 import edg.config.Config;
 import edg.graph.EDG;
-import edg.graph.EdgeInfo;
 import edg.graph.Node;
 import misc.Misc;
 import misc.util.Flusher;
@@ -31,23 +29,35 @@ public class PdfFactory
 		}
 	}
 
+	public static File createPdf(String outputPath, EDG edg)
+	{
+		return PdfFactory.createPdf(outputPath, edg, null, null);
+	}
+	public static File createPdf(String outputPath, EDG edg, Node slicingCriterium, List<Node> slice)
+	{
+		final File outputFile = new File(outputPath);
+
+		PdfFactory.createPdf(outputFile, edg, slicingCriterium, slice);
+
+		return outputFile;
+	}
+	public static File createPdf(String outputPath, File dotFile)
+	{
+		final File outputFile = new File(outputPath);
+
+		PdfFactory.createPdf(outputFile, dotFile);
+
+		return outputFile;
+	}
 	public static void createPdf(File outputFile, EDG edg)
 	{
-		PdfFactory.createPdf(outputFile, edg, null, null, null);
+		PdfFactory.createPdf(outputFile, edg, null, null);
 	}
-	public static void createPdf(File outputFile, EDG edg, Map<EdgeInfo.Type, Boolean> edgeFlags)
-	{
-		PdfFactory.createPdf(outputFile, edg, null, null, edgeFlags);
-	}
-	public static void createPdf(File outputFile, EDG edg, Node slicingCriterion, List<Node> slice)
-	{
-		PdfFactory.createPdf(outputFile, edg, slicingCriterion, slice, null);
-	}
-	public static void createPdf(File outputFile, EDG edg, Node slicingCriterion, List<Node> slice, Map<EdgeInfo.Type, Boolean> edgeFlags)
+	public static void createPdf(File outputFile, EDG edg, Node slicingCriterium, List<Node> slice)
 	{
 		final File dotOutputFile = PdfFactory.getTempDotFile();
 
-		DotFactory.createDot(dotOutputFile, edg, slicingCriterion, slice, edgeFlags);
+		DotFactory.createDot(dotOutputFile, edg, slicingCriterium, slice);
 		PdfFactory.createPdf(outputFile, dotOutputFile);
 		Misc.delete(dotOutputFile);
 	}
@@ -57,10 +67,9 @@ public class PdfFactory
 		{
 			final String dotPath = dotFile.getAbsolutePath();
 			final String outputPath = outputFile.getAbsolutePath();
-			final String command = "dot -Tpdf \"" + dotPath + "\" > \"" + outputPath + "\"";
-			final String path = "PATH=/usr/local/bin:" + System.getenv("PATH");
+			final String command = "/usr/local/bin/dot -Tpdf \"" + dotPath + "\" > \"" + outputPath + "\"";
 			final Runtime runtime = Runtime.getRuntime();
-			final Process process = runtime.exec(new String[] { "/bin/sh", "-c", command }, new String[] { path }, null);
+			final Process process = runtime.exec(new String[] { "/bin/sh", "-c", command }, null, null);
 
 			new Flusher(process).start();
 			process.waitFor();

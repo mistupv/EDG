@@ -1,27 +1,31 @@
 package edg.graph;
 
-import edg.constraint.EdgeConstraint;
-import edg.constraint.EmptyConstraint;
-import edg.constraint.AsteriskConstraint;
+import edg.constraint.Constraint;
 
 public class EdgeInfo
 {
-	public static enum Type
+	public enum Type
 	{
-		ControlFlow,
-		Structural, Control,
-		Value, Flow,
-		Call, Input, Output, Summary
+		Control,
+		NormalControl,
+		StructuralControl,
+		GuardRestriction,
+		FlowDependence,
+		ValueDependence,
+		Input,
+		Output,
+		Summary,
+		Other
 	}
 
 	private final Type type;
-	private final EdgeConstraint constraint;
+	private final Constraint constraint;
 
 	public EdgeInfo(Type type)
 	{
-		this(type, type == Type.Structural || type == Type.Control ? AsteriskConstraint.getConstraint() : EmptyConstraint.getConstraint());
+		this(type, null);
 	}
-	public EdgeInfo(Type type, EdgeConstraint constraint)
+	public EdgeInfo(Type type, Constraint constraint)
 	{
 		this.type = type;
 		this.constraint = constraint;
@@ -31,15 +35,13 @@ public class EdgeInfo
 	{
 		return this.type;
 	}
-	public EdgeConstraint getConstraint()
+	public Constraint getConstraint()
 	{
 		return this.constraint;
 	}
 
 	public boolean equals(Object object)
 	{
-		if (object == this)
-			return true;
 		if (!(object instanceof EdgeInfo))
 			return false;
 

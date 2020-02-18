@@ -1,52 +1,49 @@
 package edg.graph;
 
-import edg.LDASTNodeInfo;
-
 public class NodeInfo
 {
+	// TODO Group types
 	public static enum Type
 	{
-		// Module
-		Module,
+		// Functions
+		Function,
 
-		// Routine
-		Routine, Clause, Parameters,
+		// Clauses
+		Clause, Guard,
+
+		// Patterns
+		TuplePattern, ListPattern, BinPattern, BinElementPattern, CompoundPattern,
 
 		// Expressions
-		List, DataConstructor, DataConstructorAccess,
-		Block, Operation, Equality,
-		If, Condition,
-		Switch, Selector, Cases, Case, DefaultCase, Selectable,
-		Call, Callee, Scope, Name, Arguments,
-		ListComprehension, Restrictions, Generator, Filter, Value,
-		Loop, // <- DEPRECATED 
-		CLoop, FLoop, RLoop,
+		FunctionIdentifier, Block, TupleExpression, ListExpression, BinExpression, BinElementExpression, Operation,
+		PatternMatching, Case, If, ListComprehension, BinComprehension, FunctionCall,
+		AnonymousFunction,
 
 		// Others
-		Body, Guard,
-		Expression, Result,
-		Variable, Literal,
-		Return, Break, Continue,
-		Root,
-		
-		// ADDED 
-		Init, Update, 
-		TypeCheck, // JAVA instanceof 
-		TypeTransformation,
-		Type  	
+		Body, Return, ListComprehensionResult, BinComprehensionResult,
+		Record, Remote, Atom, String, Integer, Char, Default, Variable, Generator, BinGenerator,
+		Root, Other
 	}
+
+	private static int nextId = 0;
 
 	private final int id;
 	private final Type type;
-	private final String name;
-	private final LDASTNodeInfo ldASTNodeInfo;
+	private final long line;
+	private final String text;
+	private final Object[] info;
 
-	public NodeInfo(int id, Type type, String name, LDASTNodeInfo ldASTNodeInfo)
+	public NodeInfo(Type type, long line, String text, Object... info)
+	{
+		this(NodeInfo.nextId++, type, line, text, info);
+	}
+	public NodeInfo(int id, Type type, long line, String text, Object... info)
 	{
 		this.id = id;
+		this.line = line;
 		this.type = type;
-		this.name = name;
-		this.ldASTNodeInfo = ldASTNodeInfo;
+		this.text = text;
+		this.info = info;
 	}
 
 	public int getId()
@@ -57,35 +54,33 @@ public class NodeInfo
 	{
 		return this.type;
 	}
-	public String getName()
+	public long getLine()
 	{
-		return this.name;
+		return this.line;
 	}
-	public LDASTNodeInfo getInfo()
+	public String getText()
 	{
-		return this.ldASTNodeInfo;
+		return this.text;
+	}
+	public Object[] getInfo()
+	{
+		return this.info;
 	}
 
 	public boolean isFictitious()
 	{
-		switch (this.type)
-		{
-			case Root:
-			case Parameters:
-			case Guard:
-			case Body:
-			case Selector:
-			case Cases:
-			case Selectable:
-			case Callee:
-			case Arguments:
-			case Expression:
-			case Result:
-			case Restrictions:
-			case Value:
-				return true;
-			default:
-				return false;
-		}
+		if (this.type == Type.Root)
+			return true;
+		if (this.type == Type.Body)
+			return true;
+		if (this.type == Type.Return)
+			return true;
+		if (this.type == Type.ListComprehensionResult)
+			return true;
+		if (this.type == Type.Variable && this.text.equals("_"))
+			return true;
+		if (this.type == Type.Atom && (this.text.equals("undef") || this.text.equals("funundef")))
+			return true;
+		return false;
 	}
 }

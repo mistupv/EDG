@@ -4,30 +4,24 @@ import java.util.Comparator;
 import java.util.LinkedList;
 import java.util.List;
 
-import edg.LDASTNodeInfo;
-import edg.constraint.Constraints;
-import edg.constraint.GrammarConstraint;
+import edg.constraint.Constraint;
+import edg.constraint.SummaryConstraint;
 import edg.graphlib.Arrow;
 import edg.graphlib.Graph;
 import edg.graphlib.Vertex;
-import edg.slicing.SlicingCriterion;
-import edg.traverser.EDGTraverser;
 
-public class EDG
+public class EDG extends Graph<NodeInfo, EdgeInfo>
 {
-	/*****************/
-	/***** Nodes *****/
-	/*****************/
-	private final Graph<NodeInfo, EdgeInfo> graph = new Graph<NodeInfo, EdgeInfo>();
+	private final Grammar grammar = new Grammar();
 
 	public Node getRootNode()
 	{
-		return (Node) this.graph.getRootVertex();
+		return (Node) super.getRootVertex();
 	}
 	public List<Node> getNodes()
 	{
 		final List<Node> nodes = new LinkedList<Node>();
-		final List<Vertex<NodeInfo, EdgeInfo>> verticies = this.graph.getVerticies();
+		final List<Vertex<NodeInfo, EdgeInfo>> verticies = super.getVerticies();
 
 		for (Vertex<NodeInfo, EdgeInfo> vertex : verticies)
 			nodes.add((Node) vertex);
@@ -37,67 +31,61 @@ public class EDG
 	public List<Edge> getEdges()
 	{
 		final List<Edge> edges = new LinkedList<Edge>();
-		final List<Arrow<NodeInfo, EdgeInfo>> arrows = this.graph.getArrows();
+		final List<Arrow<NodeInfo, EdgeInfo>> arrows = super.getArrows();
 
 		for (Arrow<NodeInfo, EdgeInfo> arrow : arrows)
 			edges.add((Edge) arrow);
 
 		return edges;
 	}
+	public List<List<Constraint>> getProductions(SummaryConstraint summaryConstraint)
+	{
+		return this.grammar.getProductions(summaryConstraint);
+	}
 
 	public void setRootNode(Node node)
 	{
-		this.graph.setRootVertex(node);
+		super.setRootVertex(node);
 	}
 
 	public boolean addNode(Node node)
 	{
-		return this.graph.addVertex(node);
+		return super.addVertex(node);
 	}
 	public boolean addEdge(Node from, Node to, int cost, EdgeInfo data) throws IllegalArgumentException
 	{
-		final Edge e = new Edge(from, to, cost, data);
+		if (super.verticies.contains(from) == false)
+			throw new IllegalArgumentException("from is not in graph");
+		if (super.verticies.contains(to) == false)
+			throw new IllegalArgumentException("to is not in graph");
 
-		return this.graph.addEdge(e);
+		Edge e = new Edge(from, to, cost, data);
+		List<Edge> es2 = from.findEdges(to);
+
+		for (Edge e2 : es2)
+			if (e2 != null && cost == e2.getCost() &&
+				((data == null && e2.getData() == null) ||
+				(data != null && data.equals(e2.getData()))))
+				return false;
+
+		from.addEdge(e);
+		to.addEdge(e);
+		edges.add(e);
+		return true;
 	}
-
-	public Node getNode(SlicingCriterion sc)
+	public void addProduction(SummaryConstraint summaryConstraint, List<Constraint> production)
 	{
-		if (sc == null)
-			return null;
-
-		final String scArchive = sc.getArchive();
-		final int scLine = sc.getLine();
-		final String scName = sc.getName();
-		final List<Node> nodes = this.findNodesByData(null, new Comparator<NodeInfo>() {
-			public int compare(NodeInfo o1, NodeInfo o2)
-			{
-				final LDASTNodeInfo ldNodeInfo = o2.getInfo();
-				if (ldNodeInfo == null)
-					return -1;
-				if (scLine != ldNodeInfo.getLine())
-					return -1;
-				if (!scName.equals(o2.getName()))
-					return -1;
-				if (!scArchive.equals(ldNodeInfo.getArchive()))
-					return -1;
-				return 0;
-			}
-		});
-		final int scOccurrence = sc.getOccurrence();
-		if (nodes.isEmpty())
-			return null;
-		final Node node = nodes.get(scOccurrence - 1);
-		return EDGTraverser.getResult(node);
+		this.grammar.addProduction(summaryConstraint, production);
 	}
+
 	public Node findNodeByData(NodeInfo data, Comparator<NodeInfo> compare)
 	{
-		return (Node) this.graph.findNodeByData(data, compare);
+		return (Node) super.findNodeByData(data, compare);
 	}
 	public List<Node> findNodesByData(NodeInfo data, Comparator<NodeInfo> compare)
 	{
 		final List<Node> nodes = new LinkedList<Node>();
-		final List<Vertex<NodeInfo, EdgeInfo>> verticies = this.graph.findVerticiesByData(data, compare);
+		final List<Vertex<NodeInfo, EdgeInfo>> verticies = super.findVerticiesByData(data, compare);
 
 		for (Vertex<NodeInfo, EdgeInfo> vertex : verticies)
 			nodes.add((Node) vertex);
@@ -105,22 +93,17 @@ public class EDG
 		return nodes;
 	}
 
-	/*****************/
-	/**** Grammar ****/
-	/*****************/
-	private final Grammar grammar = new Grammar();
+	public List<Node> getFicticiousNodes()
+	{
+		final List<Node> ficticiousFunct = this.findNodesByData(null, new Comparator<NodeInfo>() {
+			public int compare(NodeInfo o1, NodeInfo o2)
+			{
+				if (o2.isFictitious())
+					return 0;
+				return -1;
+			}
+		});
 
-	public Grammar getGrammar()
-	{
-		return this.grammar;
-	}
-	public List<Constraints> getProductions(GrammarConstraint grammarConstraint)
-	{
-		return this.grammar.getProductions(grammarConstraint);
-	}
-
-	public void addProduction(GrammarConstraint grammarConstraint, Constraints production)
-	{
-		this.grammar.addProduction(grammarConstraint, production);
+		return ficticiousFunct;
 	}
 }
