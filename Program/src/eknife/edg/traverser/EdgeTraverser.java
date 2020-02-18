@@ -16,6 +16,8 @@ import eknife.edg.constraint.Constraint;
 import eknife.edg.constraint.Constraints;
 import eknife.edg.constraint.SummaryConstraints.SummaryType;
 import eknife.edg.constraint.ExceptionArgumentConstraint;
+import eknife.edg.constraint.ExceptionConstraint;
+import eknife.edg.constraint.SeekingConstraint;
 import eknife.edg.constraint.SummaryConstraint;
 import eknife.edg.constraint.SummaryConstraints;
 import eknife.edg.constraint.TupleConstraint;
@@ -24,7 +26,7 @@ import eknife.edg.constraint.AccessConstraint.Operation;
 
 public class EdgeTraverser
 {
-	// TODO Delete me
+/***	// TODO Delete me
 	public static void main(String[] args)
 	{
 		EdgeTraverser.example1();
@@ -164,7 +166,7 @@ public class EdgeTraverser
 			System.out.println(newConstraintsStack);
 		System.out.println("Finishes");
 	}
-
+***/
 
 
 
@@ -192,7 +194,8 @@ public class EdgeTraverser
 		
 		if (this.phase == Phase.Summary && ((SummaryConstraints)constraints).getSummaryType() == null)
 		{
-			final SummaryType summaryType = (edge.getData().getType() == EdgeInfo.Type.Exception) ? SummaryType.Exception : SummaryType.Return;
+			final Constraint edgeConstraint = edge.getData().getConstraint();
+			final SummaryType summaryType = (edgeConstraint instanceof SeekingConstraint) ? SummaryType.Exception : SummaryType.Return;
 			((SummaryConstraints) newConstraints).setSummaryType(summaryType);
 		}
 		
@@ -220,9 +223,10 @@ public class EdgeTraverser
 		if (!newConstraints.isEmpty())
 		{
 			final Constraint topConstraint = newConstraints.peek();
+			final Constraint edgeConstraint = edge.getData().getConstraint();
 			if (topConstraint instanceof ExceptionArgumentConstraint &&
 					((ExceptionArgumentConstraint) topConstraint).getOperation() == Operation.Add &&
-					(edgeType != EdgeInfo.Type.Exception))
+					(!(edgeConstraint instanceof ExceptionConstraint || edgeConstraint instanceof ExceptionArgumentConstraint)))
 				return new LinkedList<Constraints>();
 		}
 
@@ -242,8 +246,8 @@ public class EdgeTraverser
 			nodeType != NodeInfo.Type.BinExpression && nodeType != NodeInfo.Type.BinElementExpression)
 			return newConstraintsStacks;
 
-if (this.phase == Phase.Summary && edge.getData().getType() == EdgeInfo.Type.Exception)
-	return new LinkedList<Constraints>();
+//if (this.phase == Phase.Summary && edge.getData().getType() == EdgeInfo.Type.Exception)
+//	return new LinkedList<Constraints>();
 		
 		final Constraint constraint = edge.getData().getConstraint();
 		return this.traverseEdge(constraints, constraint);

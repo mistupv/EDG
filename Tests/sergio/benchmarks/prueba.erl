@@ -1,13 +1,20 @@
 -module(prueba).
--compile(export_all).
+-export([numbers/2]).
 
 main(X) ->   
-    case f(X) of 
-        {1,3} -> 9;                       
-        {1,B} -> {slice,X}
+    try                        
+        X+4,
+        f(5),
+        X/0
+    catch 
+        5 -> 2;
+        error:_ -> {slice,X}
     end.
+
 f(X) -> 
-    case {X,4} of
-        {1,4} -> {1,X};
-        _ -> {X,12}
-    end.
+    X-1,
+    X/2,
+    X+undef.
+
+g(X) ->
+    f(X).

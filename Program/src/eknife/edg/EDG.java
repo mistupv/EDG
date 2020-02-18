@@ -6,6 +6,7 @@ import java.util.List;
 
 import eknife.edg.constraint.Constraint;
 import eknife.edg.constraint.SummaryConstraint;
+import eknife.edg.constraint.SummaryConstraints;
 import eknife.edg.traverser.GraphTraverser;
 import eknife.lib.graph.Arrow;
 import eknife.lib.graph.Graph;
@@ -135,14 +136,14 @@ public class EDG
 		else
 			throw new RuntimeException("Grammar type not contemplated: " + grammarType);
 	}
-	public List<List<Constraint>> getProductions(GrammarType grammarType, SummaryConstraint summaryConstraint)
+	public List<SummaryConstraints> getProductions(GrammarType grammarType, SummaryConstraint summaryConstraint)
 	{
 		final Grammar grammar = this.getGrammar(grammarType);
 
 		return grammar.getProductions(summaryConstraint);
 	}
 
-	public void addProduction(GrammarType grammarType, SummaryConstraint summaryConstraint, List<Constraint> production)
+	public void addProduction(GrammarType grammarType, SummaryConstraint summaryConstraint, SummaryConstraints production)
 	{
 		final Grammar grammar = this.getGrammar(grammarType);
 

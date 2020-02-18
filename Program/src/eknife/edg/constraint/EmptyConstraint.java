@@ -23,8 +23,8 @@ public class EmptyConstraint extends Constraint
 		
 		final List<Constraints> constraintsStacks = new LinkedList<Constraints>();
 		
-		//if (phase == Phase.Summary)
-			//constraintsStack.push(this);
+		if (phase == Phase.Summary && constraintsStack.isEmpty())
+			constraintsStack.push(this);
 		
 		constraintsStacks.add(constraintsStack);
 		

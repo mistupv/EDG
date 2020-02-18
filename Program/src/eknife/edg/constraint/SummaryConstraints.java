@@ -29,8 +29,9 @@ public class SummaryConstraints extends Constraints
 
 	public boolean isSeekingConstraint()
 	{
-		return seekingConstraint != null;
+		return this.seekingConstraint != null;
 	}
+
 	public void setSeekingConstraint(SeekingConstraint constraint)
 	{
 		this.seekingConstraint = constraint;
@@ -65,5 +66,9 @@ public class SummaryConstraints extends Constraints
 		summaryConstraints.summaryType = this.summaryType;
 		
 		return summaryConstraints;
+	}
+	public Constraint get(int i) 
+	{
+		return this.stack.get(i);
 	}
 }

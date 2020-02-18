@@ -3,6 +3,7 @@ package eknife.edg.constraint;
 import java.util.LinkedList;
 import java.util.List;
 
+import eknife.edg.constraint.SeekingConstraint.Operation;
 import eknife.edg.traverser.EdgeTraverser.Phase;
 
 public class ExceptionConstraint extends SeekingConstraint
@@ -101,6 +102,9 @@ public class ExceptionConstraint extends SeekingConstraint
 	{
 		if (this.exceptionField == null)
 		{
+			if (this.operation == Operation.GetAll && phase == Phase.Slicing)
+				((SlicingConstraints)constraintsStack).setExceptionGetAll(true);
+			
 			final List<Constraints> constraintsStacks = new LinkedList<Constraints>();
 			constraintsStacks.add(constraintsStack);
 			return constraintsStacks;

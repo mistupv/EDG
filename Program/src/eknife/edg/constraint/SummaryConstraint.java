@@ -6,6 +6,7 @@ import java.util.List;
 import eknife.config.Config;
 import eknife.edg.Grammar;
 import eknife.edg.Node;
+import eknife.edg.constraint.SummaryConstraints.SummaryType;
 import eknife.edg.traverser.EdgeTraverser.Phase;
 
 public class SummaryConstraint extends Constraint
@@ -64,15 +65,19 @@ public class SummaryConstraint extends Constraint
 	private List<Constraints> resolve0(Phase phase, Constraints constraintsStack, int productionDepth)
 	{
 		final List<Constraints> newConstraintsStacks = new LinkedList<Constraints>();
-		final List<List<Constraint>> productions = this.grammar.getProductions(this);
+		final List<SummaryConstraints> summaryStackList = this.grammar.getProductions(this);
 
-		for (List<Constraint> production : productions)
+		for (SummaryConstraints summaryStack : summaryStackList)
 		{
+			final Constraints constraintsStackClone = (Constraints) constraintsStack.clone();
 			final List<Constraints> stacks = new LinkedList<Constraints>();
+			
+			stacks.add(constraintsStackClone);
 
-			stacks.add(constraintsStack);
-			for (Constraint element : production)
+			final int stackSize = summaryStack.size();
+			for (int index = 0; index < stackSize; index++)
 			{
+				final Constraint element = summaryStack.get(index);
 				final List<Constraints> newConstraintsStacks0 = new LinkedList<Constraints>();
 
 				for (Constraints stack : stacks)

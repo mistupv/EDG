@@ -39,7 +39,7 @@ public class SlicingAlgorithm2 implements SlicingAlgorithm
 		final WorkList workList = new WorkList();
 		final Work initialWork = this.getInitialWork(node);
 		workList.add(initialWork);
-		this.traverse(workList, EdgeInfo.Type.Output, EdgeInfo.Type.Exception);
+		this.traverse(workList, EdgeInfo.Type.Output);
 		this.traverse(workList, EdgeInfo.Type.Input);
 
 		final List<Work> works = workList.toList();
@@ -144,9 +144,9 @@ ids.add(id0);
 if (ids.contains(id))
 return newWorks;
 
-final int currentId = currentNode.getData().getId();
-if (currentId == 8)
-System.out.println("Ahi va la liebre");
+//final int currentId = currentNode.getData().getId();
+//if (currentId == 8)
+//System.out.println("Ahi va la liebre");
 		// Incoming edges
 		final List<Edge> incomingEdges = currentNode.getIncomingEdges();
 
@@ -157,7 +157,7 @@ final Node nodeFrom0 = incomingEdge.getFrom();
 final Node nodeTo0 = incomingEdge.getTo();
 final int idFrom0 = nodeFrom0.getData().getId();
 final int idTo0 = nodeTo0.getData().getId();
-if (idFrom0 == 28 && idTo0 == 10)
+if (idFrom0 == 6 && idTo0 == 7)
 System.out.println("Aqui");
 
 
@@ -169,7 +169,9 @@ System.out.println("Aqui");
 			if (edgeType == EdgeInfo.Type.ValueDependence && ignoreDown)
 				continue;
 
-if (edgeType == EdgeInfo.Type.ExceptionGetAll && constraints.getExceptionGetAll())
+if (edgeType == EdgeInfo.Type.ExceptionGetAll && 
+		constraints instanceof SlicingConstraints && 
+		!((SlicingConstraints)constraints).getExceptionGetAll())
 	continue;
 
 

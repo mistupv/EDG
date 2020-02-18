@@ -217,7 +217,6 @@ public class DependenceGenerator
 		this.generateBinEdges(functionClause);
 		
 		// ADDED BY SERGIO FOR EXCEPTION DATA CONTROL
-		this.generateExceptionPatternEdges(functionClause);
 		this.generateTryOfClausesEdges(functionClause);
 		this.generateMapMatchingEdges(functionClause);
 		// ------------------------------------------
@@ -550,6 +549,10 @@ public class DependenceGenerator
 					constraints.addAll(this.getConstraints(compoundChild, repeatedVariables));
 				break;
 			case ExceptionPattern:
+				constraints.add(parameter);
+				final List<Node> exceptionPatternChildren = GraphTraverser.getChildren(parameter, EdgeInfo.Type.Control);
+				for (Node exceptionPatternChild : exceptionPatternChildren)
+					constraints.addAll(this.getConstraints(exceptionPatternChild, repeatedVariables));
 				break;
 			default:
 				throw new RuntimeException("Parameter type not contempled: " + info.getType());
@@ -772,27 +775,8 @@ public class DependenceGenerator
 	}
 
 	/*************************************/
-	/*** Exception pattern dependences ***/
+	/***** TryOf pattern dependences *****/
 	/*************************************/
-	private void generateExceptionPatternEdges(Node functionClause)
-	{
-		final List<Node> catchNodes = this.getDescendants(functionClause, NodeInfo.Type.CatchClause);
-
-		for (Node _catch : catchNodes)
-		{
-			final List<Node> clauses = GraphTraverser.getChildren(_catch, EdgeInfo.Type.NormalControl);
-			for (Node clause : clauses)
-			{
-				final List<Node> children = GraphTraverser.getChildren(clause, EdgeInfo.Type.NormalControl);
-				final Node exceptionPattern = children.get(0);
-				if (exceptionPattern.getData().getType() == NodeInfo.Type.ExceptionPattern)
-				{
-					final Node guard = children.get(1);
-					this.graph.addEdge(exceptionPattern, guard, 0, new EdgeInfo(EdgeInfo.Type.GuardRestriction, new EmptyConstraint()));
-				}	
-			}
-		}
-	}
 	private void generateTryOfClausesEdges(Node functionClause)
 	{
 		final List<Node> tryOfNodes = this.getDescendants(functionClause, NodeInfo.Type.TryOf);
@@ -816,7 +800,6 @@ public class DependenceGenerator
 				this.graph.addEdge(_try, pattern, 0, new EdgeInfo(EdgeInfo.Type.FlowDependence, new EmptyConstraint()));	
 			}
 		}
-		
 	}
 	
 	/************************************/
@@ -1821,20 +1804,20 @@ iteraciones++;
 		final Node clause = GraphTraverser.getParent(formalIn, EdgeInfo.Type.NormalControl);
 		final List<Node> functionCallers = GraphTraverser.getInputs(clause, GraphTraverser.Direction.Backwards);
 		final List<Node> inputs = GraphTraverser.getInputs(formalIn, GraphTraverser.Direction.Backwards);
-		final List<Node> outputs = GraphTraverser.getOutputs(formalOut, GraphTraverser.Direction.Forwards);
-		final List<Node> exceptions = GraphTraverser.getExceptions(formalOut, GraphTraverser.Direction.Forwards);
+		final List<Node> outputs = GraphTraverser.getOutputs(formalOut, GraphTraverser.Direction.Forwards,NodeInfo.Type.Return);
+		final List<Node> exceptions = GraphTraverser.getOutputs(formalOut, GraphTraverser.Direction.Forwards,NodeInfo.Type.ExceptionReturn);
 
 		final SummaryType summaryType = constraints.getSummaryType();
 		final GrammarType grammarType = (summaryType == SummaryType.Return) ? GrammarType.Value : GrammarType.Exception;
 				
 		final SummaryConstraint summaryConstraint = this.getSummaryConstraint(grammarType, formalIn);
-		final List<Object> production0 = Arrays.asList(constraints.toArray());
-		final List<Constraint> production = new LinkedList<Constraint>();
+//		final List<Object> production0 = Arrays.asList(constraints.toArray());
+//		final List<Constraint> production = new LinkedList<Constraint>();
 
-		for (Object element : production0)					// Se generan 2 arcos del return y exception return con la misma producción
-			production.add((Constraint) element);
+//		for (Object element : production0)					// Se generan 2 arcos del return y exception return con la misma producción
+//			production.add((Constraint) element);
 
-		this.graph.addProduction(grammarType, summaryConstraint, production);
+		this.graph.addProduction(grammarType, summaryConstraint, constraints);
 
 		for (Node functionCaller : functionCallers)
 		{
@@ -1972,7 +1955,7 @@ Cronometro.terminar("1.4 - getNewWorks");
 		final Node throwExpression = GraphTraverser.getChild(_throw, 0);
 		
 		final String patternName = this.getExpressionName(throwExpression);
-		this.graph.addEdge(throwExpression, _throw, 0, new EdgeInfo(EdgeInfo.Type.Exception, new ExceptionArgumentConstraint(AccessConstraint.Operation.Remove, patternName)));
+		this.graph.addEdge(throwExpression, _throw, 0, new EdgeInfo(EdgeInfo.Type.ValueDependence, new ExceptionArgumentConstraint(AccessConstraint.Operation.Remove, patternName)));
 		
 	}
 	private void generateExceptionPatternClauseEdges(Node catchClause)
@@ -1989,7 +1972,7 @@ Cronometro.terminar("1.4 - getNewWorks");
 		else 
 		{
 			final String patternName = this.getExpressionName(pattern);
-			this.graph.addEdge(catchClause, pattern, 0, new EdgeInfo(EdgeInfo.Type.Exception, new ExceptionArgumentConstraint(AccessConstraint.Operation.Add, patternName)));
+			this.graph.addEdge(catchClause, pattern, 0, new EdgeInfo(EdgeInfo.Type.ValueDependence, new ExceptionArgumentConstraint(AccessConstraint.Operation.Add, patternName)));
 		}
 	}
 	
@@ -2175,12 +2158,12 @@ Cronometro.terminar("1.4 - getNewWorks");
 				{
 					// Add edge throw -> catch clause (ENSURE CAPTURE)
 					if (_throw.getData().getType() == NodeInfo.Type.Throw)
-						this.graph.addEdge(_throw, catchClause, 0, new EdgeInfo(EdgeInfo.Type.Exception, new ExceptionConstraint(null,null)));
+						this.graph.addEdge(_throw, catchClause, 0, new EdgeInfo(EdgeInfo.Type.FlowDependence, new ExceptionConstraint(null,null)));
 					else // Es una call
 					{
 						// Add edge throw -> catch clause (with constraint)
 						final String throwExpressionName = throwExpression.getData().getName();
-						this.graph.addEdge(_throw, catchClause, 0, new EdgeInfo(EdgeInfo.Type.Exception, new ExceptionConstraint(ExceptionConstraint.Operation.Add, throwExpressionName) ));
+						this.graph.addEdge(_throw, catchClause, 0, new EdgeInfo(EdgeInfo.Type.FlowDependence, new ExceptionConstraint(ExceptionConstraint.Operation.Add, throwExpressionName) ));
 					}
 					unCatchedThrow = false; 
 				}
@@ -2202,9 +2185,9 @@ Cronometro.terminar("1.4 - getNewWorks");
 					ConstraintName = this.getExpressionName(catchExpression);
 				
 				if (_throw.getData().getType() == NodeInfo.Type.Throw)
-					this.graph.addEdge(_throw, catchClause, 0, new EdgeInfo(EdgeInfo.Type.Exception, new ExceptionConstraint(null,null)));
+					this.graph.addEdge(_throw, catchClause, 0, new EdgeInfo(EdgeInfo.Type.FlowDependence, new ExceptionConstraint(null,null)));
 				else
-					this.graph.addEdge(_throw, catchClause, 0, new EdgeInfo(EdgeInfo.Type.Exception, new ExceptionConstraint(ExceptionConstraint.Operation.Add, ConstraintName)));
+					this.graph.addEdge(_throw, catchClause, 0, new EdgeInfo(EdgeInfo.Type.FlowDependence, new ExceptionConstraint(ExceptionConstraint.Operation.Add, ConstraintName)));
 				
 				break;
 
@@ -2245,12 +2228,12 @@ Cronometro.terminar("1.4 - getNewWorks");
 				{
 					if (_throw.getData().getType() == NodeInfo.Type.Throw)
 					{
-						this.graph.addEdge(_throw, catchClause, 0, new EdgeInfo(EdgeInfo.Type.Exception, new ExceptionConstraint(null,null)));
+						this.graph.addEdge(_throw, catchClause, 0, new EdgeInfo(EdgeInfo.Type.FlowDependence, new ExceptionConstraint(null,null)));
 					}
 					else{
 						final String throwExpressionName = matchResult[1] ? this.getExpressionName(catchExpression) : "*";
 						// Add edge throw -> catch clause (with constraint)
-						this.graph.addEdge(_throw, catchClause, 0, new EdgeInfo(EdgeInfo.Type.Exception, new ExceptionConstraint(ExceptionConstraint.Operation.Add, throwExpressionName) ));
+						this.graph.addEdge(_throw, catchClause, 0, new EdgeInfo(EdgeInfo.Type.FlowDependence, new ExceptionConstraint(ExceptionConstraint.Operation.Add, throwExpressionName) ));
 					}
 				}
 				if (matchResult[1])
@@ -2261,7 +2244,6 @@ Cronometro.terminar("1.4 - getNewWorks");
 		}
 		return unCatchedThrow;
 	}
-	
 	private boolean generateErlangExceptionEdges(Node throwExpression, Node catchExpression)
 	{
 		boolean unCatchedThrow = true; 
@@ -2326,18 +2308,18 @@ Cronometro.terminar("1.4 - getNewWorks");
 				if(ancestorType == NodeInfo.Type.Catch)
 				{
 					final Node catch0 = GraphTraverser.getChild(ancestor, 0);
-					this.graph.addEdge(catch0, ancestor, 0, new EdgeInfo(EdgeInfo.Type.Exception, new ExceptionArgumentConstraint(AccessConstraint.Operation.Add,"*")));
+					this.graph.addEdge(catch0, ancestor, 0, new EdgeInfo(EdgeInfo.Type.ValueDependence, new ExceptionArgumentConstraint(AccessConstraint.Operation.Add,"*")));
 					if (node.getData().getType() == NodeInfo.Type.Throw)
 					{					
 						// Add edge throw -> catch (without constraint)
-						this.graph.addEdge(node, catch0, 0, new EdgeInfo(EdgeInfo.Type.Exception, new ExceptionConstraint(null,null)));
+						this.graph.addEdge(node, catch0, 0, new EdgeInfo(EdgeInfo.Type.ValueDependence, new ExceptionConstraint(null,null)));
 					}
 					else 
 					{
 						throwExpression = exceptionExpression;
 						final String throwExpressionName = this.getExpressionName(throwExpression);
 						// Add edge throw -> try_catch (with constraint)
-						this.graph.addEdge(node, catch0, 0, new EdgeInfo(EdgeInfo.Type.Exception, new ExceptionConstraint(ExceptionConstraint.Operation.Add, throwExpressionName)));
+						this.graph.addEdge(node, catch0, 0, new EdgeInfo(EdgeInfo.Type.FlowDependence, new ExceptionConstraint(ExceptionConstraint.Operation.Add, throwExpressionName)));
 					}
 					foundAncestor = true;
 				}
@@ -2348,14 +2330,14 @@ Cronometro.terminar("1.4 - getNewWorks");
 						throwExpression = GraphTraverser.getChild(node, 0);
 						final String throwExpressionName = this.getExpressionName(throwExpression);					
 						// Add edge throw -> try_catch (with constraint)
-						this.graph.addEdge(node, ancestor, 0, new EdgeInfo(EdgeInfo.Type.Exception, new ExceptionConstraint(ExceptionConstraint.Operation.Remove, throwExpressionName)));
+						this.graph.addEdge(node, ancestor, 0, new EdgeInfo(EdgeInfo.Type.ValueDependence, new ExceptionConstraint(ExceptionConstraint.Operation.Remove, throwExpressionName)));
 					}
 					else 
 					{
 						throwExpression = exceptionExpression;
 						final String throwExpressionName = this.getExpressionName(throwExpression);
 						// Add edge throw -> try_catch (without constraint)
-						this.graph.addEdge(node, ancestor, 0, new EdgeInfo(EdgeInfo.Type.Exception, new ExceptionConstraint(null, throwExpressionName)));
+						this.graph.addEdge(node, ancestor, 0, new EdgeInfo(EdgeInfo.Type.ValueDependence, new ExceptionConstraint(null, throwExpressionName)));
 					}
 					this.generateExceptionEdges(ancestor,throwExpression);
 					foundAncestor = true;
@@ -2368,14 +2350,14 @@ Cronometro.terminar("1.4 - getNewWorks");
 						final String throwExpressionName = this.getExpressionName(throwExpression);
 						
 						// Add edge function clause -> function calls (with constraint)
-						this.graph.addEdge(node, ancestor, 0, new EdgeInfo(EdgeInfo.Type.Exception, new ExceptionConstraint(ExceptionConstraint.Operation.Remove, throwExpressionName)));
+						this.graph.addEdge(node, ancestor, 0, new EdgeInfo(EdgeInfo.Type.ValueDependence, new ExceptionConstraint(ExceptionConstraint.Operation.Remove, throwExpressionName)));
 					}
 					else 
 					{
 						throwExpression = exceptionExpression;
 						final String throwExpressionName = this.getExpressionName(throwExpression);
 						// Add edge function clause -> function calls  (without constraint) 
-						this.graph.addEdge(node, ancestor, 0, new EdgeInfo(EdgeInfo.Type.Exception, new ExceptionConstraint(null, throwExpressionName)));
+						this.graph.addEdge(node, ancestor, 0, new EdgeInfo(EdgeInfo.Type.ValueDependence, new ExceptionConstraint(null, throwExpressionName)));
 					}
 					this.generateClauseCallExceptionEdges(ancestor, throwExpression);
 					foundAncestor = true;
@@ -2407,17 +2389,14 @@ Cronometro.terminar("1.4 - getNewWorks");
 				final List<Edge> edges = node.getOutgoingEdges();
 				
 				for (Edge existentEdge : edges)
-					if (existentEdge.getData().getType() == EdgeInfo.Type.Exception && existentEdge.getTo() == exceptionReturnNode && 
-							existentEdge.getData().getConstraint().toString().equals("Ex"+throwExpression.getData().getName()))
-					{	
+					if (existentEdge.getTo() == exceptionReturnNode && existentEdge.getData().getConstraint().toString().equals("Ex"+throwExpression.getData().getName()))
 						addEdge = false;
-					}
 					
 				if (addEdge)
 				{
 					final String throwExpressionName = getExpressionName(throwExpression);
-					this.graph.addEdge(node, exceptionReturnNode, 0, new EdgeInfo(EdgeInfo.Type.Exception, new ExceptionConstraint(null, throwExpressionName)));
-					this.graph.addEdge(exceptionReturnNode, callNode, 0, new EdgeInfo(EdgeInfo.Type.Exception, new ExceptionConstraint(null, throwExpressionName)));
+					this.graph.addEdge(node, exceptionReturnNode, 0, new EdgeInfo(EdgeInfo.Type.Output, new ExceptionConstraint(null, throwExpressionName)));
+					this.graph.addEdge(exceptionReturnNode, callNode, 0, new EdgeInfo(EdgeInfo.Type.ValueDependence, new ExceptionConstraint(null, throwExpressionName)));
 				}
 				this.generateExceptionEdges(callNode, throwExpression);
 			}
@@ -2430,10 +2409,10 @@ Cronometro.terminar("1.4 - getNewWorks");
 		{
 			if (previousThrow.getData().getType() == NodeInfo.Type.FunctionCall)
 			{
-				this.graph.addEdge(previousThrow, throwNode, 0, new EdgeInfo(EdgeInfo.Type.Exception, new ExceptionConstraint(ExceptionConstraint.Operation.Add, "*")));
+				this.graph.addEdge(previousThrow, throwNode, 0, new EdgeInfo(EdgeInfo.Type.ValueDependence, new ExceptionConstraint(ExceptionConstraint.Operation.Add, "*")));
 			}
 			else
-				this.graph.addEdge(previousThrow, throwNode, 0, new EdgeInfo(EdgeInfo.Type.Exception, new ExceptionConstraint(null,null)));
+				this.graph.addEdge(previousThrow, throwNode, 0, new EdgeInfo(EdgeInfo.Type.ValueDependence, new ExceptionConstraint(null,null)));
 		}
 	}
 	
@@ -2448,7 +2427,7 @@ Cronometro.terminar("1.4 - getNewWorks");
 			{
 				final Node lastNode = callChildren.get(callChildren.size()-1);
 				final Node exceptionReturnNode = (lastNode.getData().getType() != NodeInfo.Type.ExceptionReturn) ? this.addExceptionReturnNode(funcCall) : lastNode;
-				this.graph.addEdge(exceptionReturnNode, funcCall, 0, new EdgeInfo(EdgeInfo.Type.Exception, new ExceptionConstraint(null,"*")));
+				this.graph.addEdge(exceptionReturnNode, funcCall, 0, new EdgeInfo(EdgeInfo.Type.ValueDependence, new ExceptionConstraint(null,"*")));
 				
 				// An Exception of a Variable is always captured by any pattern because it's value is not known and can be any thing
 				final String fictitiousExceptionName = "*";
@@ -2463,7 +2442,6 @@ Cronometro.terminar("1.4 - getNewWorks");
 	/************************************/
 	/********* Internal Methods *********/
 	/************************************/
-
 	private Node getCaptureFromThrow(Node node)
 	{
 		final Node root = this.graph.getRootNode();
@@ -3057,7 +3035,6 @@ Cronometro.terminar("1.4 - getNewWorks");
 	/************************************/
 	private void generateExceptionClauseEdges(Node node)
 	{
-		
 		final Node exceptionPatternError = GraphTraverser.getChild(node, 0);
 		if(!exceptionPatternError.getData().getName().equals("throw"))
 		{	
@@ -3065,7 +3042,7 @@ Cronometro.terminar("1.4 - getNewWorks");
 			final Node tryCatchNode = GraphTraverser.getParent((GraphTraverser.getParent(catchClause, EdgeInfo.Type.Control)), EdgeInfo.Type.Control);
 			final Node tryNode = GraphTraverser.getChild(tryCatchNode, 0);
 			
-			this.graph.addEdge(tryNode, catchClause, 0, new EdgeInfo(EdgeInfo.Type.Exception, new ExceptionConstraint(null,null)));
+			this.graph.addEdge(tryNode, catchClause, 0, new EdgeInfo(EdgeInfo.Type.FlowDependence, new ExceptionConstraint(ExceptionConstraint.Operation.GetAll,null)));
 			generateExceptionGetAllEdges(tryNode);
 		}
 	}
@@ -3079,11 +3056,11 @@ Cronometro.terminar("1.4 - getNewWorks");
 			if (child.getData().getType() == NodeInfo.Type.FunctionCall)
 			{
 				 final Node functionName = GraphTraverser.getChild(child, 0);
-				 final List<Node> functionCalls = this.getRelatedClauses(functionName);
-				 for (Node functionCall : functionCalls)
+				 final List<Node> functionClauses = this.getRelatedClauses(functionName);
+				 for (Node functionClause : functionClauses)
 				 {	
-					this.graph.addEdge(functionCall, child, 0, new EdgeInfo(EdgeInfo.Type.ExceptionGetAll));
-					this.generateExceptionGetAllEdges(functionCall);
+					//this.graph.addEdge(functionCall, child, 0, new EdgeInfo(EdgeInfo.Type.ExceptionGetAll));
+					this.generateExceptionGetAllEdges(functionClause);
 				 }
 			}
 			this.generateExceptionGetAllEdges(child);

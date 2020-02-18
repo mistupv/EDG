@@ -24,7 +24,13 @@ public class StarConstraint extends Constraint
 			constraintsStack = new SlicingConstraints();
 		else 
 		{
-			constraintsStack.clear();
+			if (!constraintsStack.isEmpty())
+			{
+				Constraint base = constraintsStack.firstElement();
+				constraintsStack.clear();
+				if (base instanceof ExceptionConstraint)
+					constraintsStack.push(base);
+			}
 			constraintsStack.push(this);
 		}
 

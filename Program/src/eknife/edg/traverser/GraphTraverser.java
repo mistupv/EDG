@@ -76,7 +76,7 @@ public class GraphTraverser
 
 		return inputs;
 	}
-	public static List<Node> getOutputs(Node node, Direction direction)
+	public static List<Node> getOutputs(Node node, Direction direction,NodeInfo.Type returnType)
 	{
 		final List<Node> outputs = new LinkedList<Node>();
 		final EdgeInfo.Type edgeType = EdgeInfo.Type.Output;
@@ -85,26 +85,11 @@ public class GraphTraverser
 		for (Edge outputEdge : outputEdges)
 		{
 			final Node output = direction == Direction.Backwards ? outputEdge.getFrom() : outputEdge.getTo();
-
-			outputs.add(output);
+			if (output.getData().getType() == returnType)
+				outputs.add(output);
 		}
 
 		return outputs;
-	}
-	public static List<Node> getExceptions(Node node, Direction direction)
-	{
-		final List<Node> exceptions = new LinkedList<Node>();
-		final EdgeInfo.Type edgeType = EdgeInfo.Type.Exception;
-		final List<Edge> exceptionEdges = GraphTraverser.getEdges(node, direction, edgeType);
-
-		for (Edge exceptionEdge : exceptionEdges)
-		{
-			final Node exception = direction == Direction.Backwards ? exceptionEdge.getFrom() : exceptionEdge.getTo();
-
-			exceptions.add(exception);
-		}
-
-		return exceptions;
 	}
 	public static List<Node> getIncomings(Node node)
 	{

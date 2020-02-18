@@ -21,17 +21,6 @@ public class Constraints
 
 	protected final Stack<Constraint> stack = new Stack<Constraint>();
 
-// Flag to know if we should cross the exceptionGetAll edges or not
-private boolean crossExceptionGetAll = false;
-public boolean getExceptionGetAll()
-{
-	return this.crossExceptionGetAll;
-}
-public void setExceptionGetAll(boolean state)
-{
-	this.crossExceptionGetAll = state;
-}
-
 	public Constraint push(Constraint constraint)
 	{
 		return this.stack.push(constraint);
@@ -43,6 +32,10 @@ public void setExceptionGetAll(boolean state)
 	public Constraint peek()
 	{
 		return this.stack.peek();
+	}
+	public Constraint firstElement()
+	{
+		return this.stack.firstElement();
 	}
 	public boolean isEmpty()
 	{
@@ -67,8 +60,6 @@ public void setExceptionGetAll(boolean state)
 
 		final Constraints constraints = (Constraints) object;
 		if (!this.stack.equals(constraints.stack))
-			return false;
-		if (this.crossExceptionGetAll != constraints.crossExceptionGetAll)
 			return false;
 
 		return true;

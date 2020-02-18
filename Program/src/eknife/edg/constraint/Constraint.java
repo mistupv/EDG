@@ -53,7 +53,8 @@ public abstract class Constraint
 		final List<Constraints> constraintsStacks = new LinkedList<Constraints>();
 		
 		//ONLY AT SUMMARY PHASE
-		constraintsStack.push(this);
+		if (!(this instanceof EmptyConstraint))
+			constraintsStack.push(this);
 		constraintsStacks.add(constraintsStack);
 		return constraintsStacks;
 	}

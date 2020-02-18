@@ -7,25 +7,26 @@ import java.util.Map;
 
 import eknife.edg.constraint.Constraint;
 import eknife.edg.constraint.SummaryConstraint;
+import eknife.edg.constraint.SummaryConstraints;
 
 public class Grammar
 {
 	private final Map<Node, SummaryConstraint> summaries = new HashMap<Node, SummaryConstraint>();
-	private final Map<SummaryConstraint, List<List<Constraint>>> grammar = new HashMap<SummaryConstraint, List<List<Constraint>>>();
+	private final Map<SummaryConstraint, List<SummaryConstraints>> grammar = new HashMap<SummaryConstraint, List<SummaryConstraints>>();
 
-	private List<List<Constraint>> createProductions(SummaryConstraint summaryConstraint)
+	private List<SummaryConstraints> createProductions(SummaryConstraint summaryConstraint)
 	{
-		List<List<Constraint>> productions = this.getProductions(summaryConstraint);
+		List<SummaryConstraints> productions = this.getProductions(summaryConstraint);
 
 		if (productions == null)
 		{
-			productions = new LinkedList<List<Constraint>>();
+			productions = new LinkedList<SummaryConstraints>();
 			this.grammar.put(summaryConstraint, productions);
 		}
 
 		return productions;
 	}
-	public List<List<Constraint>> getProductions(SummaryConstraint summaryConstraint)
+	public List<SummaryConstraints> getProductions(SummaryConstraint summaryConstraint)
 	{
 		final Node summaryFormalIn = summaryConstraint.getFormalIn();
 		SummaryConstraint summary = this.summaries.get(summaryFormalIn);
@@ -38,9 +39,9 @@ public class Grammar
 
 		return this.grammar.get(summary);
 	}
-	public void addProduction(SummaryConstraint summaryConstraint, List<Constraint> production)
+	public void addProduction(SummaryConstraint summaryConstraint, SummaryConstraints production)
 	{
-		final List<List<Constraint>> productions = this.createProductions(summaryConstraint);
+		final List<SummaryConstraints> productions = this.createProductions(summaryConstraint);
 
 		if (productions.contains(production))
 			return; // Do not add duplicated productions
@@ -50,7 +51,8 @@ public class Grammar
 		productions.add(production);
 	}
 
-// TODO Delete
+// 
+/**** TODO Delete
 public void printGrammar(Constraint constraint)
 {
 	this.printGrammar(constraint, new LinkedList<Constraint>());
@@ -70,4 +72,5 @@ public void printGrammar(Constraint constraint, List<Constraint> processedConstr
 		for (Constraint constraint0 : production)
 			this.printGrammar(constraint0, processedConstraints);
 }
+****/
 }

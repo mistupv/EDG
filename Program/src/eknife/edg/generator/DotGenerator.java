@@ -10,6 +10,8 @@ import eknife.edg.EdgeInfo;
 import eknife.edg.Node;
 import eknife.edg.NodeInfo;
 import eknife.edg.constraint.Constraint;
+import eknife.edg.constraint.ExceptionArgumentConstraint;
+import eknife.edg.constraint.SeekingConstraint;
 import eknife.edg.constraint.UnresolvableConstraint;
 import eknife.misc.Misc;
 
@@ -128,8 +130,9 @@ System.out.println("STOP");
 
 		text += edge.getFrom().getData().getId() + " -> " + edge.getTo().getData().getId() + " ";
 		text += "[";
-		if (constraint != null && 
-				!(edgeType == EdgeInfo.Type.NormalControl || edgeType == EdgeInfo.Type.ValueDependence || 
+		if (constraint != null && (constraint instanceof SeekingConstraint || constraint instanceof ExceptionArgumentConstraint))
+			text += "label=\"" + constraint + "\", ";
+		if (constraint != null && !(edgeType == EdgeInfo.Type.NormalControl || edgeType == EdgeInfo.Type.ValueDependence ||
 				edgeType == EdgeInfo.Type.GuardRestriction || edgeType == EdgeInfo.Type.FlowDependence))
 			text += "label=\"" + constraint + "\", ";
 		if (constraint != null && 
@@ -149,14 +152,34 @@ System.out.println("STOP");
 				break;
 			case GuardRestriction:
 			case FlowDependence:
-				text += "color=red, ";
-				text += "constraint=false, ";
-				text += "style=\"dotted\"";
+				if (constraint instanceof SeekingConstraint)
+				{
+					text += "color=orange, ";
+					text += "penwidth=3, ";
+					text += "constraint=false, ";
+					text += "style=\"dashed\"";
+				}
+				else
+				{
+					text += "color=red, ";
+					text += "constraint=false, ";
+					text += "style=\"dotted\"";
+				}
 				break;
 			case ValueDependence:
-				text += "color=black, ";
-				text += "constraint=false, ";
-				text += "style=\"dotted\"";
+				if (constraint instanceof SeekingConstraint || constraint instanceof ExceptionArgumentConstraint)
+				{
+					text += "color=orange, ";
+					text += "penwidth=3, ";
+					text += "constraint=false, ";
+					text += "style=\"dashed\"";
+				}
+				else
+				{
+					text += "color=black, ";
+					text += "constraint=false, ";
+					text += "style=\"dotted\"";
+				}
 				break;
 			case Input:
 				text += "color=green3, ";
@@ -174,13 +197,6 @@ System.out.println("STOP");
 				text += "color=brown, ";
 				text += "penwidth=3, ";
 				text += "constraint=false";
-				break;
-			case Exception: // ADDED BY SERGIO
-			case ExceptionFlag:
-				text += "color=orange, ";
-				text += "penwidth=3, ";
-				text += "constraint=false, ";
-				text += "style=\"dashed\"";
 				break;
 			case ExceptionGetAll:
 				text += "color=deepskyblue1, ";
