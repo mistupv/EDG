@@ -16,7 +16,9 @@ import edg.traverser.EDGTraverser;
 public class ASTBuilder
 {
 	public static int nextId = 0;
-	public static enum Where { Parameters, Arguments, Guard, Scope, Name, Body, Condition, Then, Else, Selector, Cases, Selectable, Restrictions, Value }
+	public static enum Where { Parameters, Arguments, Guard, Scope, Name, Body, Condition, Then, Else, Selector, Cases, Selectable, Restrictions, Value,
+		Init, Update // ADDED SERGIO NEW LOOP
+		}
 
 	// EDG
 	public static EDG createEDG(LDASTNodeInfo info)
@@ -80,7 +82,14 @@ public class ASTBuilder
 		ASTBuilder.addNode(edg, expression, NodeInfo.Type.Result, "result", null);
 
 		final VariableInfo variableInfo = (VariableInfo) variable.getData();
-		final VariableInfo.Context context = definition ? VariableInfo.Context.Definition : VariableInfo.Context.Use;
+
+		final VariableInfo.Context context;
+		final LDASTNodeInfo parentInfo = parent.getData().getInfo();
+		if(parentInfo != null && parentInfo.getConstruction().equals("unary"))
+			context = VariableInfo.Context.Def_Use;
+		else
+			context = definition ? VariableInfo.Context.Definition : VariableInfo.Context.Use;
+		
 		variableInfo.setDeclaration(declaration);
 		variableInfo.setContext(context);
 		variableInfo.setGlobal(global);
@@ -101,6 +110,15 @@ public class ASTBuilder
 		final Node parent = ASTBuilder.getParentNode(edg, parentId, where);
 		final Node expression = ASTBuilder.addNode(edg, parent, NodeInfo.Type.Expression, "expression", null);
 		final Node equality = ASTBuilder.addNode(edg, expression, NodeInfo.Type.Equality, "equality", info);
+		ASTBuilder.addNode(edg, expression, NodeInfo.Type.Result, "result", null);
+
+		return equality.getData().getId();
+	}
+	public static int addEquality(EDG edg, int parentId, Where where, String sign, LDASTNodeInfo info)
+	{
+		final Node parent = ASTBuilder.getParentNode(edg, parentId, where);
+		final Node expression = ASTBuilder.addNode(edg, parent, NodeInfo.Type.Expression, "expression", null);
+		final Node equality = ASTBuilder.addNode(edg, expression, NodeInfo.Type.Equality, "equality" + "\\n"+ sign, info);
 		ASTBuilder.addNode(edg, expression, NodeInfo.Type.Result, "result", null);
 
 		return equality.getData().getId();
@@ -244,15 +262,48 @@ public class ASTBuilder
 
 		return filter.getData().getId();
 	}
-	public static int addLoop(EDG edg, int parentId, Where where, LDASTNodeInfo info)
+	public static int addForLoop(EDG edg, int parentId, Where where, LDASTNodeInfo info, boolean general)
 	{
 		final Node parent = ASTBuilder.getParentNode(edg, parentId, where);
 		final Node expression = ASTBuilder.addNode(edg, parent, NodeInfo.Type.Expression, "expression", null);
-		final Node loop = ASTBuilder.addNode(edg, expression, NodeInfo.Type.Loop, "loop", info);
+		final Node loop = ASTBuilder.addNode(edg, expression, NodeInfo.Type.FLoop, "loop", info);
+		
+		ASTBuilder.addNode(edg, expression, NodeInfo.Type.Result, "result", null);
+		ASTBuilder.addNode(edg, loop, NodeInfo.Type.Init, "init", null);
+		ASTBuilder.addNode(edg, loop, NodeInfo.Type.Condition, "condition", null);
+		ASTBuilder.addNode(edg, loop, NodeInfo.Type.Body, "body", null);
+		ASTBuilder.addNode(edg, loop, NodeInfo.Type.Update, "update", null);
+		
+		return loop.getData().getId();
+	}
+	public static int addCondLoop(EDG edg, int parentId, Where where, LDASTNodeInfo info, boolean general)
+	{
+		final Node parent = ASTBuilder.getParentNode(edg, parentId, where);
+		final Node expression = ASTBuilder.addNode(edg, parent, NodeInfo.Type.Expression, "expression", null);
+		final Node loop = ASTBuilder.addNode(edg, expression, NodeInfo.Type.CLoop, "loop", info);
+		
 		ASTBuilder.addNode(edg, expression, NodeInfo.Type.Result, "result", null);
 		ASTBuilder.addNode(edg, loop, NodeInfo.Type.Condition, "condition", null);
 		ASTBuilder.addNode(edg, loop, NodeInfo.Type.Body, "body", null);
-
+		
+		return loop.getData().getId();
+	}
+	public static int addRepeatLoop(EDG edg, int parentId, Where where, LDASTNodeInfo info, boolean general)
+	{
+		final Node parent = ASTBuilder.getParentNode(edg, parentId, where);
+		final Node expression = ASTBuilder.addNode(edg, parent, NodeInfo.Type.Expression, "expression", null);
+		final Node loop = ASTBuilder.addNode(edg, expression, NodeInfo.Type.RLoop, "loop", info);
+		
+		ASTBuilder.addNode(edg, expression, NodeInfo.Type.Result, "result", null);
+		// EN ORDEN DE APARICION EN EL CODIGO, NECESARIO A LA HORA DE MIRAR DEFINICIONES PREVIAS
+		ASTBuilder.addNode(edg, loop, NodeInfo.Type.Body, "body", null);
+		ASTBuilder.addNode(edg, loop, NodeInfo.Type.Condition, "condition", null);
+		
+// THE ORDER COND-BODY EASE THE TRAVESAL TO GENERATE CONTROL DEPENDENCIES GUARD/COND -> BODY, FINISHING THE TRAVERSAL AT THE BODY NODE.
+// IT IS NOT VALID BECAUSE THE ORDER OF APPEAREANCE RUINS THE SCOPE USED IN DEF-USE FLOW DEPENDENCIES
+//		ASTBuilder.addNode(edg, loop, NodeInfo.Type.Condition, "condition", null);
+//		ASTBuilder.addNode(edg, loop, NodeInfo.Type.Body, "body", null);
+		
 		return loop.getData().getId();
 	}
 	public static int addReturn(EDG edg, int parentId, Where where, int dstId, LDASTNodeInfo info)
@@ -312,6 +363,37 @@ public class ASTBuilder
 		return null;
 	}
 
+	// Typed languages
+	public static int addTypeCheck(EDG edg, int parentId, Where where, LDASTNodeInfo info)
+	{
+		final Node parent = ASTBuilder.getParentNode(edg, parentId, where);
+		final Node expression = ASTBuilder.addNode(edg, parent, NodeInfo.Type.Expression, "expression", null);
+		final Node typeCheck = ASTBuilder.addNode(edg, expression, NodeInfo.Type.TypeCheck, "typecheck", info);
+		ASTBuilder.addNode(edg, expression, NodeInfo.Type.Result, "result", null);
+
+		return typeCheck.getData().getId();
+	}
+	public static int addTypeTransformation(EDG edg, int parentId, Where where, LDASTNodeInfo info)
+	{
+		final Node parent = ASTBuilder.getParentNode(edg, parentId, where);
+		final Node expression = ASTBuilder.addNode(edg, parent, NodeInfo.Type.Expression, "expression", null);
+		final Node typeTrans = ASTBuilder.addNode(edg, expression, NodeInfo.Type.TypeTransformation, "typetransform", info);
+		ASTBuilder.addNode(edg, expression, NodeInfo.Type.Result, "result", null);
+		
+		return typeTrans.getData().getId();
+	}
+	public static int addType(EDG edg, int parentId, Where where, String value, LDASTNodeInfo info)
+	{
+		final Node parent = ASTBuilder.getParentNode(edg, parentId, where);
+		final Node expression = ASTBuilder.addNode(edg, parent, NodeInfo.Type.Expression, "expression", null);
+		final Node type = ASTBuilder.addNode(edg, expression, NodeInfo.Type.Type, value, "type" + "\\n" + value, info);
+		ASTBuilder.addNode(edg, expression, NodeInfo.Type.Result, "result", null);
+
+		return type.getData().getId();
+	}
+
+	
+	
 	// Complete EDG
 	public static void completeEDG(EDG edg)
 	{
@@ -464,10 +546,14 @@ public class ASTBuilder
 	{
 		switch (where)
 		{
+			case Init:
+				return EDGTraverser.getChild(loop, NodeInfo.Type.Init);
 			case Condition:
-				return EDGTraverser.getChild(loop, 0);
+				return EDGTraverser.getChild(loop, NodeInfo.Type.Condition);
 			case Body:
-				return EDGTraverser.getChild(loop, 1);
+				return EDGTraverser.getChild(loop, NodeInfo.Type.Body);
+			case Update:
+				return EDGTraverser.getChild(loop, NodeInfo.Type.Update);
 			default:
 				throw new RuntimeException("A loop cannot contain " + where);
 		}
@@ -511,7 +597,14 @@ public class ASTBuilder
 				wheres.add(Where.Restrictions);
 				wheres.add(Where.Value);
 				break;
-			case Loop:
+			case FLoop:
+				wheres.add(Where.Init);
+				wheres.add(Where.Condition);
+				wheres.add(Where.Body);
+				wheres.add(Where.Update);
+				break;
+			case CLoop: 
+			case RLoop: 
 				wheres.add(Where.Condition);
 				wheres.add(Where.Body);
 				break;
@@ -552,8 +645,17 @@ public class ASTBuilder
 				return ASTBuilder.getDefaultCaseChildNode(parentNode, where);
 			case ListComprehension:
 				return ASTBuilder.getListComprehensionChildNode(parentNode, where);
-			case Loop:
+			case FLoop:
+			case CLoop:
+			case RLoop:
 				return ASTBuilder.getLoopChildNode(parentNode, where);
+//ADDED
+//case ForLoop:
+//	return ASTBuilder.getLoopChildNode(parentNode, where);
+//
+				
+			case TypeCheck:
+			case TypeTransformation:
 			case Module:
 			case Routine:
 			case Block:

@@ -4,7 +4,7 @@ import edg.LDASTNodeInfo;
 
 public class VariableInfo extends NodeInfo
 {
-	public static enum Context { Definition, Use }
+	public static enum Context { Definition, Use, Def_Use } // Def_Use es para unaryExpressions (i++ etc.)
 
 	private boolean declaration;
 	private Context context;

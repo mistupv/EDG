@@ -19,14 +19,21 @@ public class NodeInfo
 		Switch, Selector, Cases, Case, DefaultCase, Selectable,
 		Call, Callee, Scope, Name, Arguments,
 		ListComprehension, Restrictions, Generator, Filter, Value,
-		Loop,
+		Loop, // <- DEPRECATED 
+		CLoop, FLoop, RLoop,
 
 		// Others
 		Body, Guard,
 		Expression, Result,
 		Variable, Literal,
 		Return, Break, Continue,
-		Root
+		Root,
+		
+		// ADDED 
+		Init, Update, 
+		TypeCheck, // JAVA instanceof 
+		TypeTransformation,
+		Type  	
 	}
 
 	private final int id;

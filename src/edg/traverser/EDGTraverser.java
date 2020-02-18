@@ -116,6 +116,16 @@ public class EDGTraverser
 
 		return children.get(childIndex);
 	}
+//SEARCH BY NODETYPE
+	public static Node getChild(Node node, NodeInfo.Type type)
+	{
+		final List<Node> children = EDGTraverser.getChildren(node);
+		
+		for (Node child: children)
+			if (child.getData().getType() == type)
+				return child;
+		return null;
+	}
 	public static int getChildIndex(Node node)
 	{
 		final List<Node> siblings = EDGTraverser.getSiblings(node);
@@ -213,9 +223,17 @@ public class EDGTraverser
 
 			// Last child (optional)
 			case Condition:
+				// Parameters (esto pasa cuando el scope de una call no se encuentra. Va a buscarlo a los Parametros de entrada de la funcion)
+			case Parameters:
 			case Return:
 				return children.isEmpty() ? null : children.get(children.size() - 1);
-
+			
+			// TYPES
+			case Type:
+			case TypeCheck:
+			case TypeTransformation:
+				return siblings.get(siblings.size() - 1);
+				
 			// Others
 			case Root:
 			default:

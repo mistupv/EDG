@@ -184,6 +184,10 @@ public class FlowEdgeGenerator extends EdgeGenerator
 					case Definition:
 						definitions.add(variableId);
 						break;
+					case Def_Use:			// ADDED FOR UnaryOperations (++/--) that both define and use a variable 
+						uses.add(variableId);
+						definitions.add(variableId);
+						break;
 				}
 			}
 		}
@@ -282,6 +286,12 @@ public class FlowEdgeGenerator extends EdgeGenerator
 			final VariableId variableId = definitionVariable.variableId;
 			final Node definitionNode = definitionVariable.node;
 			final Node definitionResultNode = EDGTraverser.getResult(definitionNode);
+			
+// TODO POCO ELEGANTE, SUSTITUIR DE ALGUNA MANERA MAS COHERENTE. Esto se utiliza para aquellas Variables usadas (e.g. System.out) que se consideran
+//		parametros de entrada pero no tienen resultnode en "parameters"
+if (definitionResultNode == null) 
+	continue;
+
 			final boolean isDefinitionParameters = definitionNode.getData().getType() == NodeInfo.Type.Parameters;
 			final boolean isDefinitionCall = !isDefinitionParameters && EDGTraverser.getSibling(definitionNode, 0).getData().getType() == NodeInfo.Type.Call;
 			final boolean isDefinitionVariable = !isDefinitionParameters && !isDefinitionCall;
@@ -360,6 +370,11 @@ public class FlowEdgeGenerator extends EdgeGenerator
 
 		// Definition nodes
 		final List<Node> definitionNodes = this.getVariables(null, null, Context.Definition, null);
+
+// ADDED FOR DEF_USE CONTEXT VARIABLES
+final List<Node> definitionUseNodes= this.getVariables(null, null, Context.Def_Use, null);
+definitionNodes.addAll(definitionUseNodes);
+		
 		for (Node definitionNode : definitionNodes)
 		{
 			final VariableId variableId = this.getVariableId(definitionNode);

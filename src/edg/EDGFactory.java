@@ -174,6 +174,18 @@ public abstract class EDGFactory
 		this.processElement(right, 2, 2);
 		this.branches.pop();
 	}
+	protected <R, S> void addEquality(String operator, R left, S right, LDASTNodeInfo info)
+	{
+		final Branch parent = this.branches.peek();
+		final int parentId = parent.getNodeId();
+		final Where where = parent.getWhere();
+		final int equalityId = ASTBuilder.addEquality(this.edg, parentId, where, operator, info);
+
+		this.branches.push(new Branch(equalityId, NodeInfo.Type.Equality, info));
+		this.processElement(left, 1, 2);
+		this.processElement(right, 2, 2);
+		this.branches.pop();
+	}
 	protected <R> void addOperation(String operation, Iterable<R> operands, LDASTNodeInfo info)
 	{
 		final R[] operands0 = this.getArray(operands);
@@ -190,6 +202,54 @@ public abstract class EDGFactory
 		this.processElements(operands);
 		this.branches.pop();
 	}
+	protected <R> void addUnaryOperation(String operation, R expression, LDASTNodeInfo info) 
+	{
+		final Branch parent = this.branches.peek();
+		final int parentId = parent.getNodeId();
+		final Where where = parent.getWhere();
+		final int operationId = ASTBuilder.addOperation(this.edg, parentId, where, operation, info);
+
+		this.branches.push(new Branch(operationId, NodeInfo.Type.Operation, info));
+		this.processElement(expression,1,1);
+		this.branches.pop();
+	}
+
+	// Types
+	protected <R,T> void addTypeCheck(R expression, T type, LDASTNodeInfo info) 
+	{	
+		final Branch parent = this.branches.peek();
+		final int parentId = parent.getNodeId();
+		final Where where = parent.getWhere();
+		final int typeCheckId = ASTBuilder.addTypeCheck(this.edg, parentId, where, info);
+
+		this.branches.push(new Branch(typeCheckId, NodeInfo.Type.TypeCheck, info));
+		this.processElement(expression,1,1);
+		this.processElement(type,2,1);
+		this.branches.pop();
+	}
+	protected <R,T> void addTypeTransformation(T type, R expression, LDASTNodeInfo info)
+	{
+		final Branch parent = this.branches.peek();
+		final int parentId = parent.getNodeId();
+		final Where where = parent.getWhere();
+		final int typeTransformId = ASTBuilder.addTypeTransformation(this.edg, parentId, where, info);
+		
+		this.branches.push(new Branch(typeTransformId, NodeInfo.Type.TypeTransformation, info));
+		this.processElement(type,1,1);
+		this.processElement(expression,2,1);
+		this.branches.pop();
+	}
+	protected void addType(String value, LDASTNodeInfo info)
+	{
+		final Branch parent = this.branches.peek();
+		final int parentId = parent.getNodeId();
+		final Where where = parent.getWhere();
+
+		ASTBuilder.addType(this.edg, parentId, where, value, info);
+	}
+	
+	
+	// Expressions
 	protected <R> void addDataConstructor(Iterable<R> elements, LDASTNodeInfo info)
 	{
 		final R[] elements0 = this.getArray(elements);
@@ -427,23 +487,70 @@ public abstract class EDGFactory
 		this.processElement(filter, 1, 1);
 		this.branches.pop();
 	}
-	protected <R, S, T> void addLoop(R condition, Iterable<S> bodyExpressions, LDASTNodeInfo info)
+
+	// LOOPS
+	protected <R, S, T> void addForLoop(Iterable<T> initialization, R condition, Iterable<S> bodyExpressions, Iterable<T> update, LDASTNodeInfo info)
 	{
+		final T[] initExpressions = this.getArray(initialization);
 		final S[] bodyExpressions0 = this.getArray(bodyExpressions);
-		this.addLoop(condition, bodyExpressions0, info);
+		final T[] updateExpressions = this.getArray(update);
+		this.addForLoop(initExpressions, condition, bodyExpressions0, updateExpressions, info);
 	}
-	protected <R, S, T> void addLoop(R condition, S[] bodyExpressions, LDASTNodeInfo info)
+	protected <R, S, T> void addForLoop(T[] initExpressions, R condition, S[] bodyExpressions, T[] updateExpressions, LDASTNodeInfo info)
 	{
 		final Branch parent = this.branches.peek();
 		final int parentId = parent.getNodeId();
 		final Where where = parent.getWhere();
-		final int loopId = ASTBuilder.addLoop(this.edg, parentId, where, info);
-		final Branch branch = this.branches.push(new Branch(loopId, NodeInfo.Type.Loop, info));
+		final int loopId = ASTBuilder.addForLoop(this.edg, parentId, where, info, true);
+		final Branch branch = this.branches.push(new Branch(loopId, NodeInfo.Type.FLoop, info));
+
+		
+		branch.setWhere(Where.Init);
+		this.processElements(initExpressions);
+		branch.setWhere(Where.Condition);
+		this.processElement(condition, 1, 1);
+		branch.setWhere(Where.Body);
+		this.processElements(bodyExpressions);
+		branch.setWhere(Where.Update);
+		this.processElements(updateExpressions);
+		this.branches.pop();
+	}
+	protected <R, S, T> void addCondLoop(R condition, Iterable<S> bodyExpressions, LDASTNodeInfo info)
+	{
+		final S[] bodyExpressions0 = this.getArray(bodyExpressions);
+		this.addCondLoop(condition, bodyExpressions0, info);
+	}
+	protected <R, S, T> void addCondLoop(R condition, S[] bodyExpressions, LDASTNodeInfo info)
+	{
+		final Branch parent = this.branches.peek();
+		final int parentId = parent.getNodeId();
+		final Where where = parent.getWhere();
+		final int loopId = ASTBuilder.addCondLoop(this.edg, parentId, where, info, false);
+		final Branch branch = this.branches.push(new Branch(loopId, NodeInfo.Type.CLoop, info));
 
 		branch.setWhere(Where.Condition);
 		this.processElement(condition, 1, 1);
 		branch.setWhere(Where.Body);
 		this.processElements(bodyExpressions);
+		this.branches.pop();
+	}
+	protected <R, S, T> void addRepeatLoop(R condition, Iterable<S> bodyExpressions, LDASTNodeInfo info)
+	{
+		final S[] bodyExpressions0 = this.getArray(bodyExpressions);
+		this.addRepeatLoop(condition, bodyExpressions0, info);
+	}
+	protected <R, S, T> void addRepeatLoop(R condition, S[] bodyExpressions, LDASTNodeInfo info)
+	{
+		final Branch parent = this.branches.peek();
+		final int parentId = parent.getNodeId();
+		final Where where = parent.getWhere();
+		final int loopId = ASTBuilder.addRepeatLoop(this.edg, parentId, where, info, false);
+		final Branch branch = this.branches.push(new Branch(loopId, NodeInfo.Type.RLoop, info));
+
+		branch.setWhere(Where.Body);
+		this.processElements(bodyExpressions);
+		branch.setWhere(Where.Condition);
+		this.processElement(condition, 1, 1);
 		this.branches.pop();
 	}
 	protected <R> void addReturn(R expression, int dstId, LDASTNodeInfo info)

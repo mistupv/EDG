@@ -35,6 +35,7 @@ public class ValueEdgeGenerator extends EdgeGenerator
 		this.generateRoutineCallEdges();
 		this.generateReturnEdges();
 		this.generateRoutineEdges();
+		this.generateTypeEdges(); // ADDED
 	}
 
 	private void generateVariableEdges()
@@ -283,6 +284,58 @@ public class ValueEdgeGenerator extends EdgeGenerator
 			{
 				final Node clauseResult = EDGTraverser.getChild(clause, 3);
 				this.edg.addEdge(clauseResult, routineResult, 0, new EdgeInfo(EdgeInfo.Type.Value));
+			}
+		}
+	}
+
+	// TYPES
+	private void generateTypeEdges()
+	{
+		generateRawTypeEdges();
+		generateTypeCheckEdges();
+		generateTypeTransformationEdges();
+	}
+	private void generateRawTypeEdges()
+	{
+		final List<Node> types = EDGTraverser.getNodes(this.edg, NodeInfo.Type.Type);
+
+		for (Node type : types)
+		{
+			final Node typeResult = EDGTraverser.getSibling(type, 1);
+
+			this.edg.addEdge(type, typeResult, 0, new EdgeInfo(EdgeInfo.Type.Value));
+		}
+
+	}
+	private void generateTypeCheckEdges()
+	{
+		final List<Node> typeChecks = EDGTraverser.getNodes(this.edg, NodeInfo.Type.TypeCheck);
+		
+		for (Node typeCheck : typeChecks)
+		{
+			final Node typeCheckResult = EDGTraverser.getResult(typeCheck);
+			final List<Node> operators = EDGTraverser.getChildren(typeCheck);
+			
+			for (Node operator : operators)
+			{
+				final Node operatorResult = EDGTraverser.getResult(operator);
+				this.edg.addEdge(operatorResult, typeCheckResult, 0, new EdgeInfo(EdgeInfo.Type.Value));
+			}
+		}
+	}
+	private void generateTypeTransformationEdges()
+	{
+		final List<Node> typeTrans = EDGTraverser.getNodes(this.edg, NodeInfo.Type.TypeTransformation);
+		
+		for (Node typeTran : typeTrans)
+		{
+			final Node typeTranResult = EDGTraverser.getResult(typeTran);
+			final List<Node> operators = EDGTraverser.getChildren(typeTran);
+			
+			for (Node operator : operators)
+			{
+				final Node operatorResult = EDGTraverser.getResult(operator);
+				this.edg.addEdge(operatorResult, typeTranResult, 0, new EdgeInfo(EdgeInfo.Type.Value));
 			}
 		}
 	}

@@ -96,11 +96,12 @@ public class DotFactory
 		String text = "";
 
 // TODO Borrame
+			
 if (edgeType != EdgeInfo.Type.Structural) {
 final List<EdgeInfo.Type> ignoreEdgeTypes = Arrays.asList();
-final List<EdgeInfo.Type> edgeTypes = Arrays.asList();
-final int[] boundNodeIds = { };
-final List<Integer> nodesIds = Arrays.asList();
+final List<EdgeInfo.Type> edgeTypes = Arrays.asList(); // Introducir aqui el tipo de arcos que quieres mostrar
+final int[] boundNodeIds = {}; // Introducir aqui los extremos del intervalo en el que se quieren ver los arcos
+final List<Integer> nodesIds = Arrays.asList(); // Introducir aqui los nodos de los que se quieren ver los arcos
 
 if (ignoreEdgeTypes.contains(edgeType))
 return "";

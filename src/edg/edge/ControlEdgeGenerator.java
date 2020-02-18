@@ -25,13 +25,15 @@ public class ControlEdgeGenerator extends EdgeGenerator
 	private void generateBodyEdges()
 	{
 		final List<Node> bodies = EDGTraverser.getNodes(this.edg, NodeInfo.Type.Body);
+		// UPDATE nodes in FOR loops, they also depend on the for condition, as it happens with body
+		bodies.addAll(EDGTraverser.getNodes(this.edg, NodeInfo.Type.Update));
 
 		for (Node body : bodies)
 		{
-			final int bodyIndex = EDGTraverser.getChildIndex(body);
 			final List<Node> children = EDGTraverser.getSiblings(body);
 
-			for (int childIndex = 0; childIndex < bodyIndex; childIndex++)
+			// Node condition before node body (Doesn't work with do_while loop if we put the expressions in the appearance order 1) Body 2) Condition )
+			for (int childIndex = 0; childIndex < children.size(); childIndex++) // Node condition after node body (Less efficient)
 			{
 				final Node child = children.get(childIndex);
 				final NodeInfo.Type type = child.getData().getType();
@@ -42,6 +44,7 @@ public class ControlEdgeGenerator extends EdgeGenerator
 				if (expressions.size() > 1)
 					throw new RuntimeException("More than one expression");
 
+				// PLANTEARSE USAR EL BREAK O HACER UNA BUSQUEDA EN LUGAR DE UN RECORRIDO
 				if (expressions.isEmpty())
 					this.edg.addEdge(child, body, 0, new EdgeInfo(EdgeInfo.Type.Control));
 				else
