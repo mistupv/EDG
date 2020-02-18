@@ -98,7 +98,7 @@ public abstract class AccessConstraint extends EdgeConstraint {
 		{
 			if (this.operation == Operation.Add)
 				return super.wrap(super.push(phase, constraints));
-			if (this.compositeType == CompositeType.List)
+			if (this.compositeType == AccessConstraint.CompositeType.List)
 			{
 				final ListConstraint listConstraint = (ListConstraint) this;
 				if (listConstraint.position == ListConstraint.Position.H)

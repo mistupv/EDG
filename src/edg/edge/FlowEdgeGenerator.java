@@ -306,9 +306,10 @@ public class FlowEdgeGenerator extends EdgeGenerator
 	{
 
 		final List<Variable> definitionNodes = this.getDefinitions();
-		final NodeConstraint nodeConstraint = new IgnoreEdgeConstraint(EdgeInfo.Type.Value);
-		final EdgeConstraint ignoreConstraint = new AddNodeConstraint(nodeConstraint); // Constraint usada para las declaraciones
-		
+		final NodeConstraint nodeConstraint = new IgnoreEdgeConstraint(EdgeInfo.Type.Value, EdgeInfo.Type.Structural);
+		final EdgeConstraint ignoreConstraint = new AddNodeConstraint(
+				nodeConstraint); // Constraint usada para las declaraciones
+
 		for (Variable definitionVariable : definitionNodes)
 		{
 			final VariableId variableId = definitionVariable.variableId;
@@ -337,8 +338,7 @@ public class FlowEdgeGenerator extends EdgeGenerator
 					final GlobalVariableConstraint addGVAsteriskConstraint = new GlobalVariableConstraint(SeekingConstraint.Operation.Add, "*");
 					this.edg.addEdge(definitionResultNode, definitionNode, 0, new EdgeInfo(EdgeInfo.Type.Summary, addGVAsteriskConstraint));
 				}
-			}
-			else
+			} else
 			{
 				final Node definitionResultNode0 = EDGTraverser.getResult(definitionNode);
 				final Node definitionResultNode1 =
@@ -347,18 +347,27 @@ public class FlowEdgeGenerator extends EdgeGenerator
 						definitionResultNode1.getData().getType() == NodeInfo.Type.Expression ? EDGTraverser
 								.getResult(definitionResultNode1) : definitionResultNode1;
 			}
-			
-			final GlobalVariableConstraint addConstraint = new GlobalVariableConstraint(SeekingConstraint.Operation.Add, variableId.toString());
-			final GlobalVariableConstraint letThroughConstraint = new GlobalVariableConstraint(SeekingConstraint.Operation.LetThrough, variableId.toString());
-			final GlobalVariableConstraint removeConstraint = new GlobalVariableConstraint(SeekingConstraint.Operation.Remove, variableId.toString());
-			
-			final String className0 = isDefinitionCall ? this.getScopeClass(EDGTraverser.getParent(definitionResultNode)) : definitionNode.getData().getInfo().getClassName();
-			final String className = className0.equals("super") ? definitionNode.getData().getInfo().getClassName() : className0;
+
+			final GlobalVariableConstraint addConstraint = new GlobalVariableConstraint(SeekingConstraint.Operation.Add,
+																						variableId.toString());
+			final GlobalVariableConstraint letThroughConstraint = new GlobalVariableConstraint(
+					SeekingConstraint.Operation.LetThrough, variableId.toString());
+			final GlobalVariableConstraint removeConstraint = new GlobalVariableConstraint(
+					SeekingConstraint.Operation.Remove, variableId.toString());
+
+			final String className0 = isDefinitionCall ? this
+					.getScopeClass(EDGTraverser.getParent(definitionResultNode)) : definitionNode.getData().getInfo()
+																								 .getClassName();
+			final String className = className0.equals("super") ? definitionNode.getData().getInfo()
+																				.getClassName() : className0;
 			final Node declarationNode = this.getDeclaration(variableId, className, definitionNode);
-if (declarationNode == null) // Do not link variables not explicitly defined, they must be class names or class attributes
-	continue;
-			final boolean isGlobalVariable = declarationNode != null && declarationNode.getData() instanceof VariableInfo && ((VariableInfo) declarationNode.getData()).isGlobal();
-			
+			if (declarationNode ==
+				null) // Do not link variables not explicitly defined, they must be class names or class attributes (STATIC CLASSES/ATTRIBUTES)
+				continue;
+			final boolean isGlobalVariable =
+					declarationNode != null && declarationNode.getData() instanceof VariableInfo &&
+					((VariableInfo) declarationNode.getData()).isGlobal();
+
 			// Declaration edges
 			if (declarationNode != null && declarationNode != definitionNode)
 				if (isDefinitionParameters)
@@ -372,7 +381,7 @@ if (declarationNode == null) // Do not link variables not explicitly defined, th
 				}
 			
 /* 
- * CODIGO DAVID, NO SE PARA QUE SIRVE PERO TIENE QUE VER CON LAS DEFINICIONES EN PARAMETERS
+ * CODIGO DAVID, NO SE PARA QUE SIRVE PERO TIENE QUE VER CON LAS DEFINICIONES EN PARAMETERS Y LAS GRAMATICAS (SLICING CON PILA)
  * 
 if (declarationNode != null && declarationNode != definitionNode)
 	if (isDefinitionParameters)
@@ -401,11 +410,11 @@ if (declarationNode != null && declarationNode != definitionNode)
 				// INSIDE FUNCTIONS, GLOBALS & LOCALS
 				if(isDefinitionVariable && isUseVariable)
 				{
-					final Node sibling = EDGTraverser.getNodeFromRes(useNode1);
-					if (sibling.getData().getType() == NodeInfo.Type.DataConstructorAccess)
+					final Node parent = EDGTraverser.getParent(useNode1);
+					if (parent.getData().getType() == NodeInfo.Type.DataConstructorAccess)
 					{
 						final Node variableIndex = variableId.getVariableIndex();
-						final Node index = EDGTraverser.getChild(sibling, NodeInfo.Type.Variable);
+						final Node index = EDGTraverser.getChild(parent, NodeInfo.Type.Index);
 						if (index.getData().getType() == NodeInfo.Type.Literal && variableIndex == null)
 						{
 							final String indexValue = index.getData().getName();

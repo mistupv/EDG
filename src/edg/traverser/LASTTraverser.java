@@ -285,10 +285,13 @@ public class LASTTraverser {
 
 	public static Node getNodeFromRes(Node resNode)
 	{
-		Set<Node> next = ControlFlowTraverser.step(resNode, ControlFlowTraverser.Direction.Forwards);
-		if (next.size() == 1)
-			return next.iterator().next();
-		throw new RuntimeException("The next element of a variable in the CFG is only its result");
+		if (resNode.getData().getType() != NodeInfo.Type.Result)
+			return resNode;
+
+		Set<Node> prev = ControlFlowTraverser.step(resNode, ControlFlowTraverser.Direction.Backwards);
+		if (prev.size() == 1)
+			return prev.iterator().next();
+		throw new RuntimeException("The previous element of a result in the CFG is only its expression");
 	}
 
 	// PREVIOUS METHOD FOR DATA CONSTRUCTOR ACCESSES

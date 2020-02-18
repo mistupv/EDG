@@ -6,7 +6,7 @@ public class GlobalVariableConstraint extends SeekingConstraint
 
 	public GlobalVariableConstraint(Operation operation, String variableName)
 	{
-		super(operation, CompositeType.GlobalVariable);
+		super(operation, SeekingConstraint.CompositeType.GlobalVariable);
 
 		this.variableName = variableName;
 	}

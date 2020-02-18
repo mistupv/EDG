@@ -134,10 +134,12 @@ public class ControlFlowTraverser {
 		final boolean collectAndStop = collect == stop;
 		boolean ignore = configuration.ignoreInitialNode;
 // ADDED FOR ARRAYS		
-		final List<String> visitedArrayDefinitions = new LinkedList<String>();
-		final Node nodeWorkNode = nodeWork.node;
-		final Node nodeWorkSibling = EDGTraverser.getSibling(nodeWorkNode, 0);
-		final NodeInfo.Type nodeWorkSiblingType = nodeWorkSibling.getData().getType();
+		final List<String> visitedArrayDefinitions = new LinkedList<String>();                // Variable to accumulate which positions of the array have been re-defined after declaration
+		final Node nodeWorkNode = nodeWork.node;                                        // Expected result node
+		final Node nodeWorkSibling = EDGTraverser
+				.getNodeFromRes(nodeWorkNode);        // Expected DataConstructorAccess node
+		final NodeInfo.Type nodeWorkSiblingType = nodeWorkSibling.getData()
+																 .getType();    // Expected NodeInfo.Type.DataConstructorAccess
 //System.out.println("--------------");
 //System.out.println(nodeWorkNode.getData().getId());
 //System.out.println("--------------"); 
@@ -151,62 +153,76 @@ public class ControlFlowTraverser {
 //int k = node.getData().getId();
 //System.out.print(k + " -> ");
 
-//			final Node grandParent = EDGTraverser.getParent(EDGTraverserNew.getParent(node));
-//			final NodeInfo.Type grandParentType = grandParent.getData().getType();
 			boolean collectWork = !ignore && collect.test(currentNodeWork);
 			boolean stopHere = collectAndStop || ignore ? collectWork : stop.test(currentNodeWork);
-
 			final Set<NodeWork<T>> nextWorks = new HashSet<NodeWork<T>>();
 
 			pendingWorks.remove(currentNodeWork);
 // ADDED FOR ARRAYS (TREATING THE USES)
-/*			if (collectWork)
+			if (collectWork)
 			{
-				if (grandParentType == NodeInfo.Type.DataConstructorAccess)
+				final Node parent = EDGTraverser.getParent(node);
+				final NodeInfo.Type parentType = parent.getData().getType();
+				if (parentType == NodeInfo.Type.DataConstructorAccess)            // The use is a data access (x[0])
 				{
-					final Node index = EDGTraverser.getChild(EDGTraverser.getChild(grandParent, 1),0);
-					if (nodeWorkSiblingType == NodeInfo.Type.DataConstructorAccess)
+					final Node index = EDGTraverser.getChild(parent, NodeInfo.Type.Index);
+					if (nodeWorkSiblingType ==
+						NodeInfo.Type.DataConstructorAccess)        // The definition of the variable is also a data access (x[0])
 					{
-						final Node nodeWorkIndex = EDGTraverser.getChild(EDGTraverser.getChild(nodeWorkSibling, 1),0);
-						if (nodeWorkIndex.getData().getType() == NodeInfo.Type.Literal && index.getData().getType() == NodeInfo.Type.Literal && !nodeWorkIndex.getData().getName().equals(index.getData().getName()))
-							collectWork = false;
-					}
-					else
+						final Node nodeWorkIndex = EDGTraverser.getChild(nodeWorkSibling, NodeInfo.Type.Index);
+						if (nodeWorkIndex.getData().getType() == NodeInfo.Type.Literal &&
+							// Both data accesses DO NOT refer to the same position
+							index.getData().getType() == NodeInfo.Type.Literal &&
+							!nodeWorkIndex.getData().getName().equals(index.getData().getName()))
+							collectWork = false;                                            // IT IS NOT A USE, DON'T ACCUMULATE IT
+					} else                                                                    // The definition of the variable is not a data access (int[] x = ...)
 					{
-						final String fullVarName = node.getData().getName() +"["+ index.getData().getName()+"]";
-						if (visitedArrayDefinitions.contains(fullVarName))
+						final String fullVarName = node.getData().getName() + "[" + index.getData().getName() +
+												   "]";    // fullVarName => String representing a concrete position ("x[1]")
+						if (visitedArrayDefinitions.contains(
+								fullVarName))                                            // The used data access has been previously defined after input definition
 							collectWork = false;
 					}
 				}
 			}
 
- */
+
 // ------------------
 			if (collectWork)
 				collectedWorks.add(currentNodeWork);
 // ADDED FOR ARRAYS (TREATING THE DEFINITIONS)
- /*
+
 			if (stopHere)
 			{
-				if (grandParentType == NodeInfo.Type.DataConstructorAccess)
-				{	
-					final Node index = EDGTraverser.getChild(EDGTraverser.getChild(grandParent, 1),0);
-					if (nodeWorkSiblingType == NodeInfo.Type.DataConstructorAccess)
+				final Node parent = EDGTraverser.getParent(node);
+				final NodeInfo.Type parentType = parent.getData().getType();
+				if (parentType ==
+					NodeInfo.Type.DataConstructorAccess)            // The definition is a data access (x[0])
+				{
+					final Node index = EDGTraverser.getChild(parent, NodeInfo.Type.Index);
+					if (nodeWorkSiblingType ==
+						NodeInfo.Type.DataConstructorAccess)        // The definition of the input variable is also a data access (x[0])
 					{
-						final Node nodeWorkIndex = EDGTraverser.getChild(EDGTraverser.getChild(nodeWorkSibling, 1),0);
-						if (!(index.getData().getType() == NodeInfo.Type.Literal) || !nodeWorkIndex.getData().getName().equals(index.getData().getName()))
-							stopHere = false;
-					}
-					else
+						final Node nodeWorkIndex = EDGTraverser.getChild(nodeWorkSibling, NodeInfo.Type.Index);
+						if (!(index.getData().getType() == NodeInfo.Type.Literal) ||
+							// The re-definition of the input variable is not concerte (x[y] = ...)
+							!nodeWorkIndex.getData().getName().equals(index.getData()
+																		   .getName()))  // or they are not defining the same position (x[0] /= x[1])
+							stopHere = false;                                            // The input variable may not be defined, look for the next definition
+					} else                                                                // The definition of the variable is not a data access (int[] x = ...)
 					{
-						if (index.getData().getType() == NodeInfo.Type.Literal)
-							visitedArrayDefinitions.add(node.getData().getName() +"["+ index.getData().getName() + "]");
-						stopHere = false;
+						if (index.getData().getType() ==
+							NodeInfo.Type.Literal)            // The current definition is defining a concrete position of the array (x[0] = ...)
+							// Store the definition for not linking a use with the input definition
+							visitedArrayDefinitions
+									.add(node.getData().getName() + "[" + index.getData().getName() + "]");
+
+						stopHere = false;                                                // Continue looking for a total definition
 					}
 				}
 			}
 
-  */
+
 // ------------------
 			if (!stopHere)
 			{

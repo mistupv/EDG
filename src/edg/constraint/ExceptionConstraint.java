@@ -6,7 +6,7 @@ public class ExceptionConstraint extends SeekingConstraint {
 	
 	public ExceptionConstraint(Operation operation) 
 	{
-		super(operation, CompositeType.Exception);
+		super(operation, SeekingConstraint.CompositeType.Exception);
 		this.field = "";
 	}
 	

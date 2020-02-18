@@ -8,7 +8,7 @@ import java.util.List;
 public class ListComprehensionConstraint extends AccessConstraint {
 	public ListComprehensionConstraint(Operation operation)
 	{
-		super(operation, CompositeType.ListComprehension);
+		super(operation, AccessConstraint.CompositeType.ListComprehension);
 	}
 
 	public boolean equals(Object object)
@@ -50,7 +50,7 @@ public class ListComprehensionConstraint extends AccessConstraint {
 				break;
 
 			final ListConstraint listConstraint = (ListConstraint) peekedConstraint;
-			if (listConstraint.operation != Operation.Add)
+			if (listConstraint.operation != AccessConstraint.Operation.Add)
 				break;
 
 			if (listConstraint.position == ListConstraint.Position.H)

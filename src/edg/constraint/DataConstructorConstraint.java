@@ -10,7 +10,7 @@ public class DataConstructorConstraint extends AccessConstraint
 	}
 	public DataConstructorConstraint(Operation operation, String index)
 	{
-		super(operation, CompositeType.DataConstructor);
+		super(operation, AccessConstraint.CompositeType.DataConstructor);
 
 		this.index = index;
 	}
