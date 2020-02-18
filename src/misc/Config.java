@@ -14,9 +14,8 @@ public abstract class Config
 	protected final String rootPath;
 	protected final String librariesPath;
 	protected final String configurationPath;
-	protected final String miscellaneaPath;
+	protected final String miscelaneaPath;
 	protected final String temporaryPath;
-	protected final String testPath;
 
 	/****************************************************************/
 	/************************* Constructor **************************/
@@ -29,11 +28,10 @@ public abstract class Config
 		this.sourcesPath = this.programPath + "src" + File.separator;
 
 		final boolean isJar = projectPath.endsWith(".jar!" + File.separator);
-		this.testPath = "/Users/serperu/Desktop/Benchmarks/";
 		this.rootPath = isJar ? this.programPath + "Resources" + File.separator : this.programPath;
 		this.librariesPath = this.rootPath + "lib" + File.separator;
 		this.configurationPath = this.rootPath + "cfg" + File.separator;
-		this.miscellaneaPath = this.rootPath + "misc" + File.separator;
+		this.miscelaneaPath = this.rootPath + "misc" + File.separator;
 		this.temporaryPath = this.rootPath + "tmp" + File.separator;
 	}
 	private String calculateProgramPath(String projectPath)
@@ -88,9 +86,9 @@ public abstract class Config
 	{
 		return this.configurationPath;
 	}
-	public String getMiscellaneaPath()
+	public String getMiscelaneaPath()
 	{
-		return this.miscellaneaPath;
+		return this.miscelaneaPath;
 	}
 	public String getTemporaryPath()
 	{
@@ -100,10 +98,6 @@ public abstract class Config
 	/****************************************************************/
 	/**************************** Files *****************************/
 	/****************************************************************/
-	public String getTestPath()
-	{
-	    return this.testPath;
-	}
 	public File getProgramFile()
 	{
 		return new File(this.getProgramPath());
@@ -124,9 +118,9 @@ public abstract class Config
 	{
 		return new File(this.getConfigurationPath());
 	}
-	public File getMiscellaneaFile()
+	public File getMiscelaneaFile()
 	{
-		return new File(this.getMiscellaneaPath());
+		return new File(this.getMiscelaneaPath());
 	}
 	public File getTemporaryFile()
 	{

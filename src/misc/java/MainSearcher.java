@@ -14,7 +14,7 @@ public class MainSearcher
 	public static void main(String[] args)
 	{
 		if (args.length != 1)
-			throw new RuntimeException("The args parameter must contains a directory path");
+			throw new RuntimeException("args parameter must contains a directory path");
 
 		final String projectPath = args[0];
 		final List<File> files = MainSearcher.search(projectPath, true);

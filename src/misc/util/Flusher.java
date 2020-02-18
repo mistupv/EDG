@@ -32,7 +32,7 @@ public class Flusher
 				if (!Flusher.this.collectStandardOutput)
 					Flusher.this.flush(Flusher.this.process.getInputStream());
 				else
-					Flusher.this.flush(Flusher.Output.Standard, Flusher.this.process.getInputStream());
+					Flusher.this.flush(Output.Standard, Flusher.this.process.getInputStream());
 			}
 		}.start();
 		new Thread() {
@@ -41,7 +41,7 @@ public class Flusher
 				if (!Flusher.this.collectErrorOutput)
 					Flusher.this.flush(Flusher.this.process.getErrorStream());
 				else
-					Flusher.this.flush(Flusher.Output.Error, Flusher.this.process.getErrorStream());
+					Flusher.this.flush(Output.Error, Flusher.this.process.getErrorStream());
 			}
 		}.start();
 
@@ -63,16 +63,18 @@ public class Flusher
 	}
 	private void flush(Output output, InputStream inputStream)
 	{
-		try (final InputStreamReader isr = new InputStreamReader(inputStream))
+		try
 		{
+			final InputStreamReader isr = new InputStreamReader(inputStream);
 			int character;
 
 			while ((character = isr.read()) != -1)
 				this.addOutput(output, (char) character);
+			inputStream.close();
 		}
 		catch (Exception e)
 		{
-			
+			e.printStackTrace();
 		}
 	}
 
