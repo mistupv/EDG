@@ -12,20 +12,15 @@ import eknife.edg.Grammar;
 import eknife.edg.Node;
 import eknife.edg.NodeInfo;
 import eknife.edg.constraint.AccessConstraint;
-import eknife.edg.constraint.BinComprehensionConstraint;
 import eknife.edg.constraint.Constraint;
 import eknife.edg.constraint.Constraints;
-import eknife.edg.constraint.Constraints.SummaryType;
+import eknife.edg.constraint.SummaryConstraints.SummaryType;
 import eknife.edg.constraint.ExceptionArgumentConstraint;
-import eknife.edg.constraint.ExceptionConstraint;
-import eknife.edg.constraint.StarConstraint;
 import eknife.edg.constraint.SummaryConstraint;
+import eknife.edg.constraint.SummaryConstraints;
 import eknife.edg.constraint.TupleConstraint;
-import eknife.edg.constraint.UnresolvableConstraint;
 import eknife.edg.constraint.AccessConstraint.Operation;
-import eknife.edg.constraint.ListComprehensionConstraint;
-import eknife.edg.constraint.ListConstraint;
-import eknife.edg.constraint.SeekingConstraint;
+
 
 public class EdgeTraverser
 {
@@ -195,10 +190,10 @@ public class EdgeTraverser
 
 		Constraints newConstraints = (Constraints) constraints.clone();
 		
-		if (this.phase == Phase.Summary && constraints.getSummaryType() == null)
+		if (this.phase == Phase.Summary && ((SummaryConstraints)constraints).getSummaryType() == null)
 		{
 			final SummaryType summaryType = (edge.getData().getType() == EdgeInfo.Type.Exception) ? SummaryType.Exception : SummaryType.Return;
-			newConstraints.setSummaryType(summaryType);
+			((SummaryConstraints) newConstraints).setSummaryType(summaryType);
 		}
 		
 		// Going up using control edges empties the stack only in slicing time
@@ -218,7 +213,7 @@ public class EdgeTraverser
 			(newNodeType == NodeInfo.Type.TupleExpression || newNodeType == NodeInfo.Type.ListExpression || 
 			 newNodeType == NodeInfo.Type.Record || newNodeType == NodeInfo.Type.RecordField || newNodeType == NodeInfo.Type.Map || newNodeType == NodeInfo.Type.MapUpdate ||// ADDED BY SERGIO
 			 newNodeType == NodeInfo.Type.BinExpression || newNodeType == NodeInfo.Type.BinElementExpression))
-			newConstraintsStacks.add(new Constraints());
+			newConstraintsStacks.add(Constraints.getConstraints(this.phase));
 		if (!newConstraintsStacks.isEmpty())
 			return newConstraintsStacks;
 		// ExceptionArgument constraints forbid to traverse the non-exception edges
@@ -230,41 +225,6 @@ public class EdgeTraverser
 					(edgeType != EdgeInfo.Type.Exception))
 				return new LinkedList<Constraints>();
 		}
-/*********** MODIFIED *************			
-if (edgeType != EdgeInfo.Type.Exception && constraints.isSeekingConstraint()) 
-{
-	Constraints newConstraints = (Constraints) constraints.clone();
-	newConstraints.clear();
-	newConstraintsStacks.add(newConstraints);
-	return new LinkedList<Constraints>();
-}
-/**********************************/
-		
-		// TODO Considerar borrar este if entero
-/*		if (!constraints.isEmpty())
-		{
-//if (!(edge.getData().getType() == EdgeInfo.Type.Exception && edge.getData().getConstraint() == null)) // Sin esto no se atraviesan los arcos Exception sin constraint
-//{
-			final Constraint topConstraint = constraints.peek();
-			final Constraint edgeConstraint = edge.getData().getConstraint();
-			if ((topConstraint instanceof ExceptionConstraint || topConstraint instanceof ExceptionArgumentConstraint) && ((AccessConstraint) topConstraint).getOperation() == Operation.Add)
-				if (!(edgeConstraint instanceof ExceptionConstraint || edgeConstraint instanceof ExceptionArgumentConstraint))
-					return new LinkedList<Constraints>();
-*/
-/*********			
-if (!(edge.getTo().getData().getType() == NodeInfo.Type.ExceptionReturn)) 
-// PARA RECORRER LOS ARCOS FuncName -> ExceptionReturn Y LOS SUMMARY NECESITO 
-// PERMITIR AL ALGORITMO PASAR DESDE LOS NODOS EXCEPTIONRETURN
-					return new LinkedList<Constraints>();
-else
-{
-	constraints = new Constraints(); 
-// SI PASO POR UN ARCO DESDE EL EXCEPTIONRETURN A OTRO NODO VACIO LA PILA 
-// PARA PODER SEGUIR RECORRIENDO ARCOS DE DATOS. CASO DE LAS HIGH ORDER FUNCTIONS
-}
-*******/
-//}
-//		}
 
 		final Constraints constraintsClone = (Constraints) newConstraints.clone();
 		final Constraint constraint = edge.getData().getConstraint();
@@ -298,23 +258,16 @@ if (this.phase == Phase.Summary && edge.getData().getType() == EdgeInfo.Type.Exc
 	{
 		final List<Constraints> newConstraintsStacks = new LinkedList<Constraints>();
 
-		if (constraint == null)
-		{
-if (!constraintsStack.isSeekingConstraint()) // ADDED SERGIO 
-			newConstraintsStacks.add(constraintsStack);
-		}
+		if (constraint == null) // ONLY INPUT & OUTPUT EDGES
+			newConstraintsStacks.add(constraintsStack); 
 		else
 			newConstraintsStacks.addAll(this.resolveConstraint(constraintsStack, constraint));
-		// TODO Si funciona bien, esto sobra!!
-//			if (this.phase == Phase.Summary)
-//				newConstraintsStacks.add(this.resolveCollectingNonTerminals(constraintsStack, constraint));
-//			else
-//				newConstraintsStacks.addAll(this.resolveProcessingNonTerminals(constraintsStack, constraint, 0));
+
 		if (newConstraintsStacks.size() == 1 && newConstraintsStacks.get(0) == null)
 		{
 			newConstraintsStacks.clear();
 			if (this.phase == Phase.Slicing)
-				newConstraintsStacks.add(new Constraints());
+				newConstraintsStacks.add(Constraints.getConstraints(this.phase));
 		}
 
 		return newConstraintsStacks;
@@ -323,7 +276,7 @@ if (!constraintsStack.isSeekingConstraint()) // ADDED SERGIO
 	{
 		final List<Constraints> newConstraintsStacks = new LinkedList<Constraints>();
 
-		newConstraintsStacks.add(new Constraints());
+		newConstraintsStacks.add(Constraints.getConstraints(this.phase));
 
 		return newConstraintsStacks;
 	}
@@ -337,7 +290,7 @@ if (!constraintsStack.isSeekingConstraint()) // ADDED SERGIO
 		if (constraintsStacks.size() == 1 && constraintsStacks.get(0) == null)
 		{
 			constraintsStacks.clear();
-			constraintsStacks.add(new Constraints());
+			constraintsStacks.add(Constraints.getConstraints(this.phase));
 		}
 		return constraintsStacks;
 	}

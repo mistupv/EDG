@@ -10,6 +10,7 @@ import eknife.edg.Node;
 import eknife.edg.NodeInfo;
 import eknife.edg.constraint.AccessConstraint;
 import eknife.edg.constraint.SeekingConstraint;
+import eknife.edg.constraint.SlicingConstraints;
 import eknife.edg.constraint.Constraints;
 import eknife.edg.constraint.ExceptionArgumentConstraint;
 import eknife.edg.constraint.ExceptionConstraint;
@@ -156,7 +157,7 @@ final Node nodeFrom0 = incomingEdge.getFrom();
 final Node nodeTo0 = incomingEdge.getTo();
 final int idFrom0 = nodeFrom0.getData().getId();
 final int idTo0 = nodeTo0.getData().getId();
-if (idFrom0 == 17 && idTo0 == 33)
+if (idFrom0 == 28 && idTo0 == 10)
 System.out.println("Aqui");
 
 
@@ -223,7 +224,7 @@ if (edgeType == EdgeInfo.Type.ExceptionGetAll && constraints.getExceptionGetAll(
 	{
 		if (node.getData().getType() == NodeInfo.Type.ExceptionReturn)
 		{
-			final Constraints stack = new Constraints();
+			final Constraints stack = new SlicingConstraints();
 			final ExceptionArgumentConstraint argument = new ExceptionArgumentConstraint(AccessConstraint.Operation.Add, "*");
 			final ExceptionConstraint exception = new ExceptionConstraint(SeekingConstraint.Operation.Add, "*");
 			stack.push(argument);

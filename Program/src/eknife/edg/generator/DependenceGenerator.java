@@ -21,15 +21,17 @@ import eknife.edg.constraint.AccessConstraint;
 import eknife.edg.constraint.BinComprehensionConstraint;
 import eknife.edg.constraint.Constraint;
 import eknife.edg.constraint.Constraints;
-import eknife.edg.constraint.Constraints.SummaryType;
+import eknife.edg.constraint.SummaryConstraints.SummaryType;
 import eknife.edg.constraint.EmptyConstraint;
 import eknife.edg.constraint.ExceptionArgumentConstraint;
 import eknife.edg.constraint.ExceptionConstraint;
 import eknife.edg.constraint.ListComprehensionConstraint;
 import eknife.edg.constraint.MapConstraint;
 import eknife.edg.constraint.RecordConstraint;
+import eknife.edg.constraint.SlicingConstraints;
 import eknife.edg.constraint.StarConstraint;
 import eknife.edg.constraint.SummaryConstraint;
+import eknife.edg.constraint.SummaryConstraints;
 import eknife.edg.constraint.UnresolvableConstraint;
 //import eknife.edg.constraint.RecordConstraint.Operation;
 import eknife.edg.slicingAlgorithm.SlicingAlgorithm2;
@@ -1729,15 +1731,15 @@ iteraciones++;
 			final Constraints constraints = work.getConstraints();
 //Cronometro.terminar("1.1 - Empieza");
 
-int iid = initialNode.getData().getId();
-int cid = currentNode.getData().getId();
-if (cid == 63 && constraints.getSummaryType() == SummaryType.Exception)
-System.out.println(constraints.getSummaryType());
+//int iid = initialNode.getData().getId();
+//int cid = currentNode.getData().getId();
+//if (cid == 63 && constraints.getSummaryType() == SummaryType.Exception)
+//(System.out.println(constraints.getSummaryType());
 //Cronometro.empezar("1.2 - IsFormalIn");
 			if (this.isFormalIn(currentNode, initialNode))
 			{
 				// Formal in found
-				final List<Node> nodesToContinue = this.createSummaryEdges(initialNode, currentNode, constraints);
+				final List<Node> nodesToContinue = this.createSummaryEdges(initialNode, currentNode, (SummaryConstraints) constraints);
 				final List<Work> worksToContinue = this.getWorksToContinue(workList, nodesToContinue);
 
 				workList.repending(worksToContinue);
@@ -1778,7 +1780,7 @@ System.out.println(constraints.getSummaryType());
 				final List<Node> initialWorkNodes = GraphTraverser.getLasts(clause);
 
 				for (Node initialWorkNode : initialWorkNodes)
-					workList.add(new Work(initialWorkNode, initialWorkNode, new Constraints(), false, false));
+					workList.add(new Work(initialWorkNode, initialWorkNode, new SummaryConstraints(), false, false));
 			}
 		}
 
@@ -1812,7 +1814,7 @@ System.out.println(constraints.getSummaryType());
 
 		return true;
 	}
-	private List<Node> createSummaryEdges(Node formalOut, Node formalIn, Constraints constraints)
+	private List<Node> createSummaryEdges(Node formalOut, Node formalIn, SummaryConstraints constraints)
 	{
 		final List<Node> nodesToContinue = new LinkedList<Node>();
 
@@ -1849,16 +1851,6 @@ System.out.println(constraints.getSummaryType());
 
 		return nodesToContinue;
 	}
-/* TODO delete me	
-  	private boolean isFromValue(Constraints constraints)
-	{
-		if (constraints.getExceptionSummary())
-			return false;
-		if (constraints.isEmpty())
-			return true;
-		return true;
-	}
-*/
 	private List<Node> getDescendantsNode(Node node, List<Node> list)
 	{
 		final List<Node> descendants = new LinkedList<Node>();

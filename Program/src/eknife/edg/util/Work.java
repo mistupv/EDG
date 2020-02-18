@@ -2,6 +2,7 @@ package eknife.edg.util;
 
 import eknife.edg.Node;
 import eknife.edg.constraint.Constraints;
+import eknife.edg.constraint.SlicingConstraints;
 
 public class Work
 {
@@ -13,11 +14,11 @@ public class Work
 
 	public Work(Node currentNode)
 	{
-		this(null, currentNode, new Constraints(), false, false);
+		this(null, currentNode, new SlicingConstraints(), false, false);
 	}
 	public Work(Node currentNode, boolean ignoreUp, boolean ignoreDown)
 	{
-		this(null, currentNode, new Constraints(), ignoreUp, ignoreDown);
+		this(null, currentNode, new SlicingConstraints(), ignoreUp, ignoreDown);
 	}
 	public Work(Node currentNode, Constraints constraints)
 	{
@@ -30,11 +31,11 @@ public class Work
 
 	public Work(Node initialNode, Node currentNode)
 	{
-		this(initialNode, currentNode, new Constraints(), false, false);
+		this(initialNode, currentNode, new SlicingConstraints(), false, false);
 	}
 	public Work(Node initialNode, Node currentNode, boolean ignoreUp, boolean ignoreDown)
 	{
-		this(initialNode, currentNode, new Constraints(), ignoreUp, ignoreDown);
+		this(initialNode, currentNode, new SlicingConstraints(), ignoreUp, ignoreDown);
 	}
 	public Work(Node initialNode, Node currentNode, Constraints constraints)
 	{

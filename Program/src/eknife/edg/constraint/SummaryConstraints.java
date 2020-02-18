@@ -2,7 +2,7 @@ package eknife.edg.constraint;
 
 public class SummaryConstraints extends Constraints
 {	
-	//public static enum SummaryType { Exception, Return }
+	public static enum SummaryType { Exception, Return }
 	
 	private SummaryType summaryType = null;
 	private SeekingConstraint seekingConstraint = null;
@@ -44,11 +44,16 @@ public class SummaryConstraints extends Constraints
 	{
 		if (!(object instanceof SummaryConstraints))
 			return false;
-
-		final SummaryConstraints summaryConstraints = (SummaryConstraints) object;
-		if (!this.stack.equals(summaryConstraints.stack))
+		if (!super.equals(object))
 			return false;
-
+		
+		final SummaryConstraints summaryConstraints = (SummaryConstraints) object;
+		
+		if (this.summaryType != summaryConstraints.summaryType)
+			return false;
+		if (this.seekingConstraint != summaryConstraints.seekingConstraint)
+			return false;
+		
 		return true;
 	}
 	public Object clone()
@@ -56,6 +61,8 @@ public class SummaryConstraints extends Constraints
 		final SummaryConstraints summaryConstraints = new SummaryConstraints();
 
 		summaryConstraints.stack.addAll(this.stack);
+		summaryConstraints.seekingConstraint = this.seekingConstraint;
+		summaryConstraints.summaryType = this.summaryType;
 		
 		return summaryConstraints;
 	}

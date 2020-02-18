@@ -18,7 +18,7 @@ public class UnresolvableConstraint extends Constraint
 
 	public List<Constraints> resolve(Phase phase, Constraints constraintsStack, int productionDepth)
 	{
-		if (constraintsStack.isSeekingConstraint())
+		if (phase == Phase.Summary && ((SummaryConstraints)constraintsStack).isSeekingConstraint())
 			return new LinkedList<Constraints>();
 		
 		final List<Constraints> constraintsStacks = new LinkedList<Constraints>();

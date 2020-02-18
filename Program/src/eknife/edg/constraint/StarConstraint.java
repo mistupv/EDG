@@ -21,7 +21,7 @@ public class StarConstraint extends Constraint
 		final List<Constraints> constraintsStacks = new LinkedList<Constraints>();
 		
 		if (phase == Phase.Slicing)
-			constraintsStack = new Constraints();
+			constraintsStack = new SlicingConstraints();
 		else 
 		{
 			constraintsStack.clear();

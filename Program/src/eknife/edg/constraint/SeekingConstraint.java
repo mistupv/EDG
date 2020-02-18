@@ -79,22 +79,23 @@ public class SeekingConstraint  extends Constraint
 		if (this.operation == Operation.Add)
 		{
 			constraintsStack.push(this);
-			constraintsStack.setSeekingConstraint(this);
+			//constraintsStack.setSeekingConstraint(this);
 		}
 		else if (phase == Phase.Summary)
 		{
-			if (constraintsStack.isSeekingConstraint())
+			final SummaryConstraints summaryConstraintsStack = (SummaryConstraints) constraintsStack;
+			if (summaryConstraintsStack.isSeekingConstraint())
 			{
-				if (!this.match(constraintsStack.getSeekingConstraint()))
+				if (!this.match(summaryConstraintsStack.getSeekingConstraint()))
 					return new LinkedList<Constraints>();
 				if (this.operation == Operation.Remove)
-					constraintsStack.setSeekingConstraint(null);
+					summaryConstraintsStack.setSeekingConstraint(null);
 			}
 			else
 				if (this.operation == null)
-					constraintsStack.setSeekingConstraint(this);
+					summaryConstraintsStack.setSeekingConstraint(this);
 				else
-					constraintsStack.push(this);
+					summaryConstraintsStack.push(this);
 		}
 		else
 			return new LinkedList<Constraints>();
@@ -114,7 +115,7 @@ public class SeekingConstraint  extends Constraint
 		if (topConstraint.operation == Operation.Add && this.cancels(topConstraint))
 		{
 			constraintsStack.pop();
-			constraintsStack.setSeekingConstraint(null);
+			//constraintsStack.setSeekingConstraint(null);
 		}
 		else if (topConstraint.operation == Operation.Add && this.operation == null && this.letThrough(topConstraint))
 			;
@@ -142,7 +143,7 @@ public class SeekingConstraint  extends Constraint
 		final List<Constraints> constraintsStacks = new LinkedList<Constraints>();
 
 		constraintsStack.push(this);
-		constraintsStack.setSeekingConstraint(this);
+		//constraintsStack.setSeekingConstraint(this);
 		constraintsStacks.add(constraintsStack);
 
 		return constraintsStacks;

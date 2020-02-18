@@ -56,7 +56,7 @@ public class SummaryConstraint extends Constraint
 		else if (phase == Phase.Summary)
 		{
 			constraintsStack.push(this);
-			constraintsStack.setSeekingConstraint(null);
+			((SummaryConstraints) constraintsStack).setSeekingConstraint(null);
 			constraintsStacks.add(constraintsStack);
 		}
 		return constraintsStacks;

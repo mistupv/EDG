@@ -2,45 +2,24 @@ package eknife.edg.constraint;
 
 import java.util.Stack;
 
+import eknife.edg.traverser.EdgeTraverser.Phase;
+
 public class Constraints
 {
-	public static enum SummaryType { Exception, Return }
-	
-	private SummaryType summaryType = null;
+	public static Constraints getConstraints(Phase phase)
+	{
+		switch (phase)
+		{
+			case Slicing:
+				return new SlicingConstraints();
+			case Summary:
+				return new SummaryConstraints();
+			default:
+				throw new RuntimeException("Phase not contemplated: " + phase);
+		}
+	}
+
 	protected final Stack<Constraint> stack = new Stack<Constraint>();
-	private SeekingConstraint seekingConstraint = null;
-
-	public Constraints()
-	{
-		this(null,null);
-	}
-	public Constraints(SeekingConstraint seekingConstraint, SummaryType summaryType)
-	{
-		this.seekingConstraint = seekingConstraint;
-		this.summaryType = summaryType;
-	}
-
-	public void setSummaryType(SummaryType summaryType)
-	{
-		this.summaryType = summaryType;
-	}
-	public SummaryType getSummaryType()
-	{
-		return this.summaryType;
-	}
-
-	public boolean isSeekingConstraint()
-	{
-		return seekingConstraint != null;
-	}
-	public void setSeekingConstraint(SeekingConstraint constraint)
-	{
-		this.seekingConstraint = constraint;
-	}
-	public SeekingConstraint getSeekingConstraint()
-	{
-		return this.seekingConstraint;
-	}
 
 // Flag to know if we should cross the exceptionGetAll edges or not
 private boolean crossExceptionGetAll = false;
@@ -87,11 +66,7 @@ public void setExceptionGetAll(boolean state)
 			return false;
 
 		final Constraints constraints = (Constraints) object;
-		if (this.summaryType != constraints.summaryType)
-			return false;
 		if (!this.stack.equals(constraints.stack))
-			return false;
-		if (this.seekingConstraint != constraints.seekingConstraint)
 			return false;
 		if (this.crossExceptionGetAll != constraints.crossExceptionGetAll)
 			return false;
@@ -103,8 +78,6 @@ public void setExceptionGetAll(boolean state)
 		final Constraints constraints = new Constraints();
 
 		constraints.stack.addAll(this.stack);
-		constraints.seekingConstraint = this.seekingConstraint;
-		constraints.summaryType = this.summaryType;
 		
 		return constraints;
 	}
