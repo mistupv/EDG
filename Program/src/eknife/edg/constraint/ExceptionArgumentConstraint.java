@@ -3,6 +3,7 @@ package eknife.edg.constraint;
 import java.util.LinkedList;
 import java.util.List;
 
+import eknife.edg.Edge;
 import eknife.edg.constraint.AccessConstraint.Operation;
 import eknife.edg.traverser.EdgeTraverser.Phase;
 
@@ -61,10 +62,10 @@ public class ExceptionArgumentConstraint  extends AccessConstraint{
 			return false;
 	}
 
-	public List<Constraints> resolve(Phase phase, Constraints constraintsStack, int productionDepth)
+	public List<Constraints> resolve(Phase phase, Constraints constraintsStack, Edge edge, int productionDepth)
 	{
 		if (phase == Phase.Slicing && this.operation == Operation.Remove)
 			return new LinkedList<Constraints>();
-		return super.resolve(phase, constraintsStack, productionDepth);
+		return super.resolve(phase, constraintsStack, edge, productionDepth);
 	}
 }

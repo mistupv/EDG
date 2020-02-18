@@ -3,6 +3,9 @@ package eknife.edg.constraint;
 import java.util.LinkedList;
 import java.util.List;
 
+import eknife.edg.Edge;
+import eknife.edg.EdgeInfo;
+import eknife.edg.Node;
 import eknife.edg.traverser.EdgeTraverser.Phase;
 
 public class GetAllConstraint extends SeekingConstraint {
@@ -19,7 +22,7 @@ public class GetAllConstraint extends SeekingConstraint {
 		return this.field;
 	}
 	
-	public List<Constraints> resolve(Phase phase, Constraints constraintsStack, int productionDepth)
+	public List<Constraints> resolve(Phase phase, Constraints constraintsStack, Edge edge, int productionDepth)
 	{
 		final List<Constraints> constraintsStacks = new LinkedList<Constraints>();
 		
@@ -32,34 +35,52 @@ public class GetAllConstraint extends SeekingConstraint {
 		
 		return constraintsStacks;
 	}
-	public List<Constraints> resolve(Phase phase, Constraints constraintsStack, AccessConstraint accessConstraint, int productionDepth)
+	public List<Constraints> resolve(Phase phase, Constraints constraintsStack, Edge edge, AccessConstraint accessConstraint, int productionDepth)
 	{
-		return this.resolve(phase, constraintsStack, productionDepth);
+		return this.resolve(phase, constraintsStack, edge, productionDepth);
 	}
-	public List<Constraints> resolve(Phase phase, Constraints constraintsStack, SeekingConstraint topConstraint, int productionDepth)
+	public List<Constraints> resolve(Phase phase, Constraints constraintsStack, Edge edge, SeekingConstraint topConstraint, int productionDepth)
 	{
 		final List<Constraints> constraintsStacks = new LinkedList<Constraints>();
 		
 		if (topConstraint instanceof GetAllConstraint)
+		{
 			constraintsStacks.add(constraintsStack);
+			final Constraints emptyStack = this.getAllWorks(edge);
+			if (emptyStack != null)
+				constraintsStacks.add(emptyStack);
+		}	
 
 		return constraintsStacks;
 	}
-	public List<Constraints> resolve(Phase phase, Constraints constraintsStack, StarConstraint topConstraint, int productionDepth)
+	public List<Constraints> resolve(Phase phase, Constraints constraintsStack, Edge edge, StarConstraint topConstraint, int productionDepth)
 	{
-		return this.resolve(phase, constraintsStack, productionDepth);
+		return this.resolve(phase, constraintsStack, edge, productionDepth);
 	}
-	public List<Constraints> resolve(Phase phase, Constraints constraintsStack, SummaryConstraint topConstraint, int productionDepth)
+	public List<Constraints> resolve(Phase phase, Constraints constraintsStack, Edge edge, SummaryConstraint topConstraint, int productionDepth)
 	{
-		return this.resolve(phase, constraintsStack, productionDepth);
+		return this.resolve(phase, constraintsStack, edge, productionDepth);
 	}
-	public List<Constraints> resolve(Phase phase, Constraints constraintsStack, UnresolvableConstraint topConstraint, int productionDepth)
+	public List<Constraints> resolve(Phase phase, Constraints constraintsStack, Edge edge, UnresolvableConstraint topConstraint, int productionDepth)
 	{
-		return this.resolve(phase, constraintsStack, productionDepth);
+		return this.resolve(phase, constraintsStack, edge, productionDepth);
 	}
-	public List<Constraints> resolve(Phase phase, Constraints constraintsStack, EmptyConstraint topConstraint, int productionDepth)
+	public List<Constraints> resolve(Phase phase, Constraints constraintsStack, Edge edge, EmptyConstraint topConstraint, int productionDepth)
 	{
-		return this.resolve(phase, constraintsStack, productionDepth);
+		return this.resolve(phase, constraintsStack, edge, productionDepth);
 	}
 
+	private Constraints getAllWorks(Edge edge)
+	{
+		final Node nodeFrom = edge.getFrom();
+		final List<Edge> incomingEdges = nodeFrom.getIncomingEdges();
+		for (Edge incomingEdge : incomingEdges)
+		{
+			final EdgeInfo.Type edgeType = incomingEdge.getData().getType();
+			if (edgeType != EdgeInfo.Type.ExceptionGetAll && edgeType != EdgeInfo.Type.NormalControl  
+					&& edgeType != EdgeInfo.Type.StructuralControl && edgeType != EdgeInfo.Type.ValueDependence)
+				return new Constraints();
+		}
+		return null;
+	}
 }

@@ -4,6 +4,7 @@ import java.util.LinkedList;
 import java.util.List;
 
 import eknife.config.Config;
+import eknife.edg.Edge;
 import eknife.edg.Grammar;
 import eknife.edg.Node;
 import eknife.edg.constraint.SummaryConstraints.SummaryType;
@@ -41,7 +42,7 @@ public class SummaryConstraint extends Constraint
 		return this.formalIn.getData().getId() + "";
 	}
 
-	public List<Constraints> resolve(Phase phase, Constraints constraintsStack, int productionDepth)
+	public List<Constraints> resolve(Phase phase, Constraints constraintsStack, Edge edge, int productionDepth)
 	{
 		final List<Constraints> constraintsStacks = new LinkedList<Constraints>();
 
@@ -52,7 +53,7 @@ public class SummaryConstraint extends Constraint
 				constraintsStacks.add(null);
 				return constraintsStacks;
 			}
-			constraintsStacks.addAll(this.resolve0(phase, constraintsStack, productionDepth));
+			constraintsStacks.addAll(this.resolve0(phase, constraintsStack, edge, productionDepth));
 		}
 		else if (phase == Phase.Summary)
 		{
@@ -62,7 +63,7 @@ public class SummaryConstraint extends Constraint
 		}
 		return constraintsStacks;
 	}
-	private List<Constraints> resolve0(Phase phase, Constraints constraintsStack, int productionDepth)
+	private List<Constraints> resolve0(Phase phase, Constraints constraintsStack, Edge edge, int productionDepth)
 	{
 		final List<Constraints> newConstraintsStacks = new LinkedList<Constraints>();
 		final List<SummaryConstraints> summaryStackList = this.grammar.getProductions(this);
@@ -84,7 +85,8 @@ public class SummaryConstraint extends Constraint
 				{
 					final Constraint topConstraint = stack.isEmpty() ? null : stack.peek();
 
-					newConstraintsStacks0.addAll(element.resolve(phase, stack, topConstraint, productionDepth));
+					//newConstraintsStacks0.addAll(element.resolve(phase, stack, edge, topConstraint, productionDepth));
+					newConstraintsStacks0.addAll(element.resolve(phase, stack, edge, topConstraint, productionDepth+1));
 					if (newConstraintsStacks0.size() == 1 && newConstraintsStacks0.get(0) == null)
 						return newConstraintsStacks0;
 				}
@@ -97,24 +99,24 @@ public class SummaryConstraint extends Constraint
 
 		return newConstraintsStacks;
 	}
-	public List<Constraints> resolve(Phase phase, Constraints constraintsStack, AccessConstraint topConstraint, int productionDepth)
+	public List<Constraints> resolve(Phase phase, Constraints constraintsStack, Edge edge, AccessConstraint topConstraint, int productionDepth)
 	{
-		return this.resolve(phase, constraintsStack, productionDepth);
+		return this.resolve(phase, constraintsStack, edge, productionDepth);
 	}
-	public List<Constraints> resolve(Phase phase, Constraints constraintsStack, SeekingConstraint topConstraint, int productionDepth)
+	public List<Constraints> resolve(Phase phase, Constraints constraintsStack, Edge edge, SeekingConstraint topConstraint, int productionDepth)
 	{
-		return this.resolve(phase, constraintsStack, productionDepth);
+		return this.resolve(phase, constraintsStack, edge, productionDepth);
 	}
-	public List<Constraints> resolve(Phase phase, Constraints constraintsStack, StarConstraint topConstraint, int productionDepth)
+	public List<Constraints> resolve(Phase phase, Constraints constraintsStack, Edge edge, StarConstraint topConstraint, int productionDepth)
 	{
-		return this.resolve(phase, constraintsStack, productionDepth);
+		return this.resolve(phase, constraintsStack, edge, productionDepth);
 	}
-	public List<Constraints> resolve(Phase phase, Constraints constraintsStack, SummaryConstraint topConstraint, int productionDepth)
+	public List<Constraints> resolve(Phase phase, Constraints constraintsStack, Edge edge, SummaryConstraint topConstraint, int productionDepth)
 	{
-		return this.resolve(phase, constraintsStack, productionDepth);
+		return this.resolve(phase, constraintsStack, edge, productionDepth);
 	}
-	public List<Constraints> resolve(Phase phase, Constraints constraintsStack, UnresolvableConstraint topConstraint, int productionDepth)
+	public List<Constraints> resolve(Phase phase, Constraints constraintsStack, Edge edge, UnresolvableConstraint topConstraint, int productionDepth)
 	{
-		return this.resolve(phase, constraintsStack, productionDepth);
+		return this.resolve(phase, constraintsStack, edge, productionDepth);
 	}
 }

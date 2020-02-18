@@ -149,4 +149,18 @@ public class EDG
 
 		grammar.addProduction(summaryConstraint, production);
 	}
+	
+	public List<Node> getFicticiousNodes()
+	{
+		final List<Node> ficticiousFunct = this.findNodesByData(null, new Comparator<NodeInfo>() {
+			public int compare(NodeInfo o1, NodeInfo o2)
+			{
+				if (o2.isFictitious())
+					return 0;
+				return -1;
+			}
+		});
+
+		return ficticiousFunct;
+	}
 }

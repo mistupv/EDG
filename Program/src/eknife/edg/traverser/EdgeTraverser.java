@@ -232,7 +232,7 @@ public class EdgeTraverser
 
 		final Constraints constraintsClone = (Constraints) newConstraints.clone();
 		final Constraint constraint = edge.getData().getConstraint();
-		return this.traverseEdge(constraintsClone, constraint);
+		return this.traverseEdge(constraintsClone, edge, constraint);
 	}
 	public List<Constraints> traverseOutgoingEdge(Edge edge, Constraints constraints)
 	{
@@ -250,22 +250,22 @@ public class EdgeTraverser
 //	return new LinkedList<Constraints>();
 		
 		final Constraint constraint = edge.getData().getConstraint();
-		return this.traverseEdge(constraints, constraint);
+		return this.traverseEdge(constraints, edge, constraint);
 	}
-	private List<Constraints> traverseEdge(Constraints constraintsStack, Constraint constraint)
+	private List<Constraints> traverseEdge(Constraints constraintsStack, Edge edge, Constraint constraint)
 	{
 		if (Config.constraintsActivated)
-			return this.traverseEdgeTreatingConstraints(constraintsStack, constraint);
+			return this.traverseEdgeTreatingConstraints(constraintsStack, edge, constraint);
 		return this.traverseEdgeIgnoringConstraints(constraintsStack, constraint);
 	}
-	private List<Constraints> traverseEdgeTreatingConstraints(Constraints constraintsStack, Constraint constraint)
+	private List<Constraints> traverseEdgeTreatingConstraints(Constraints constraintsStack, Edge edge, Constraint constraint)
 	{
 		final List<Constraints> newConstraintsStacks = new LinkedList<Constraints>();
 
 		if (constraint == null) // ONLY INPUT & OUTPUT EDGES
 			newConstraintsStacks.add(constraintsStack); 
 		else
-			newConstraintsStacks.addAll(this.resolveConstraint(constraintsStack, constraint));
+			newConstraintsStacks.addAll(this.resolveConstraint(constraintsStack, edge, constraint));
 
 		if (newConstraintsStacks.size() == 1 && newConstraintsStacks.get(0) == null)
 		{
@@ -285,11 +285,11 @@ public class EdgeTraverser
 		return newConstraintsStacks;
 	}
 
-	private List<Constraints> resolveConstraint(Constraints constraintsStack, Constraint constraint)
+	private List<Constraints> resolveConstraint(Constraints constraintsStack, Edge edge, Constraint constraint)
 	{
 		final Constraints constraintsStackClone = (Constraints) constraintsStack.clone();
 		final Constraint lastConstraint = constraintsStackClone.isEmpty() ? null : constraintsStackClone.peek();
-		final List<Constraints> constraintsStacks = constraint.resolve(this.phase, constraintsStackClone, lastConstraint, 0);
+		final List<Constraints> constraintsStacks = constraint.resolve(this.phase, constraintsStackClone, edge, lastConstraint, 0);
 
 		if (constraintsStacks.size() == 1 && constraintsStacks.get(0) == null)
 		{

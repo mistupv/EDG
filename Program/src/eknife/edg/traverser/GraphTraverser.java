@@ -141,6 +141,19 @@ public class GraphTraverser
 		return edges;
 	}
 
+	public static List<Node> getDescendantNodes(Node root)
+	{
+		final List<Node> descendants = new LinkedList<Node>();
+		final List<Node> children = GraphTraverser.getChildren(root, EdgeInfo.Type.Control);
+
+		for (Node child : children)
+		{
+			descendants.add(child);
+			descendants.addAll(GraphTraverser.getDescendantNodes(child));
+		}
+	
+		return descendants;
+	}
 	public static List<Node> getDescendantNodes(Node root, List<Node> nodes)
 	{
 		final List<Node> descendants = new LinkedList<Node>();
@@ -164,7 +177,7 @@ public class GraphTraverser
 	public static List<Node> getLasts(Node node)
 	{
 // TODO Arreglar
-		if (Config.constraintsActivated)
+		if (Config.constraintsActivated && node.getData().getType() != NodeInfo.Type.Case)
 //			return GraphTraverser.getLastRoots(node);
 			return GraphTraverser.getLastSelf(node);
 		return GraphTraverser.getLastNodes(node);

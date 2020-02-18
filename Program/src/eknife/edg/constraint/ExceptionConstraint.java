@@ -3,6 +3,7 @@ package eknife.edg.constraint;
 import java.util.LinkedList;
 import java.util.List;
 
+import eknife.edg.Edge;
 import eknife.edg.constraint.SeekingConstraint.Operation;
 import eknife.edg.traverser.EdgeTraverser.Phase;
 
@@ -98,7 +99,7 @@ public class ExceptionConstraint extends SeekingConstraint
 			return false;
 	}
 
-	public List<Constraints> resolve(Phase phase, Constraints constraintsStack, int productionDepth)
+	public List<Constraints> resolve(Phase phase, Constraints constraintsStack, Edge edge, int productionDepth)
 	{
 		if (this.exceptionField == null)
 		{
@@ -110,6 +111,6 @@ public class ExceptionConstraint extends SeekingConstraint
 			return constraintsStacks;
 		}
 
-		return super.resolve(phase, constraintsStack, productionDepth);
+		return super.resolve(phase, constraintsStack, edge, productionDepth);
 	}
 }

@@ -197,8 +197,9 @@ System.out.println("STOP");
 				break;
 			case Summary:
 				text += "color=brown, ";
-				text += "penwidth=3, ";
-				text += "constraint=false";
+				text += "penwidth=3";
+				//text += "penwidth=2, ";
+				//text += "constraint=false";
 				break;
 			case ExceptionGetAll:
 				text += "color=deepskyblue1, ";

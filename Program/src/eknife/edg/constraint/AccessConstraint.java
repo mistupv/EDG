@@ -3,6 +3,7 @@ package eknife.edg.constraint;
 import java.util.LinkedList;
 import java.util.List;
 
+import eknife.edg.Edge;
 import eknife.edg.traverser.EdgeTraverser.Phase;
 
 public abstract class AccessConstraint extends Constraint
@@ -76,7 +77,7 @@ public abstract class AccessConstraint extends Constraint
 		return toString;
 	}
 
-	public List<Constraints> resolve(Phase phase, Constraints constraintsStack, int productionDepth)
+	public List<Constraints> resolve(Phase phase, Constraints constraintsStack, Edge edge, int productionDepth)
 	{
 		if (phase == Phase.Summary && ((SummaryConstraints)constraintsStack).isSeekingConstraint())
 			return new LinkedList<Constraints>();
@@ -89,7 +90,7 @@ public abstract class AccessConstraint extends Constraint
 
 		return constraintsStacks;
 	}
-	public List<Constraints> resolve(Phase phase, Constraints constraintsStack, AccessConstraint topConstraint, int productionDepth)
+	public List<Constraints> resolve(Phase phase, Constraints constraintsStack, Edge edge, AccessConstraint topConstraint, int productionDepth)
 	{
 		final List<Constraints> constraintsStacks = new LinkedList<Constraints>();
 
@@ -111,7 +112,7 @@ public abstract class AccessConstraint extends Constraint
 
 		return constraintsStacks;
 	}
-	public List<Constraints> resolve(Phase phase, Constraints constraintsStack, SeekingConstraint topConstraint, int productionDepth)
+	public List<Constraints> resolve(Phase phase, Constraints constraintsStack, Edge edge, SeekingConstraint topConstraint, int productionDepth)
 	{
 		if (phase != Phase.Summary)
 			return new LinkedList<Constraints>();
@@ -125,15 +126,15 @@ public abstract class AccessConstraint extends Constraint
 
 		return constraintsStacks;
 	}
-	public List<Constraints> resolve(Phase phase, Constraints constraintsStack, StarConstraint topConstraint, int productionDepth)
+	public List<Constraints> resolve(Phase phase, Constraints constraintsStack, Edge edge, StarConstraint topConstraint, int productionDepth)
 	{
-		return this.resolve(phase, constraintsStack, productionDepth);
+		return this.resolve(phase, constraintsStack, edge, productionDepth);
 	}
-	public List<Constraints> resolve(Phase phase, Constraints constraintsStack, SummaryConstraint topConstraint, int productionDepth)
+	public List<Constraints> resolve(Phase phase, Constraints constraintsStack, Edge edge, SummaryConstraint topConstraint, int productionDepth)
 	{
-		return this.resolve(phase, constraintsStack, productionDepth);
+		return this.resolve(phase, constraintsStack, edge, productionDepth);
 	}
-	public List<Constraints> resolve(Phase phase, Constraints constraintsStack, UnresolvableConstraint topConstraint, int productionDepth)
+	public List<Constraints> resolve(Phase phase, Constraints constraintsStack, Edge edge, UnresolvableConstraint topConstraint, int productionDepth)
 	{
 		if (this.operation != AccessConstraint.Operation.Add)
 			return new LinkedList<Constraints>();

@@ -32,35 +32,37 @@ public class NodeInfo
 	}
 
 	private final int id;
+	private final long line;
 	private final Type type;
 	private final String module;
 	private final String name;
 	private final long arity;
 	private final OtpErlangObject AST;
 
-	public NodeInfo(int id, Type type)
+	public NodeInfo(int id, long line, Type type)
 	{
-		this(id, type, null, null, 0, null);
+		this(id, line, type, null, null, 0, null);
 	}
-	public NodeInfo(int id, Type type, String name)
+	public NodeInfo(int id, long line, Type type, String name)
 	{
-		this(id, type, null, name, 0, null);
+		this(id, line, type, null, name, 0, null);
 	}
-	public NodeInfo(int id, Type type, String name, long arity)
+	public NodeInfo(int id, long line, Type type, String name, long arity)
 	{
-		this(id, type, null, name, arity, null);
+		this(id, line, type, null, name, arity, null);
 	}
-	public NodeInfo(int id, Type type, OtpErlangObject AST)
+	public NodeInfo(int id, long line, Type type, OtpErlangObject AST)
 	{
-		this(id, type, null, null, 0, AST);
+		this(id, line, type, null, null, 0, AST);
 	}
-	public NodeInfo(int id, Type type, String module, String name, long arity)
+	public NodeInfo(int id, long line, Type type, String module, String name, long arity)
 	{
-		this(id, type, module, name, arity, null);
+		this(id, line, type, module, name, arity, null);
 	}
-	private NodeInfo(int id, Type type, String module, String name, long arity, OtpErlangObject AST)
+	private NodeInfo(int id, long line, Type type, String module, String name, long arity, OtpErlangObject AST)
 	{
 		this.id = id;
+		this.line = line;
 		this.type = type;
 		this.module = module;
 		this.name = name;
@@ -71,6 +73,10 @@ public class NodeInfo
 	public int getId()
 	{
 		return this.id;
+	}
+	public long getLine()
+	{
+		return this.line;
 	}
 	public Type getType()
 	{
@@ -91,5 +97,37 @@ public class NodeInfo
 	public OtpErlangObject getAST()
 	{
 		return this.AST;
+	}
+	public boolean isFictitious()
+	{
+		if (this.type == Type.Root)
+			return true;
+		if (this.type == Type.Body)
+			return true;
+		if (this.type == Type.Return)
+			return true;
+		if (this.type == Type.ExceptionReturn)
+			return true;
+		if (this.type == Type.ListComprehensionResult)
+			return true;
+		if (this.type == Type.Variable && this.name.equals("_"))
+			return true;
+		if (this.type == Type.Atom && (this.name.equals("undef") || this.name.equals("funundef")))
+			return true;
+		return false;
+	}
+	public boolean isFictitious0()
+	{
+		if (this.type == Type.Root)
+			return true;
+		if (this.type == Type.Body)
+			return true;
+		if (this.type == Type.Return)
+			return true;
+		if (this.type == Type.ExceptionReturn)
+			return true;
+		if (this.type == Type.ListComprehensionResult)
+			return true;
+		return false;
 	}
 }

@@ -154,11 +154,12 @@ return newWorks;
 		processIncommings:
 		for (Edge incomingEdge : incomingEdges)
 		{
+//TODO DELETE
 final Node nodeFrom0 = incomingEdge.getFrom();
 final Node nodeTo0 = incomingEdge.getTo();
 final int idFrom0 = nodeFrom0.getData().getId();
 final int idTo0 = nodeTo0.getData().getId();
-if (idFrom0 == 11 && idTo0 == 7)
+if (idFrom0 == 57 && idTo0 == 46)
 System.out.println("Aqui");
 
 
@@ -170,9 +171,9 @@ System.out.println("Aqui");
 			if (edgeType == EdgeInfo.Type.ValueDependence && ignoreDown)
 				continue;
 
-if (edgeType == EdgeInfo.Type.ExceptionGetAll && 
-		!(constraints instanceof SlicingConstraints))
-	continue;
+			if (edgeType == EdgeInfo.Type.ExceptionGetAll && 
+					!(constraints instanceof SlicingConstraints))
+				continue;
 
 
 			// Ignore edges of the current phase
@@ -186,13 +187,6 @@ if (edgeType == EdgeInfo.Type.ExceptionGetAll &&
 
 			// Resolve the constraints, when cannot traverse it an empty list is returned
 			final List<Constraints> newConstraintsStacks = this.edgeTraverser.traverseIncomingEdge(incomingEdge, constraints);
-			
-			if (edgeType == EdgeInfo.Type.ExceptionGetAll && !(constraints.isEmpty()) && constraints.peek() instanceof GetAllConstraint)
-			{
-				final Constraints emptyList = this.getAllWorks(nodeFrom);
-				if (emptyList != null)
-				newConstraintsStacks.add(emptyList);
-			}
 			
 			for (Constraints newConstraintsStack : newConstraintsStacks)
 				newWorks.add(new Work(initialNode, nodeFrom, newConstraintsStack, false, newIgnoreDown));
@@ -227,18 +221,6 @@ if (edgeType == EdgeInfo.Type.ExceptionGetAll &&
 		}
 
 		return newWorks;
-	}
-	
-	private Constraints getAllWorks(Node nodeFrom)
-	{
-		List<Edge> incomingEdges = nodeFrom.getIncomingEdges();
-		for (Edge incomingEdge : incomingEdges)
-		{
-			final EdgeInfo.Type edgeType = incomingEdge.getData().getType();
-			if (edgeType != EdgeInfo.Type.ExceptionGetAll || edgeType != EdgeInfo.Type.Control)
-				return new Constraints();
-		}
-		return null;
 	}
 	
 	private Work getInitialWork(Node node)
