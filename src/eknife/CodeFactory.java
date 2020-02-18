@@ -18,7 +18,7 @@ public class CodeFactory
 		switch (language)
 		{
 			case Java:
-				eknife.java.JavaCodeFactory.createJavaFile(outputFile, edg, slice);
+				eknife.java.JavaCodeFactoryNew.createJavaFile(outputFile, edg, slice);
 				break;
 			case Erlang:
 				eknife.erlang.ErlangCodeFactory.createErlangFile(outputFile, edg, slice);
