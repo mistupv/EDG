@@ -4,7 +4,7 @@ import java.io.File;
 import java.util.Arrays;
 import java.util.EnumSet;
 import java.util.LinkedList;
-import java.util.List;
+import java.util.List;	
 import java.util.Map;
 import java.util.Optional;
 import java.util.Stack;
@@ -266,7 +266,7 @@ public class JavaLASTFactory extends LASTFactory
 	// Return
 	private boolean needsReturn(Map<String, Object> info)
 	{
-		final LASTFactory.Branch parent = (LASTFactory.Branch) info.get("parent");
+		final Branch parent = (Branch) info.get("parent");
 		if (parent == null)
 			return false;
 
@@ -289,11 +289,11 @@ public class JavaLASTFactory extends LASTFactory
 	private void processReturn(Object expression, Map<String, Object> info)
 	{
 		@SuppressWarnings("unchecked")
-		final List<LASTFactory.Branch> ancestors = (List<LASTFactory.Branch>) info.get("ancestors");
+		final List<Branch> ancestors = (List<Branch>) info.get("ancestors");
 
 		for (int ancestorIndex = ancestors.size() - 1; ancestorIndex >= 0; ancestorIndex--)
 		{
-			final LASTFactory.Branch ancestor = ancestors.get(ancestorIndex);
+			final Branch ancestor = ancestors.get(ancestorIndex);
 			final NodeInfo.Type type = ancestor.getNodeType();
 			if (type != NodeInfo.Type.If)
 				continue;
@@ -370,7 +370,7 @@ this.addVariableToContext(new VariableRecord(name.getName(), modifiers, type));
 	}
 	private void process(CallableDeclaration<?> callable, Map<String, Object> info)
 	{
-		final LASTFactory.Branch parent = (LASTFactory.Branch) info.get("parent");
+		final Branch parent = (Branch) info.get("parent");
 		final NodeInfo.Type parentType = parent.getNodeType();
 		final long line = callable.getRange().get().begin.line;
 
@@ -1107,11 +1107,11 @@ this.addVariableToContext(new VariableRecord(name, type));
 	private int getJumpDestiny(Map<String, Object> info, NodeInfo.Type... seekingTypes)
 	{
 		@SuppressWarnings("unchecked")
-		final List<LASTFactory.Branch> ancestors = (List<LASTFactory.Branch>) info.get("ancestors");
+		final List<Branch> ancestors = (List<Branch>) info.get("ancestors");
 
 		for (int ancestorIndex = ancestors.size() - 1; ancestorIndex >= 0; ancestorIndex--)
 		{
-			final LASTFactory.Branch ancestor = ancestors.get(ancestorIndex);
+			final Branch ancestor = ancestors.get(ancestorIndex);
 			final NodeInfo.Type type = (NodeInfo.Type) ancestor.getNodeType();
 
 			for (NodeInfo.Type seekingType : seekingTypes)

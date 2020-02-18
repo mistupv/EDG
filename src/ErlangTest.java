@@ -8,7 +8,7 @@ import eknife.EKnife;
 public class ErlangTest
 {
 	public static void main(String[] args)
-	{
+	{	
 		final String codebase = "/Users/serperu/Desktop/Benchmarks/";
 		final Map<Integer, SlicingCriterion> slicingCriteria = new Hashtable<Integer, SlicingCriterion>();
 //		slicingCriteria.put(1, new SlicingCriterion("prueba.erl", 20, "C", 1));

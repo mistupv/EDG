@@ -28,8 +28,11 @@ public class LASTest
 		final Config config = Config.getConfig();
 	
 		final String className = "prueba2.java";
+		final SlicingCriterion slicingCriterion = new SlicingCriterion(className, 7, "z", 1); // Test.java
+		
+//		final String className = "Test.java";
 //		final SlicingCriterion slicingCriterion = new SlicingCriterion(className, 38, "a", 1); // Test.java
-		final SlicingCriterion slicingCriterion = new SlicingCriterion(className, 6, "y", 1); // Test.java
+//		final SlicingCriterion slicingCriterion = new SlicingCriterion(className, 39, "a", 1); // Test.java
 //		final SlicingCriterion slicingCriterion = new SlicingCriterion(className, 10, "n", 1); // Test.java
 				
 //		final String className = "Test0.java";
@@ -40,9 +43,9 @@ public class LASTest
 		final String codebase = "/Users/serperu/Desktop/Benchmarks/";
 		final String sourcePath = config.getTestPathBenchmarks() + className; // BENCHMARK DIRECTORY (DESKTOP)
 		
-		final String outputDotPath = codebase + "outputOLD.dot";
-		final String outputPdfPath = codebase + "outputOLD.pdf";
-		final String outputJavaPath = codebase + "outputOLD.java";
+		final String outputDotPath = codebase + "output.dot";
+		final String outputPdfPath = codebase + "output.pdf";
+		final String outputJavaPath = codebase + "output.java";
 		final File outputDotFile = new File(outputDotPath);
 		final File outputPdfFile = new File(outputPdfPath);
 		final File outputJavaFile = new File(outputJavaPath);

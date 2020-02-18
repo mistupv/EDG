@@ -969,6 +969,7 @@ System.out.println("\n"+text);
 	// Auxiliaries
 	private VariableDeclarator getVariableDeclarator(Node declaration)
 	{
+		
 		final Node variableExpression = (declaration.getData().getType() == NodeInfo.Type.Equality) ? EDGTraverserNew.getChild(declaration, 0) : declaration;
 		final Node initializerNode = (declaration.getData().getType() == NodeInfo.Type.Equality) ? EDGTraverserNew.getChild(declaration, 1) : null;
 		Expression initializer = this.slice != null && !this.slice.contains(initializerNode) ? null : this.parseExpression(initializerNode);
@@ -978,7 +979,7 @@ System.out.println("\n"+text);
 			final Node variable = (variableExpression.getData().getType() == NodeInfo.Type.Variable) ? variableExpression : EDGTraverserNew.getChild(variableExpression, 0);
 			final LDASTNodeInfo ldNodeInfo = variable.getData().getInfo();
 			final Type varType = (Type) ldNodeInfo.getInfo()[1];
-			if (varType instanceof PrimitiveType)
+			if (varType instanceof PrimitiveType || initializerNode == null)
 				initializer = null;
 			else
 				initializer = new ObjectCreationExpr(null, (ClassOrInterfaceType) varType, new NodeList<Expression>());
