@@ -1,3 +1,7 @@
+# User-defined .gitignore
+
+./tmp/*
+
 # Created by .ignore support plugin (hsz.mobi)
 ### Erlang template
 .eunit
