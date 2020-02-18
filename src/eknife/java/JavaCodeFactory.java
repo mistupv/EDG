@@ -5,6 +5,7 @@ import java.util.EnumSet;
 import java.util.LinkedList;
 import java.util.List;
 
+import com.github.javaparser.ast.ArrayCreationLevel;
 import com.github.javaparser.ast.CompilationUnit;
 import com.github.javaparser.ast.Modifier;
 import com.github.javaparser.ast.NodeList;
@@ -17,6 +18,7 @@ import com.github.javaparser.ast.body.Parameter;
 import com.github.javaparser.ast.body.TypeDeclaration;
 import com.github.javaparser.ast.body.VariableDeclarator;
 import com.github.javaparser.ast.expr.ArrayAccessExpr;
+import com.github.javaparser.ast.expr.ArrayCreationExpr;
 import com.github.javaparser.ast.expr.ArrayInitializerExpr;
 import com.github.javaparser.ast.expr.AssignExpr;
 import com.github.javaparser.ast.expr.BinaryExpr;
@@ -25,7 +27,9 @@ import com.github.javaparser.ast.expr.CastExpr;
 import com.github.javaparser.ast.expr.CharLiteralExpr;
 import com.github.javaparser.ast.expr.ConditionalExpr;
 import com.github.javaparser.ast.expr.DoubleLiteralExpr;
+import com.github.javaparser.ast.expr.EnclosedExpr;
 import com.github.javaparser.ast.expr.Expression;
+import com.github.javaparser.ast.expr.FieldAccessExpr;
 import com.github.javaparser.ast.expr.InstanceOfExpr;
 import com.github.javaparser.ast.expr.IntegerLiteralExpr;
 import com.github.javaparser.ast.expr.LongLiteralExpr;
@@ -35,6 +39,8 @@ import com.github.javaparser.ast.expr.NullLiteralExpr;
 import com.github.javaparser.ast.expr.ObjectCreationExpr;
 import com.github.javaparser.ast.expr.SimpleName;
 import com.github.javaparser.ast.expr.StringLiteralExpr;
+import com.github.javaparser.ast.expr.SuperExpr;
+import com.github.javaparser.ast.expr.ThisExpr;
 import com.github.javaparser.ast.expr.UnaryExpr;
 import com.github.javaparser.ast.expr.VariableDeclarationExpr;
 import com.github.javaparser.ast.nodeTypes.NodeWithAnnotations;
@@ -47,13 +53,16 @@ import com.github.javaparser.ast.stmt.DoStmt;
 import com.github.javaparser.ast.stmt.EmptyStmt;
 import com.github.javaparser.ast.stmt.ExpressionStmt;
 import com.github.javaparser.ast.stmt.ForStmt;
+import com.github.javaparser.ast.stmt.ForeachStmt;
 import com.github.javaparser.ast.stmt.IfStmt;
 import com.github.javaparser.ast.stmt.ReturnStmt;
 import com.github.javaparser.ast.stmt.Statement;
 import com.github.javaparser.ast.stmt.SwitchEntryStmt;
 import com.github.javaparser.ast.stmt.SwitchStmt;
+import com.github.javaparser.ast.stmt.ThrowStmt;
 import com.github.javaparser.ast.stmt.TryStmt;
 import com.github.javaparser.ast.stmt.WhileStmt;
+import com.github.javaparser.ast.type.ArrayType;
 import com.github.javaparser.ast.type.ClassOrInterfaceType;
 import com.github.javaparser.ast.type.PrimitiveType;
 import com.github.javaparser.ast.type.PrimitiveType.Primitive;
@@ -129,7 +138,13 @@ System.out.println("\n"+text);
 		final String moduleName = module.getData().getName();
 		final ClassOrInterfaceDeclaration clazz = cu.addClass(moduleName);
 		
-		NodeList<ClassOrInterfaceType> extendedTypes = (NodeList<ClassOrInterfaceType>) module.getData().getInfo().getInfo()[0];
+		//NodeList<ClassOrInterfaceType> extendedTypes = (NodeList<ClassOrInterfaceType>) module.getData().getInfo().getInfo()[0];
+		// TODO ENCONTRAR UNA SOLUCION MEJOR
+		String extendedTypes0 = (String) module.getData().getInfo().getInfo()[0]; // Si hay mas de un extends no funcionara, solo vale para extends de 1 clase
+		NodeList<ClassOrInterfaceType> extendedTypes = new NodeList<ClassOrInterfaceType>();
+		if (!extendedTypes0.equals(""))
+			extendedTypes.add(new ClassOrInterfaceType(extendedTypes0));
+		
 		NodeList<ClassOrInterfaceType> implementedTypes = (NodeList<ClassOrInterfaceType>) module.getData().getInfo().getInfo()[1];
 		
 		clazz.setExtendedTypes(extendedTypes);
@@ -223,7 +238,7 @@ System.out.println("\n"+text);
 		final Node variable = EDGTraverser.getChild(parameter, 0);
 		final NodeInfo nodeInfo = variable.getData();
 		final LDASTNodeInfo ldNodeInfo = nodeInfo.getInfo();
-		final Type type = (Type) ldNodeInfo.getInfo()[0];
+		final Type type = this.slice != null && !this.slice.contains(variable) ? new ClassOrInterfaceType("Object"): (Type) ldNodeInfo.getInfo()[0];
 		final String name = this.slice != null && !this.slice.contains(variable) ? "fresh" : nodeInfo.getName();
 
 		return new Parameter(type, name);
@@ -273,6 +288,10 @@ System.out.println("\n"+text);
 				return this.parseReturn(statement);
 			case ExHandler:
 				return this.parseExHandler(statement);
+			case Throw:
+				return this.parseThrow(statement);
+			case Foreach:
+				return this.parseForeach(statement);
 			default:
 				return new ExpressionStmt(this.parseExpression(statement));
 		}
@@ -412,6 +431,27 @@ System.out.println("\n"+text);
 		return new ForStmt(initBlock, conditionExpression, updateBlock, bodyBlock);
 	}
 	
+	private Statement parseForeach(Node foreach)
+	{
+		final Node iterator = EDGTraverser.getChild(foreach, 0);
+		final Node generator = EDGTraverser.getChild(iterator,0);
+		final Node variableDeclaration = EDGTraverser.getChild(generator, 0);
+		final Node iterable = EDGTraverser.getChild(generator, 1);
+		final Expression variableDeclarationExpr = this.parseExpression(variableDeclaration);
+		final Expression iterableExpr = this.parseExpression(iterable);
+		
+		final Node body = EDGTraverser.getChild(foreach, 1);
+		final List<Node> bodyChildren = EDGTraverser.getChildren(body);
+		final List<Statement> bodyStatements = this.parseStatements(bodyChildren, false);
+		final BlockStmt bodyBlock = new BlockStmt();
+		for (Statement bodyStatement : bodyStatements)
+			bodyBlock.addStatement(bodyStatement);
+		if (variableDeclarationExpr instanceof VariableDeclarationExpr)
+			return new ForeachStmt((VariableDeclarationExpr) variableDeclarationExpr, iterableExpr, bodyBlock);
+		
+		throw new RuntimeException("There must be a variable declaration in the left-hand-side of an iterator");
+	}
+	
 	// Exception Statements
 	private Statement parseExHandler(Node exHandler)
 	{
@@ -423,6 +463,8 @@ System.out.println("\n"+text);
 		// Catch
 		final Node catchNode = EDGTraverser.getChild(exHandler, 1);
 		final NodeList<CatchClause> catchClauses = (NodeList<CatchClause>) this.parseCatch(catchNode);
+		if (catchClauses.isEmpty())
+			catchClauses.add(new CatchClause(new Parameter(new ClassOrInterfaceType("Exception"),new SimpleName("fresh")), new BlockStmt()));
 
 		// Finally
 		final Node finallyNode = EDGTraverser.getChild(exHandler, 2);
@@ -444,12 +486,20 @@ System.out.println("\n"+text);
 			final Parameter parameter0 = this.parseParameter(parameter);
 			
 			final Node body = EDGTraverser.getChild(clause, 2);
-			final BlockStmt bodyBlock = this.parseBlockStatements(body);
+			final BlockStmt bodyBlock0 = this.parseBlockStatements(body);
+			final BlockStmt bodyBlock = bodyBlock0 == null ? new BlockStmt() : bodyBlock0;
 			
 			catchClauses.add(new CatchClause(parameter0, bodyBlock));
 		}
 		return catchClauses;
 	}
+	private Statement parseThrow(Node _throw)
+	{
+		final Node throwExpressionNode = EDGTraverser.getChild(_throw, 0);
+		final Expression throwExpression = this.parseExpression(throwExpressionNode);
+		return new ThrowStmt(throwExpression);
+	}
+	
 	
 	private Statement parseReturn(Node _return)
 	{
@@ -513,6 +563,8 @@ System.out.println("\n"+text);
 				return this.parseOperation(expression);
 			case DataConstructorAccess:
 				return this.parseDataConstructorAccess(expression);
+			case FieldAccess:
+				return this.parseFieldAccess(expression);
 			case If:
 				return this.parseTernary(expression);
 			case Variable:
@@ -524,10 +576,13 @@ System.out.println("\n"+text);
 				return this.parseInstanceOf(expression);
 			case TypeTransformation:
 				return this.parseCastExpr(expression);
+			case Reference:
+				return this.parseReference(expression);
 			default:
 				throw new RuntimeException("Expression type not contemplated: " + expressionType);
 		}
 	}
+
 	private Expression parseEquality(Node equality)
 	{
 		final Node targetExpression = EDGTraverser.getChild(equality, 0);
@@ -570,7 +625,11 @@ System.out.println("\n"+text);
 		final Expression valueExpr = this.parseExpression(value);
 
 		if (targetExpr instanceof NullLiteralExpr)
-			return valueExpr;
+		{
+			final String name = "fresh";
+			final Type type = new ClassOrInterfaceType("Object");
+			return new VariableDeclarationExpr(new VariableDeclarator(type, name, valueExpr));
+		}
 		return new AssignExpr(targetExpr, valueExpr, AssignExpr.Operator.ASSIGN);
 	}
 	private Expression parseDataConstructor(Node dataConstructor)
@@ -625,13 +684,21 @@ System.out.println("\n"+text);
 		final Node nameNode = EDGTraverser.getChild(callee, 1);
 		final Node name = EDGTraverser.getChild(nameNode, 0);
 		final Expression nameExpression = this.parseExpression(name);
-		final String nameText = EDGTraverser.getChild(name, 0).getData().getName();
+		final String nameText;
+		if(this.slice != null && !this.slice.contains(nameNode))
+		{
+			this.funundef = true;
+			nameText =  "funundef";
+		}
+		else
+			nameText = EDGTraverser.getChild(name, 0).getData().getName();
 		
 		// Arguments List
 		final NodeList<Expression> argumentsList = new NodeList<Expression>();
 		final List<Node> argumentsChildren = EDGTraverser.getChildren(arguments);
 		argumentsList.addAll(this.parseExpressions(argumentsChildren, true));
 		
+		// ONLY CALL -> SCOPE REGARDS ABOUT LAS ENCLOSED_EXPR TYPE
 		// Scope
 		final Node scopeNode = EDGTraverser.getChild(callee, 0);
 		if (EDGTraverser.getChildren(scopeNode).isEmpty())
@@ -646,7 +713,8 @@ System.out.println("\n"+text);
 		}
 		
 		final Node scope = EDGTraverser.getChild(scopeNode, 0);
-		final Expression scopeExpression = this.parseExpression(scope);
+		final boolean scopeEnclosedExpr = scope.getData().getInfo() == null ? false : (boolean) scope.getData().getInfo().getInfo()[0];
+		final Expression scopeExpression = scopeEnclosedExpr ? new EnclosedExpr(this.parseExpression(scope)) : this.parseExpression(scope);
 		final String scopeText = EDGTraverser.getChild(scope,0).getData().getName();
 		
 		if (scopeExpression instanceof NullLiteralExpr)
@@ -657,7 +725,18 @@ System.out.println("\n"+text);
 		else if (nameText.equals("<constructor>"))
 		{
 			final ClassOrInterfaceType type = new ClassOrInterfaceType(scopeText);
+			
+			if (scopeEnclosedExpr)
+				return new EnclosedExpr(new ObjectCreationExpr(null, type, argumentsList));
 			return new ObjectCreationExpr(null, type, argumentsList);
+		}
+		else if (nameText.equals("<arrayConstructor>"))
+		{
+			final ClassOrInterfaceType type = new ClassOrInterfaceType(scopeText);
+			final Expression returned = new ArrayCreationExpr(type, (NodeList<ArrayCreationLevel>) EDGTraverser.getChild(name, 0).getData().getInfo().getInfo()[0], null);
+			if (scopeEnclosedExpr)
+				return new EnclosedExpr(returned);
+			return returned;
 		}
 		else
 			return new MethodCallExpr(scopeExpression, new SimpleName(nameText), argumentsList);
@@ -678,10 +757,28 @@ System.out.println("\n"+text);
 			case 2:
 				final Expression secondExpression = this.parseExpression(operands.get(1));
 				final Printable[] binaryOperators = BinaryExpr.Operator.values();
-				final Printable binaryOperator = this.getOperator(binaryOperators, sign);
-				return new BinaryExpr(firstExpression, secondExpression, (BinaryExpr.Operator) binaryOperator);
+				final Printable binaryOperator0 = this.getOperator(binaryOperators, sign);
+				final BinaryExpr.Operator binaryOperator = (BinaryExpr.Operator) binaryOperator0;
+				final Expression firstExpression0 = this.isEnclosedExpr(firstExpression, binaryOperator, true) ? new EnclosedExpr(firstExpression) : firstExpression;
+				final Expression secondExpression0 = this.isEnclosedExpr(secondExpression, binaryOperator, false) ? new EnclosedExpr(secondExpression) : secondExpression;
+				return new BinaryExpr(firstExpression0, secondExpression0, binaryOperator);
 			default:
 				throw new RuntimeException("Operation arity not contemplated: " + operands.size());
+		}
+	}
+	private Expression parseReference(Node reference)
+	{
+		final NodeInfo nodeInfo = reference.getData();
+		final String value = nodeInfo.getName();		
+
+		switch (value)
+		{
+			case "super":
+				return new SuperExpr();
+			case "this":
+				return new ThisExpr();
+			default:
+				return new NullLiteralExpr();
 		}
 	}
 	
@@ -692,8 +789,10 @@ System.out.println("\n"+text);
 		final Node type = EDGTraverser.getChild(typeExpr, 0);
 		
 		final Expression instanceExpr = this.parseExpression(expression);
-		final ClassOrInterfaceType instanceType = (ClassOrInterfaceType) this.parseType(type);
-		return new InstanceOfExpr(instanceExpr, instanceType); // TODO Aqui pueden haber PRIMITIVE TYPES?
+		final Type instanceType = (Type) this.parseType(type); // InstanceOf only accepts object types and array types, it is not applicable to Primitive Types
+		if (instanceType instanceof ClassOrInterfaceType) 
+			return new InstanceOfExpr(instanceExpr, (ClassOrInterfaceType) instanceType); 
+		return new InstanceOfExpr(instanceExpr, (ArrayType) instanceType); 
 	}
 	private Expression parseCastExpr(Node cast)
 	{
@@ -707,20 +806,22 @@ System.out.println("\n"+text);
 	}
 	private Type parseType(Node type)
 	{
-		
 		if (type.getData().getInfo().getInfo().length != 0)
 		{
-			if (this.slice != null && !this.slice.contains(type))
+			if (this.slice != null && !this.slice.contains(type)) 
 				return new PrimitiveType();
-			else
-			{
-				Object typeNode = type.getData().getInfo().getInfo()[0];
-				if (typeNode instanceof Primitive)
-			        return new PrimitiveType((Primitive) typeNode);
+			else 
+			{	// DIRIA QUE ESTO NUNCA SE EJECUTA
+				Object info = type.getData().getInfo().getInfo()[0];
+				if (info.equals("arrayType"))
+					
+					return new ArrayType(new ClassOrInterfaceType(type.getData().getName()));
+				else if (info instanceof PrimitiveType.Primitive) 
+			        return new PrimitiveType((Primitive) info);
 				else 
 					return new PrimitiveType();
 			}
-				 
+			
 		}
 		else 
 			if (this.slice != null && !this.slice.contains(type))
@@ -738,6 +839,17 @@ System.out.println("\n"+text);
 		final Expression accessExpr = this.parseExpression(access);
 
 		return new ArrayAccessExpr(dataConstructorExpr, accessExpr);
+	}
+	private Expression parseFieldAccess(Node fieldAccess)
+	{
+		final Node scope = EDGTraverser.getChild(fieldAccess, 0);
+		final Node name = EDGTraverser.getChild(fieldAccess, 1);
+
+		final Expression scopeExpr = this.parseExpression(scope);
+		final Expression nameExpr = this.parseExpression(name);
+
+		return new FieldAccessExpr(scopeExpr, nameExpr.toString());
+
 	}
 	private Expression parseTernary(Node _if)
 	{
@@ -797,6 +909,7 @@ System.out.println("\n"+text);
 			case "name":
 				return new NameExpr(value);
 			case "object creation":
+			case "array creation":
 				return null;
 			default:
 				return new NullLiteralExpr();
@@ -811,7 +924,15 @@ System.out.println("\n"+text);
 		final Expression initializer = this.slice != null && !this.slice.contains(initializerNode) ? null : this.parseExpression(initializerNode);
 		final Node variable = (variableExpression.getData().getType() == NodeInfo.Type.Variable) ? variableExpression : EDGTraverser.getChild(variableExpression, 0);
 		//final Node variable = EDGTraverser.getChild(variableExpression, 0);
+			
 		final NodeInfo nodeInfo = variable.getData();
+		if (this.slice != null && !this.slice.contains(variable))
+		{
+			final String name = "fresh";
+			final Type type = new ClassOrInterfaceType("Object");
+			return new VariableDeclarator(type, name, initializer);
+		}
+
 		final LDASTNodeInfo ldNodeInfo = nodeInfo.getInfo();
 		final Type type = (Type) ldNodeInfo.getInfo()[1];
 		final String name = nodeInfo.getName();
@@ -841,5 +962,50 @@ System.out.println("\n"+text);
 				return operator;
 		return null;
 	}
+	private boolean isEnclosedExpr(Expression expr, BinaryExpr.Operator operator, boolean isLeftExpr)
+	{
+		if (expr instanceof BinaryExpr)
+		{
+			BinaryExpr.Operator opChild = ((BinaryExpr) expr).getOperator();
+			switch(operator)
+			{
+				case PLUS:
+				case MINUS:
+					switch(opChild)
+					{
+						case PLUS:
+						case MINUS:
+							return isLeftExpr ? false : true;
+						case MULTIPLY:
+						case DIVIDE:
+						case REMAINDER:
+							return false;
+						default:
+							break;	
+					}
+					break;
+				case MULTIPLY:
+				case DIVIDE:
+				case REMAINDER:
+					switch(opChild)
+					{
+						case PLUS:
+						case MINUS:
+							return true;
+						case MULTIPLY:
+						case DIVIDE:
+						case REMAINDER:
+							return isLeftExpr ? false : true;
+						default:
+							break;	
+					}
+					break;
+				default:
+					break;
+			}
+		}
+		return false;
+	}
+	
 	
 }

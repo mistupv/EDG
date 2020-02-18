@@ -504,7 +504,7 @@ public class PHPParser extends Parser {
 				setState(287); 
 				_errHandler.sync(this);
 				_alt = getInterpreter().adaptivePredict(_input,3,_ctx);
-			} while ( _alt!=2 && _alt!= ATN.INVALID_ALT_NUMBER );
+			} while ( _alt!=2 && _alt!=org.antlr.v4.runtime.atn.ATN.INVALID_ALT_NUMBER );
 			}
 		}
 		catch (RecognitionException re) {
@@ -555,7 +555,7 @@ public class PHPParser extends Parser {
 			setState(292);
 			_errHandler.sync(this);
 			_alt = getInterpreter().adaptivePredict(_input,4,_ctx);
-			while ( _alt!=2 && _alt!= ATN.INVALID_ALT_NUMBER ) {
+			while ( _alt!=2 && _alt!=org.antlr.v4.runtime.atn.ATN.INVALID_ALT_NUMBER ) {
 				if ( _alt==1 ) {
 					{
 					{
@@ -587,7 +587,7 @@ public class PHPParser extends Parser {
 				setState(298); 
 				_errHandler.sync(this);
 				_alt = getInterpreter().adaptivePredict(_input,5,_ctx);
-			} while ( _alt!=2 && _alt!= ATN.INVALID_ALT_NUMBER );
+			} while ( _alt!=2 && _alt!=org.antlr.v4.runtime.atn.ATN.INVALID_ALT_NUMBER );
 			}
 		}
 		catch (RecognitionException re) {
@@ -1629,7 +1629,7 @@ public class PHPParser extends Parser {
 			setState(452);
 			_errHandler.sync(this);
 			_alt = getInterpreter().adaptivePredict(_input,30,_ctx);
-			while ( _alt!=2 && _alt!= ATN.INVALID_ALT_NUMBER ) {
+			while ( _alt!=2 && _alt!=org.antlr.v4.runtime.atn.ATN.INVALID_ALT_NUMBER ) {
 				if ( _alt==1 ) {
 					{
 					{
@@ -2152,7 +2152,7 @@ public class PHPParser extends Parser {
 			setState(531);
 			_errHandler.sync(this);
 			_alt = getInterpreter().adaptivePredict(_input,38,_ctx);
-			while ( _alt!=2 && _alt!= ATN.INVALID_ALT_NUMBER ) {
+			while ( _alt!=2 && _alt!=org.antlr.v4.runtime.atn.ATN.INVALID_ALT_NUMBER ) {
 				if ( _alt==1 ) {
 					{
 					{
@@ -2314,7 +2314,7 @@ public class PHPParser extends Parser {
 			setState(549);
 			_errHandler.sync(this);
 			_alt = getInterpreter().adaptivePredict(_input,40,_ctx);
-			while ( _alt!=2 && _alt!= ATN.INVALID_ALT_NUMBER ) {
+			while ( _alt!=2 && _alt!=org.antlr.v4.runtime.atn.ATN.INVALID_ALT_NUMBER ) {
 				if ( _alt==1 ) {
 					{
 					{
@@ -3019,7 +3019,7 @@ public class PHPParser extends Parser {
 				setState(601);
 				_errHandler.sync(this);
 				_alt = getInterpreter().adaptivePredict(_input,44,_ctx);
-				while ( _alt!=2 && _alt!= ATN.INVALID_ALT_NUMBER ) {
+				while ( _alt!=2 && _alt!=org.antlr.v4.runtime.atn.ATN.INVALID_ALT_NUMBER ) {
 					if ( _alt==1 ) {
 						{
 						{
@@ -4117,7 +4117,7 @@ public class PHPParser extends Parser {
 				setState(718); 
 				_errHandler.sync(this);
 				_alt = getInterpreter().adaptivePredict(_input,60,_ctx);
-			} while ( _alt!=2 && _alt!= ATN.INVALID_ALT_NUMBER );
+			} while ( _alt!=2 && _alt!=org.antlr.v4.runtime.atn.ATN.INVALID_ALT_NUMBER );
 			setState(720);
 			innerStatementList();
 			}
@@ -4788,7 +4788,7 @@ public class PHPParser extends Parser {
 					setState(803); 
 					_errHandler.sync(this);
 					_alt = getInterpreter().adaptivePredict(_input,71,_ctx);
-				} while ( _alt!=2 && _alt!= ATN.INVALID_ALT_NUMBER );
+				} while ( _alt!=2 && _alt!=org.antlr.v4.runtime.atn.ATN.INVALID_ALT_NUMBER );
 				setState(806);
 				_errHandler.sync(this);
 				switch ( getInterpreter().adaptivePredict(_input,72,_ctx) ) {
@@ -5336,7 +5336,7 @@ public class PHPParser extends Parser {
 				setState(851); 
 				_errHandler.sync(this);
 				_alt = getInterpreter().adaptivePredict(_input,77,_ctx);
-			} while ( _alt!=2 && _alt!= ATN.INVALID_ALT_NUMBER );
+			} while ( _alt!=2 && _alt!=org.antlr.v4.runtime.atn.ATN.INVALID_ALT_NUMBER );
 			}
 		}
 		catch (RecognitionException re) {
@@ -6943,7 +6943,7 @@ public class PHPParser extends Parser {
 			setState(1088);
 			_errHandler.sync(this);
 			_alt = getInterpreter().adaptivePredict(_input,110,_ctx);
-			while ( _alt!=2 && _alt!= ATN.INVALID_ALT_NUMBER ) {
+			while ( _alt!=2 && _alt!=org.antlr.v4.runtime.atn.ATN.INVALID_ALT_NUMBER ) {
 				if ( _alt==1 ) {
 					if ( _parseListeners!=null ) triggerExitRuleEvent();
 					_prevctx = _localctx;
@@ -7075,7 +7075,7 @@ public class PHPParser extends Parser {
 			setState(1111);
 			_errHandler.sync(this);
 			_alt = getInterpreter().adaptivePredict(_input,112,_ctx);
-			while ( _alt!=2 && _alt!= ATN.INVALID_ALT_NUMBER ) {
+			while ( _alt!=2 && _alt!=org.antlr.v4.runtime.atn.ATN.INVALID_ALT_NUMBER ) {
 				if ( _alt==1 ) {
 					if ( _parseListeners!=null ) triggerExitRuleEvent();
 					_prevctx = _localctx;
@@ -7211,7 +7211,7 @@ public class PHPParser extends Parser {
 			setState(1128);
 			_errHandler.sync(this);
 			_alt = getInterpreter().adaptivePredict(_input,114,_ctx);
-			while ( _alt!=2 && _alt!= ATN.INVALID_ALT_NUMBER ) {
+			while ( _alt!=2 && _alt!=org.antlr.v4.runtime.atn.ATN.INVALID_ALT_NUMBER ) {
 				if ( _alt==1 ) {
 					if ( _parseListeners!=null ) triggerExitRuleEvent();
 					_prevctx = _localctx;
@@ -7344,7 +7344,7 @@ public class PHPParser extends Parser {
 			setState(1139);
 			_errHandler.sync(this);
 			_alt = getInterpreter().adaptivePredict(_input,115,_ctx);
-			while ( _alt!=2 && _alt!= ATN.INVALID_ALT_NUMBER ) {
+			while ( _alt!=2 && _alt!=org.antlr.v4.runtime.atn.ATN.INVALID_ALT_NUMBER ) {
 				if ( _alt==1 ) {
 					if ( _parseListeners!=null ) triggerExitRuleEvent();
 					_prevctx = _localctx;
@@ -7452,7 +7452,7 @@ public class PHPParser extends Parser {
 			setState(1158);
 			_errHandler.sync(this);
 			_alt = getInterpreter().adaptivePredict(_input,118,_ctx);
-			while ( _alt!=2 && _alt!= ATN.INVALID_ALT_NUMBER ) {
+			while ( _alt!=2 && _alt!=org.antlr.v4.runtime.atn.ATN.INVALID_ALT_NUMBER ) {
 				if ( _alt==1 ) {
 					if ( _parseListeners!=null ) triggerExitRuleEvent();
 					_prevctx = _localctx;
@@ -8476,7 +8476,7 @@ public class PHPParser extends Parser {
 			setState(1289);
 			_errHandler.sync(this);
 			_alt = getInterpreter().adaptivePredict(_input,131,_ctx);
-			while ( _alt!=2 && _alt!= ATN.INVALID_ALT_NUMBER ) {
+			while ( _alt!=2 && _alt!=org.antlr.v4.runtime.atn.ATN.INVALID_ALT_NUMBER ) {
 				if ( _alt==1 ) {
 					{
 					{
@@ -8909,7 +8909,7 @@ public class PHPParser extends Parser {
 			setState(1349);
 			_errHandler.sync(this);
 			_alt = getInterpreter().adaptivePredict(_input,143,_ctx);
-			while ( _alt!=2 && _alt!= ATN.INVALID_ALT_NUMBER ) {
+			while ( _alt!=2 && _alt!=org.antlr.v4.runtime.atn.ATN.INVALID_ALT_NUMBER ) {
 				if ( _alt==1 ) {
 					{
 					{
@@ -9031,7 +9031,7 @@ public class PHPParser extends Parser {
 			setState(1365);
 			_errHandler.sync(this);
 			_alt = getInterpreter().adaptivePredict(_input,146,_ctx);
-			while ( _alt!=2 && _alt!= ATN.INVALID_ALT_NUMBER ) {
+			while ( _alt!=2 && _alt!=org.antlr.v4.runtime.atn.ATN.INVALID_ALT_NUMBER ) {
 				if ( _alt==1 ) {
 					{
 					{
@@ -9573,7 +9573,7 @@ public class PHPParser extends Parser {
 			setState(1426);
 			_errHandler.sync(this);
 			_alt = getInterpreter().adaptivePredict(_input,157,_ctx);
-			while ( _alt!=2 && _alt!= ATN.INVALID_ALT_NUMBER ) {
+			while ( _alt!=2 && _alt!=org.antlr.v4.runtime.atn.ATN.INVALID_ALT_NUMBER ) {
 				if ( _alt==1 ) {
 					{
 					{
@@ -10199,7 +10199,7 @@ public class PHPParser extends Parser {
 					setState(1472); 
 					_errHandler.sync(this);
 					_alt = getInterpreter().adaptivePredict(_input,164,_ctx);
-				} while ( _alt!=2 && _alt!= ATN.INVALID_ALT_NUMBER );
+				} while ( _alt!=2 && _alt!=org.antlr.v4.runtime.atn.ATN.INVALID_ALT_NUMBER );
 				}
 				break;
 			case StartNowDoc:
@@ -10226,7 +10226,7 @@ public class PHPParser extends Parser {
 					setState(1478); 
 					_errHandler.sync(this);
 					_alt = getInterpreter().adaptivePredict(_input,165,_ctx);
-				} while ( _alt!=2 && _alt!= ATN.INVALID_ALT_NUMBER );
+				} while ( _alt!=2 && _alt!=org.antlr.v4.runtime.atn.ATN.INVALID_ALT_NUMBER );
 				}
 				break;
 			case SingleQuoteString:
@@ -10567,7 +10567,7 @@ public class PHPParser extends Parser {
 			setState(1514);
 			_errHandler.sync(this);
 			_alt = getInterpreter().adaptivePredict(_input,171,_ctx);
-			while ( _alt!=2 && _alt!= ATN.INVALID_ALT_NUMBER ) {
+			while ( _alt!=2 && _alt!=org.antlr.v4.runtime.atn.ATN.INVALID_ALT_NUMBER ) {
 				if ( _alt==1 ) {
 					{
 					{
@@ -10806,7 +10806,7 @@ public class PHPParser extends Parser {
 			setState(1537);
 			_errHandler.sync(this);
 			_alt = getInterpreter().adaptivePredict(_input,175,_ctx);
-			while ( _alt!=2 && _alt!= ATN.INVALID_ALT_NUMBER ) {
+			while ( _alt!=2 && _alt!=org.antlr.v4.runtime.atn.ATN.INVALID_ALT_NUMBER ) {
 				if ( _alt==1 ) {
 					{
 					{
@@ -11356,7 +11356,7 @@ public class PHPParser extends Parser {
 			setState(1565);
 			_errHandler.sync(this);
 			_alt = getInterpreter().adaptivePredict(_input,180,_ctx);
-			while ( _alt!=2 && _alt!= ATN.INVALID_ALT_NUMBER ) {
+			while ( _alt!=2 && _alt!=org.antlr.v4.runtime.atn.ATN.INVALID_ALT_NUMBER ) {
 				if ( _alt==1 ) {
 					{
 					{
@@ -11422,7 +11422,7 @@ public class PHPParser extends Parser {
 			setState(1571);
 			_errHandler.sync(this);
 			_alt = getInterpreter().adaptivePredict(_input,181,_ctx);
-			while ( _alt!=2 && _alt!= ATN.INVALID_ALT_NUMBER ) {
+			while ( _alt!=2 && _alt!=org.antlr.v4.runtime.atn.ATN.INVALID_ALT_NUMBER ) {
 				if ( _alt==1 ) {
 					{
 					{
@@ -11462,7 +11462,7 @@ public class PHPParser extends Parser {
 			setState(1585);
 			_errHandler.sync(this);
 			_alt = getInterpreter().adaptivePredict(_input,183,_ctx);
-			while ( _alt!=2 && _alt!= ATN.INVALID_ALT_NUMBER ) {
+			while ( _alt!=2 && _alt!=org.antlr.v4.runtime.atn.ATN.INVALID_ALT_NUMBER ) {
 				if ( _alt==1 ) {
 					{
 					{

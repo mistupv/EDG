@@ -19,10 +19,7 @@ public class JavaTest
 	public static void main(String[] args)
 	{			
 		final Config config = Config.getConfig();
-		
-//		final String className = "Test.java";
-//		final SlicingCriterion slicingCriterion = new SlicingCriterion(className, 9, "z", 1); // Test.java
-
+	
 /* ********************************************************************************************* */
 		// GLOBAL VARIABLES TESTS:
 /* ********************************************************************************************* */
@@ -57,19 +54,31 @@ public class JavaTest
 //		final String codebase = "/Users/serperu/Desktop/Benchmarks/GVTests/";
 //		final String sourcePath = config.getTestPath() + className; // GLOBAL VARIABLES TESTS
 /* ********************************************************************************************* */		
-/* ********************************************************************************************* */		
+/* ********************************************************************************************* */	
+		
+		final String className = "Test.java";
+//		final SlicingCriterion slicingCriterion = new SlicingCriterion(className, 5, "p", 1); // Test.java
+		final SlicingCriterion slicingCriterion = new SlicingCriterion(className, 7, "a", 2); // Test.java
+		
 //		final String className = "Test2.java";
-//		final SlicingCriterion slicingCriterion = new SlicingCriterion(className, 16, "a", 1); // Test.java
+//		final SlicingCriterion slicingCriterion = new SlicingCriterion(className, 8, "minMN", 1); // Test.java
 		
 //		final String className = "GVLoop.java";
 //		final SlicingCriterion slicingCriterion = new SlicingCriterion(className, 9, "v", 1); // GVLoop.java
+		
+//		final String className = "HorwitzOO.java";
+//		final SlicingCriterion slicingCriterion = new SlicingCriterion(className, 14, "sum", 1); // HorwitzOO.java
 		
 //		final String className = "LoopBounds.java";
 //		final SlicingCriterion slicingCriterion = new SlicingCriterion(className, 45, "index", 1); // LoopBounds.java
 //		final SlicingCriterion slicingCriterion = new SlicingCriterion(className, 105, "n", 1); // LoopBounds.java
 //		final SlicingCriterion slicingCriterion = new SlicingCriterion(className, 107, "r", 1); // LoopBounds.java
-//		final SlicingCriterion slicingCriterion = new SlicingCriterion(className, 113, "v", 1); // LoopBounds.java
+//		final SlicingCriterion slicingCriterion = new SlicingCriterion(className, 93, "v", 1); // LoopBounds.java
+//		final SlicingCriterion slicingCriterion = new SlicingCriterion(className, 31, "f0", 1); // LoopBounds.java
 
+//		final String className = "LoopBoundsGV.java";
+//		final SlicingCriterion slicingCriterion = new SlicingCriterion(className, 38, "n", 1); // LoopBoundsGV.java
+		
 //		final String className = "TypeChecker.java";
 //		final SlicingCriterion slicingCriterion = new SlicingCriterion(className, 42, "v", 1); // TypeChecker.java
 //		final SlicingCriterion slicingCriterion = new SlicingCriterion(className, 27, "k", 1); // TypeChecker.java
@@ -113,8 +122,8 @@ public class JavaTest
 		
 //		final String sourcePath = config.getSourcesPath() + className;
 
-		final String className = "TryClass.java";
-		final SlicingCriterion slicingCriterion = new SlicingCriterion(className, 8, "e", 1); // ObjectCreation.java
+//		final String className = "TryClass.java";
+//		final SlicingCriterion slicingCriterion = new SlicingCriterion(className, 8, "e", 1); // TryClass.java
 		
 		final String codebase = "/Users/serperu/Desktop/Benchmarks/";
 		final String sourcePath = config.getTestPathBenchmarks() + className; // BENCHMARK DIRECTORY (DESKTOP)
