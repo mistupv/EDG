@@ -1044,9 +1044,9 @@ public class ErlangGenerator
 	{
 		final List<Node> callArguments = GraphTraverser.getChildren(call, EdgeInfo.Type.NormalControl);
 		final Node callFunction = callArguments.remove(0);
-		final Node returnNode = callArguments.remove(callArguments.size() - 1);
-		if (returnNode.getData().getType() == NodeInfo.Type.ExceptionReturn)
-			callArguments.remove(callArguments.size() - 1);
+		callArguments.remove(callArguments.size() - 1); // Delete exceptionReturn Node
+		callArguments.remove(callArguments.size() - 1); // Delete return Node
+
 		
 		final OtpErlangObject[] callElements = new OtpErlangObject[4];
 

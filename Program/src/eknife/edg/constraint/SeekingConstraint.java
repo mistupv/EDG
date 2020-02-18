@@ -7,8 +7,8 @@ import eknife.edg.traverser.EdgeTraverser.Phase;
 
 public class SeekingConstraint  extends Constraint
 {
-	public enum Operation { Add, Remove, GetAll }
-	public enum CompositeType { Exception }
+	public enum Operation { Add, Remove }
+	public enum CompositeType { Exception, GetAll }
 	
 	protected final Operation operation;
 	protected final CompositeType compositeType;
@@ -77,8 +77,8 @@ public class SeekingConstraint  extends Constraint
 		final List<Constraints> constraintsStacks = new LinkedList<Constraints>();
 		if (this.operation == Operation.Add)
 			constraintsStack.push(this);
-		else if (this.operation == Operation.GetAll && phase == Phase.Slicing)
-			((SlicingConstraints)constraintsStack).setExceptionGetAll(true);
+//		else if (this.operation == Operation.GetAll && phase == Phase.Slicing)
+//			((SlicingConstraints)constraintsStack).setExceptionGetAll(true);
 		else if (phase == Phase.Summary)
 		{
 			final SummaryConstraints summaryConstraintsStack = (SummaryConstraints) constraintsStack;
@@ -115,8 +115,8 @@ public class SeekingConstraint  extends Constraint
 		}
 		else if (topConstraint.operation == Operation.Add && this.operation == null && this.letThrough(topConstraint))
 			;
-		else if (this.operation == Operation.GetAll && phase == Phase.Slicing)
-			((SlicingConstraints)constraintsStack).setExceptionGetAll(true);
+//		else if (this.operation == Operation.GetAll && phase == Phase.Slicing)
+//			((SlicingConstraints)constraintsStack).setExceptionGetAll(true);
 		else
 			return new LinkedList<Constraints>();
 
@@ -135,8 +135,8 @@ public class SeekingConstraint  extends Constraint
 	}
 	public List<Constraints> resolve(Phase phase, Constraints constraintsStack, UnresolvableConstraint topConstraint, int productionDepth)
 	{
-		if (this.operation == Operation.GetAll && phase == Phase.Slicing)
-			((SlicingConstraints)constraintsStack).setExceptionGetAll(true);
+//		if (this.operation == Operation.GetAll && phase == Phase.Slicing)
+//			((SlicingConstraints)constraintsStack).setExceptionGetAll(true);
 		
 		if (this.operation != SeekingConstraint.Operation.Add)
 			return new LinkedList<Constraints>();
@@ -151,8 +151,8 @@ public class SeekingConstraint  extends Constraint
 	}
 	public List<Constraints> resolve(Phase phase, Constraints constraintsStack, EmptyConstraint topConstraint, int productionDepth)
 	{
-		if (this.operation == Operation.GetAll && phase == Phase.Slicing)
-			((SlicingConstraints)constraintsStack).setExceptionGetAll(true);
+//		if (this.operation == Operation.GetAll && phase == Phase.Slicing)
+//			((SlicingConstraints)constraintsStack).setExceptionGetAll(true);
 		if (this.operation != null)
 			return super.resolve(phase, constraintsStack, topConstraint, productionDepth);
 		

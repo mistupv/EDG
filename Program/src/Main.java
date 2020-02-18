@@ -37,7 +37,7 @@ public class Main
 	private static long time_start;
 	private static long time_end;
 	private static double time_expent;
-	private static final int numDelta = 10;
+	private static final int numDelta = 500000;
 	private static final int combiElems = 1;  //Numero de nodos eliminados
 	
 	//-----------------------------------------------------------------------------------------------------------------
@@ -465,7 +465,7 @@ if (!saveFile)
 		String ruta = "test"+numTest+"/test"+numTest+"Slice"+numSlice+"Tmp.erl";
 		final File tempFile = new File(testPath + File.separator + "tempSliced.erl");
 		final File obtainedFile = new File(testPath + File.separator + ruta);
-	
+		
 		final ErlangGenerator erlangGenerator = new ErlangGenerator();
 		final OtpErlangList program = erlangGenerator.generate(EDG, slice);
 	
@@ -503,7 +503,7 @@ if (!saveFile)
 		String var = "";
 		String modulo = "";
 		//for(int i=1;i<=19;i++)
-		for(int i=20;i<=20;i++)
+		for(int i=2;i<=20;i++)
 		{
 			if( i == 6 || i == 7 || i == 8 || i == 9 || i == 10 || i == 14 || i == 17 || i == 16 )
 				continue;
@@ -547,7 +547,8 @@ if (!saveFile)
 						break;
 					case 2:
 						switch (j) {
-							case 1: line=18; var="D"; break;
+							//case 1: line=17; var="C"; break;
+							case 1: line=19; var="D"; break;
 							case 2: line=17; var="C"; break;
 							case 3: line=17; var="C"; break;
 							default: line=17; var="D"; break;
@@ -856,6 +857,9 @@ if (!saveFile)
  		final String program = testPath + File.separator + "code.erl";
  		final OtpErlangObject response = Main.launcher.invokeErlang("launchCode", "getAST",program);
  		final EDG EDG = Main.generateEDG(response);
+ 		
+ 		Main.generateDot(EDG);
+ 		
 		int i = 1;
 		File f = new File("/Users/serperu/Desktop/Trabajo/Proyecto_Slicing/Resultados.txt");
 		Misc.createFile(f);
@@ -958,7 +962,12 @@ if (!saveFile)
 				
 			//------------------------------------
 			final String[] arguments = {Integer.toString(numDelta),Integer.toString(numTest),Integer.toString(numSlice)};
+			
+			time_start = System.currentTimeMillis();
 			final OtpErlangObject result = Main.launcher.invokeErlang("testDelta", "main", arguments);
+			time_end = System.currentTimeMillis();
+			time_expent = (time_end-time_start)/1000.0;
+			
 			final OtpErlangTuple tuple = (OtpErlangTuple) result;
 			final OtpErlangObject primero = (OtpErlangObject) tuple.elementAt(1);
 			String aux = primero.toString();

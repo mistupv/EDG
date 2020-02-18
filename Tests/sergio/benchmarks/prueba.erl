@@ -4,17 +4,14 @@
 main(X) ->   
     try                        
         X+4,
-        f(5),
+        A = f(5),
         X/0
     catch 
-        5 -> 2;
-        error:_ -> {slice,X}
+        5 -> X;
+        error:Y -> {slice,X}
     end.
 
 f(X) -> 
-    X-1,
-    X/2,
+    throw(5),
     X+undef.
 
-g(X) ->
-    f(X).

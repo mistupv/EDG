@@ -58,4 +58,8 @@ public abstract class Constraint
 		constraintsStacks.add(constraintsStack);
 		return constraintsStacks;
 	}
+	public List<Constraints> resolve(Phase phase, Constraints constraintsStack, GetAllConstraint topConstraint, int productionDepth)
+	{
+		return new LinkedList<Constraints>();
+	}
 }

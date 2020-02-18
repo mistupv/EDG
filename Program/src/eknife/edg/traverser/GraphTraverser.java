@@ -401,13 +401,15 @@ public class GraphTraverser
 			case Block:
 			case PatternMatching:
 			case Body:
-			case FunctionCall:
 			case Generator:
 			case BinGenerator:
 				final Node lastChild = children.get(children.size() - 1);
 				valueNodes.add(lastChild);
 				break;
-
+			case FunctionCall:
+				final Node returnChild = children.get(children.size() - 2);
+				valueNodes.add(returnChild);
+				break;
 			// Special
 /*case Clause:
 	final Node lastChild0 = children.get(children.size() - 1);

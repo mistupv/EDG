@@ -2,9 +2,9 @@ package eknife.edg.constraint;
 
 public class SlicingConstraints extends Constraints
 {
-	private boolean crossExceptionGetAll = false;
+//	private boolean crossExceptionGetAll = false;
 	
-	public boolean getExceptionGetAll()
+/*	public boolean getExceptionGetAll()
 	{
 		return this.crossExceptionGetAll;
 	}
@@ -12,6 +12,7 @@ public class SlicingConstraints extends Constraints
 	{
 		this.crossExceptionGetAll = state;
 	}
+*/
 	
 	public boolean equals(Object object)
 	{
@@ -22,8 +23,8 @@ public class SlicingConstraints extends Constraints
 		final SlicingConstraints slicingConstraints = (SlicingConstraints) object;
 		if (!this.stack.equals(slicingConstraints.stack))
 			return false;
-		if (this.crossExceptionGetAll != slicingConstraints.crossExceptionGetAll)
-			return false;
+//		if (this.crossExceptionGetAll != slicingConstraints.crossExceptionGetAll)
+//			return false;
 
 		return true;
 	}
@@ -32,7 +33,7 @@ public class SlicingConstraints extends Constraints
 		final SlicingConstraints slicingConstraints = new SlicingConstraints();
 
 		slicingConstraints.stack.addAll(this.stack);
-		slicingConstraints.crossExceptionGetAll = this.crossExceptionGetAll;
+//		slicingConstraints.crossExceptionGetAll = this.crossExceptionGetAll;
 		
 		return slicingConstraints;
 	}

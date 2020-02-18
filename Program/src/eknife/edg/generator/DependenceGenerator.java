@@ -16,7 +16,6 @@ import eknife.edg.EdgeInfo;
 import eknife.edg.Node;
 import eknife.edg.NodeInfo;
 import eknife.edg.EDG.GrammarType;
-import eknife.edg.constraint.AccessConstraint.Operation;
 import eknife.edg.constraint.AccessConstraint;
 import eknife.edg.constraint.BinComprehensionConstraint;
 import eknife.edg.constraint.Constraint;
@@ -25,15 +24,15 @@ import eknife.edg.constraint.SummaryConstraints.SummaryType;
 import eknife.edg.constraint.EmptyConstraint;
 import eknife.edg.constraint.ExceptionArgumentConstraint;
 import eknife.edg.constraint.ExceptionConstraint;
+import eknife.edg.constraint.GetAllConstraint;
 import eknife.edg.constraint.ListComprehensionConstraint;
 import eknife.edg.constraint.MapConstraint;
-import eknife.edg.constraint.RecordConstraint;
-import eknife.edg.constraint.SlicingConstraints;
+import eknife.edg.constraint.SeekingConstraint.CompositeType;
+import eknife.edg.constraint.SeekingConstraint.Operation;
 import eknife.edg.constraint.StarConstraint;
 import eknife.edg.constraint.SummaryConstraint;
 import eknife.edg.constraint.SummaryConstraints;
 import eknife.edg.constraint.UnresolvableConstraint;
-//import eknife.edg.constraint.RecordConstraint.Operation;
 import eknife.edg.slicingAlgorithm.SlicingAlgorithm2;
 import eknife.edg.traverser.EdgeTraverser.Phase;
 import eknife.edg.traverser.GraphTraverser;
@@ -750,11 +749,11 @@ public class DependenceGenerator
 		{
 			final List<Node> children = GraphTraverser.getChildren(call, EdgeInfo.Type.NormalControl);
 			final Node functionName = children.get(0);
-			final Node returnNode = children.get(children.size() - 1);
-//final Node exceptionReturnNode = children.get(children.size() - 2); // ADDED BY SERGIO (ExceptionReturn)
+			final Node exceptionReturnNode = children.get(children.size() - 1); // ADDED BY SERGIO (ExceptionReturn)
+			final Node returnNode = children.get(children.size() - 2);
 
 			this.graph.addEdge(functionName, returnNode, 0, new EdgeInfo(EdgeInfo.Type.FlowDependence, new StarConstraint()));
-//this.graph.addEdge(functionName, exceptionReturnNode, 0, new EdgeInfo(EdgeInfo.Type.FlowDependence, new EmptyConstraint())); // ADDED BY SERGIO (ExceptionReturn)
+			this.graph.addEdge(functionName, exceptionReturnNode, 0, new EdgeInfo(EdgeInfo.Type.FlowDependence, new StarConstraint())); // ADDED BY SERGIO (ExceptionReturn)
 		}
 	}
 
@@ -1469,8 +1468,8 @@ private void copyExistentRelations (boolean[][] matrix, int row, int column)
 		final List<Node> matchingClauses = this.getMatchingClauses(possibleClauses, call);
 		final List<Node> arguments = GraphTraverser.getChildren(call, EdgeInfo.Type.NormalControl);
 		final Node function = arguments.remove(0);
-		arguments.remove(arguments.size() - 1);
-//arguments.remove(arguments.size() - 2); // ADDED BY SERGIO (ExceptionReturn)
+		arguments.remove(arguments.size() - 1); // (ExceptionReturn)
+		arguments.remove(arguments.size() - 1); // (Return)
 
 		for (Node matchingClause : matchingClauses)
 		{
@@ -1495,7 +1494,8 @@ private void copyExistentRelations (boolean[][] matrix, int row, int column)
 		final Node function = arguments.remove(0);
 		final NodeInfo functionInfo = function.getData();
 		String functionName = functionInfo.getName();
-		arguments.remove(arguments.size() - 1);
+		arguments.remove(arguments.size() - 1); // ExceptionReturn
+		arguments.remove(arguments.size() - 1); // Return
 
 		switch (functionInfo.getType())
 		{
@@ -1562,7 +1562,8 @@ private void copyExistentRelations (boolean[][] matrix, int row, int column)
 		parameters.remove(parameters.size() - 1); // ADDED BY SERGIO delete the nodes body and guards
 		final List<Node> arguments = GraphTraverser.getChildren(call, EdgeInfo.Type.NormalControl);
 		arguments.remove(0);
-		arguments.remove(arguments.size() - 1);
+		arguments.remove(arguments.size() - 1); // Delete ExceptionReturn
+		arguments.remove(arguments.size() - 1);	// Delete Return
 		if (arguments.size() != parameters.size())
 			return false;
 
@@ -1585,7 +1586,7 @@ private void copyExistentRelations (boolean[][] matrix, int row, int column)
 	{
 		final List<Node> arguments = GraphTraverser.getChildren(call, EdgeInfo.Type.NormalControl);
 		final Node function = arguments.get(0);
-		final Node callReturn = arguments.get(arguments.size() - 1);
+		final Node callReturn = arguments.get(arguments.size() - 2);
 		final List<Node> callingFunctions = GraphTraverser.getInputs(function, GraphTraverser.Direction.Forwards);
 
 		for (Node callingFunction : callingFunctions)
@@ -1627,7 +1628,7 @@ private void copyExistentRelations (boolean[][] matrix, int row, int column)
 
 			final List<Node> arguments = GraphTraverser.getChildren(call, EdgeInfo.Type.NormalControl);
 			arguments.remove(0);
-			final Node exceptionReturnNode = (arguments.get(arguments.size() - 1).getData().getType() == NodeInfo.Type.ExceptionReturn) ?  arguments.remove(arguments.size() - 1) : null;
+			final Node exceptionReturnNode = arguments.remove(arguments.size() - 1);
 			final Node returnNode = arguments.remove(arguments.size() - 1);
 			
 			for (Node argumentNode : arguments)
@@ -1637,8 +1638,7 @@ private void copyExistentRelations (boolean[][] matrix, int row, int column)
 				for (Node last : lasts)
 				{
 					this.graph.addEdge(last, returnNode, 0, new EdgeInfo(EdgeInfo.Type.Summary, starConstraint));
-					if (exceptionReturnNode != null)
-						this.graph.addEdge(last, exceptionReturnNode, 0, new EdgeInfo(EdgeInfo.Type.Summary, starConstraint));
+					this.graph.addEdge(last, exceptionReturnNode, 0, new EdgeInfo(EdgeInfo.Type.Summary, starConstraint));
 				}
 			}
 		}
@@ -1811,12 +1811,6 @@ iteraciones++;
 		final GrammarType grammarType = (summaryType == SummaryType.Return) ? GrammarType.Value : GrammarType.Exception;
 				
 		final SummaryConstraint summaryConstraint = this.getSummaryConstraint(grammarType, formalIn);
-//		final List<Object> production0 = Arrays.asList(constraints.toArray());
-//		final List<Constraint> production = new LinkedList<Constraint>();
-
-//		for (Object element : production0)					// Se generan 2 arcos del return y exception return con la misma producción
-//			production.add((Constraint) element);
-
 		this.graph.addProduction(grammarType, summaryConstraint, constraints);
 
 		for (Node functionCaller : functionCallers)
@@ -2376,13 +2370,7 @@ Cronometro.terminar("1.4 - getNewWorks");
 				final Node callNode = GraphTraverser.getParent(edge.getTo(), EdgeInfo.Type.Control);
 				final List<Node> callChildren = GraphTraverser.getChildren(callNode, EdgeInfo.Type.Control);
 				
-				final Node exceptionReturnNode;
-				if (callChildren.get(callChildren.size()-1).getData().getType() != NodeInfo.Type.ExceptionReturn)
-				{
-					exceptionReturnNode = this.addExceptionReturnNode(callNode);
-				}
-				else
-					exceptionReturnNode = callChildren.get(callChildren.size() - 1);
+				final Node exceptionReturnNode = callChildren.get(callChildren.size() - 1);
 				
 				// MIRAR SI ESE ARCO YA EXISTE
 				boolean addEdge = true;
@@ -2425,8 +2413,7 @@ Cronometro.terminar("1.4 - getNewWorks");
 			final Node funcName = callChildren.remove(0);
 			if (funcName.getData().getType() == NodeInfo.Type.Variable)
 			{
-				final Node lastNode = callChildren.get(callChildren.size()-1);
-				final Node exceptionReturnNode = (lastNode.getData().getType() != NodeInfo.Type.ExceptionReturn) ? this.addExceptionReturnNode(funcCall) : lastNode;
+				final Node exceptionReturnNode = callChildren.get(callChildren.size()-1);
 				this.graph.addEdge(exceptionReturnNode, funcCall, 0, new EdgeInfo(EdgeInfo.Type.ValueDependence, new ExceptionConstraint(null,"*")));
 				
 				// An Exception of a Variable is always captured by any pattern because it's value is not known and can be any thing
@@ -3042,7 +3029,7 @@ Cronometro.terminar("1.4 - getNewWorks");
 			final Node tryCatchNode = GraphTraverser.getParent((GraphTraverser.getParent(catchClause, EdgeInfo.Type.Control)), EdgeInfo.Type.Control);
 			final Node tryNode = GraphTraverser.getChild(tryCatchNode, 0);
 			
-			this.graph.addEdge(tryNode, catchClause, 0, new EdgeInfo(EdgeInfo.Type.FlowDependence, new ExceptionConstraint(ExceptionConstraint.Operation.GetAll,null)));
+			this.graph.addEdge(tryNode, catchClause, 0, new EdgeInfo(EdgeInfo.Type.FlowDependence, new GetAllConstraint(Operation.Add)));
 			generateExceptionGetAllEdges(tryNode);
 		}
 	}
@@ -3052,15 +3039,17 @@ Cronometro.terminar("1.4 - getNewWorks");
 		
 		for (Node child : children)
 		{
-			this.graph.addEdge(child, node, 0, new EdgeInfo(EdgeInfo.Type.ExceptionGetAll));
+			if (child.getData().getType() != NodeInfo.Type.Return)
+				this.graph.addEdge(child, node, 0, new EdgeInfo(EdgeInfo.Type.ExceptionGetAll, new GetAllConstraint(null)));
 			if (child.getData().getType() == NodeInfo.Type.FunctionCall)
 			{
 				 final Node functionName = GraphTraverser.getChild(child, 0);
 				 final List<Node> functionClauses = this.getRelatedClauses(functionName);
 				 for (Node functionClause : functionClauses)
-				 {	
-					//this.graph.addEdge(functionCall, child, 0, new EdgeInfo(EdgeInfo.Type.ExceptionGetAll));
-					this.generateExceptionGetAllEdges(functionClause);
+				 {	 
+					 final Node exceptionReturn = GraphTraverser.getChild(child, GraphTraverser.getChildCount(child) - 1);
+					 this.graph.addEdge(functionClause, exceptionReturn, 0, new EdgeInfo(EdgeInfo.Type.Output));
+					 this.generateExceptionGetAllEdges(functionClause);
 				 }
 			}
 			this.generateExceptionGetAllEdges(child);

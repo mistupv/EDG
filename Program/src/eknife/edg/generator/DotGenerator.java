@@ -11,6 +11,7 @@ import eknife.edg.Node;
 import eknife.edg.NodeInfo;
 import eknife.edg.constraint.Constraint;
 import eknife.edg.constraint.ExceptionArgumentConstraint;
+import eknife.edg.constraint.GetAllConstraint;
 import eknife.edg.constraint.SeekingConstraint;
 import eknife.edg.constraint.UnresolvableConstraint;
 import eknife.misc.Misc;
@@ -131,9 +132,10 @@ System.out.println("STOP");
 		text += edge.getFrom().getData().getId() + " -> " + edge.getTo().getData().getId() + " ";
 		text += "[";
 		if (constraint != null && (constraint instanceof SeekingConstraint || constraint instanceof ExceptionArgumentConstraint))
-			text += "label=\"" + constraint + "\", ";
+			if (!(constraint instanceof GetAllConstraint))
+				text += "label=\"" + constraint + "\", ";
 		if (constraint != null && !(edgeType == EdgeInfo.Type.NormalControl || edgeType == EdgeInfo.Type.ValueDependence ||
-				edgeType == EdgeInfo.Type.GuardRestriction || edgeType == EdgeInfo.Type.FlowDependence))
+				edgeType == EdgeInfo.Type.GuardRestriction || edgeType == EdgeInfo.Type.FlowDependence || edgeType == EdgeInfo.Type.ExceptionGetAll))
 			text += "label=\"" + constraint + "\", ";
 		if (constraint != null && 
 				(edgeType == EdgeInfo.Type.GuardRestriction || edgeType == EdgeInfo.Type.FlowDependence) && 

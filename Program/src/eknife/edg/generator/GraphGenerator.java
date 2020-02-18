@@ -579,14 +579,19 @@ this.graph.addEdge(clauseNode, bodyNode, 0, edgeInfo3);
 		final OtpErlangTuple function = (OtpErlangTuple) call.elementAt(2);
 		final OtpErlangAtom callType = (OtpErlangAtom) function.elementAt(0);
 		if (callType.atomValue().equals("fun")) // TODO I DON'T LIKE THIS REVIEW LATER :( 
-			this.parseCall2(parent, call);
-		else if (callType.atomValue().equals("remote"))
-			this.parseExpression(parent, function);
+			this.parseCall0(parent, call);
+		//else if (callType.atomValue().equals("remote"))
+		//	this.parseExpression(parent, function);
 		else
 		{
-			
-			final OtpErlangAtom funcName = (OtpErlangAtom) function.elementAt(2);
-			final String funcName0 = funcName.atomValue();
+			final String funcName0;
+			if (!callType.atomValue().equals("remote"))
+			{
+				final OtpErlangAtom funcName = (OtpErlangAtom) function.elementAt(2);
+				funcName0 = funcName.atomValue();
+			}
+			else
+				funcName0 = "";
 			
 			switch(funcName0)
 			{
@@ -594,13 +599,13 @@ this.graph.addEdge(clauseNode, bodyNode, 0, edgeInfo3);
 					this.parseThrow(parent,call);
 					break;
 				default:
-					this.parseCall2(parent, call);
+					this.parseCall0(parent, call);
 					break;
 			} 	
 		}
 	}
 
-	private void parseCall2(Node parent, OtpErlangTuple call) //Modified Name parseCall -> parseCall2
+	private void parseCall0(Node parent, OtpErlangTuple call) //Modified Name parseCall -> parseCall2
 	{	
 		// Add call
 		final String callNodeName = "call";
@@ -618,14 +623,6 @@ this.graph.addEdge(clauseNode, bodyNode, 0, edgeInfo3);
 		final OtpErlangList callArguments = (OtpErlangList) call.elementAt(3);
 		this.parseExpressions(callNode, callArguments);
 
-// Add exception return (SERGIO)
-//final String exceptionReturnNodeName = "exceptionReturn";
-//final NodeInfo info3 = new NodeInfo(this.nodeId++, NodeInfo.Type.ExceptionReturn);
-//final Node exceptionReturnNode = new Node(exceptionReturnNodeName, info3);
-//final EdgeInfo edgeInfo3 = this.getEdgeInfo(callNode);
-//this.graph.addNode(exceptionReturnNode);
-//this.graph.addEdge(callNode, exceptionReturnNode, 0, edgeInfo3);
-		
 		// Add return
 		final String returnNodeName = "return";
 		final NodeInfo info2 = new NodeInfo(this.nodeId++, NodeInfo.Type.Return);
@@ -633,6 +630,14 @@ this.graph.addEdge(clauseNode, bodyNode, 0, edgeInfo3);
 		final EdgeInfo edgeInfo2 = this.getEdgeInfo(callNode);
 		this.graph.addNode(returnNode);
 		this.graph.addEdge(callNode, returnNode, 0, edgeInfo2);
+		
+		// Add exception return (SERGIO)
+		final String exceptionReturnNodeName = "exceptionReturn";
+		final NodeInfo info3 = new NodeInfo(this.nodeId++, NodeInfo.Type.ExceptionReturn);
+		final Node exceptionReturnNode = new Node(exceptionReturnNodeName, info3);
+		final EdgeInfo edgeInfo3 = this.getEdgeInfo(callNode);
+		this.graph.addNode(exceptionReturnNode);
+		this.graph.addEdge(callNode, exceptionReturnNode, 0, edgeInfo3);
 	}
 	private void parseRemote(Node parent, OtpErlangTuple remote)
 	{

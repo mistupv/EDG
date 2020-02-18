@@ -102,8 +102,8 @@ public class ExceptionConstraint extends SeekingConstraint
 	{
 		if (this.exceptionField == null)
 		{
-			if (this.operation == Operation.GetAll && phase == Phase.Slicing)
-				((SlicingConstraints)constraintsStack).setExceptionGetAll(true);
+//			if (this.operation == Operation.GetAll && phase == Phase.Slicing)
+//				((SlicingConstraints)constraintsStack).setExceptionGetAll(true);
 			
 			final List<Constraints> constraintsStacks = new LinkedList<Constraints>();
 			constraintsStacks.add(constraintsStack);
