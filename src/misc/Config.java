@@ -16,6 +16,7 @@ public abstract class Config
 	protected final String configurationPath;
 	protected final String miscellaneaPath;
 	protected final String temporaryPath;
+	protected final String testPath;
 
 	/****************************************************************/
 	/************************* Constructor **************************/
@@ -28,6 +29,7 @@ public abstract class Config
 		this.sourcesPath = this.programPath + "src" + File.separator;
 
 		final boolean isJar = projectPath.endsWith(".jar!" + File.separator);
+		this.testPath = "/Users/serperu/Desktop/Benchmarks/";
 		this.rootPath = isJar ? this.programPath + "Resources" + File.separator : this.programPath;
 		this.librariesPath = this.rootPath + "lib" + File.separator;
 		this.configurationPath = this.rootPath + "cfg" + File.separator;
@@ -98,6 +100,10 @@ public abstract class Config
 	/****************************************************************/
 	/**************************** Files *****************************/
 	/****************************************************************/
+	public String getTestPath()
+	{
+	    return this.testPath;
+	}
 	public File getProgramFile()
 	{
 		return new File(this.getProgramPath());
