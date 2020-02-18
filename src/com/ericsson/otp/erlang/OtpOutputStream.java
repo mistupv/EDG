@@ -417,7 +417,7 @@ public class OtpOutputStream extends ByteArrayOutputStream {
 		}
 	    }
 	    writeN(bytes);
-	} catch (final java.io.UnsupportedEncodingException e) {
+	} catch (final UnsupportedEncodingException e) {
 	    /*
 	     * Sigh, why didn't the API designer add an
 	     * OtpErlangEncodeException to these encoding
@@ -881,7 +881,7 @@ public class OtpOutputStream extends ByteArrayOutputStream {
 		// stream is closed, so we do this here, too
 		this.close();
 	    } catch (IOException e) {
-		throw new java.lang.IllegalArgumentException(
+		throw new IllegalArgumentException(
 			"Intermediate stream failed for Erlang object " + o);
 	    }
 	} else {
@@ -911,11 +911,11 @@ public class OtpOutputStream extends ByteArrayOutputStream {
 		    // stream is closed, so we do this here, too
 		    this.close();
 		} catch (IOException e2) {
-		    throw new java.lang.IllegalArgumentException(
+		    throw new IllegalArgumentException(
 			    "Intermediate stream failed for Erlang object " + o);
 		}
 	    } catch (final IOException e) {
-		throw new java.lang.IllegalArgumentException(
+		throw new IllegalArgumentException(
 			"Intermediate stream failed for Erlang object " + o);
 	    } finally {
 		this.fixedSize = Integer.MAX_VALUE;

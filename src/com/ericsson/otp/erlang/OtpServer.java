@@ -57,7 +57,7 @@ public class OtpServer extends OtpSelf {
      * @param self
      *                an existing self node.
      * 
-     * @exception java.io.IOException
+     * @exception IOException
      *                    if a ServerSocket could not be created.
      * 
      */
@@ -77,7 +77,7 @@ public class OtpServer extends OtpSelf {
      *                the authorization cookie that will be used by this node
      *                when accepts connections from remote nodes.
      * 
-     * @exception java.io.IOException
+     * @exception IOException
      *                    if a ServerSocket could not be created.
      * 
      */
@@ -98,7 +98,7 @@ public class OtpServer extends OtpSelf {
      * @param port
      *                the port number to bind the socket to.
      * 
-     * @exception java.io.IOException
+     * @exception IOException
      *                    if a ServerSocket could not be created or if the
      *                    chosen port number was not available.
      * 

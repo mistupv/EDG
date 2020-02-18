@@ -3,8 +3,7 @@
 	<classpathentry kind="src" path="src"/>
 	<classpathentry kind="con" path="org.eclipse.jdt.launching.JRE_CONTAINER"/>
 	<classpathentry combineaccessrules="false" kind="src" path="./EDG"/>
-	<classpathentry combineaccessrules="false" kind="src" path="./Miscellanea"/>
+	<classpathentry combineaccessrules="false" kind="src" path="./EDG/misc"/>
 	<classpathentry kind="lib" path="lib/javaparser-core-3.2.1.jar" sourcepath="lib/javaparser-core-3.2.1-sources.jar"/>
-	<classpathentry kind="lib" path="lib/antlr-4.7-complete.jar"/>
 	<classpathentry kind="output" path="bin"/>
 </classpath>

@@ -135,7 +135,7 @@ public class OtpConnection extends AbstractConnection {
      * 
      * @return an object containing a single Erlang term.
      * 
-     * @exception java.io.IOException
+     * @exception IOException
      *                    if the connection is not active or a communication
      *                    error occurs.
      * 
@@ -172,7 +172,7 @@ public class OtpConnection extends AbstractConnection {
      * 
      * @return an object containing a single Erlang term.
      * 
-     * @exception java.io.IOException
+     * @exception IOException
      *                    if the connection is not active or a communication
      *                    error occurs.
      * 
@@ -209,7 +209,7 @@ public class OtpConnection extends AbstractConnection {
      * 
      * @return an object containing a raw (still encoded) Erlang term.
      * 
-     * @exception java.io.IOException
+     * @exception IOException
      *                    if the connection is not active or a communication
      *                    error occurs.
      * 
@@ -242,7 +242,7 @@ public class OtpConnection extends AbstractConnection {
      * 
      * @return an object containing a raw (still encoded) Erlang term.
      * 
-     * @exception java.io.IOException
+     * @exception IOException
      *                    if the connection is not active or a communication
      *                    error occurs.
      * 
@@ -271,7 +271,7 @@ public class OtpConnection extends AbstractConnection {
      * @return an {@link OtpMsg OtpMsg} containing the header information about
      *         the sender and recipient, as well as the actual message contents.
      * 
-     * @exception java.io.IOException
+     * @exception IOException
      *                    if the connection is not active or a communication
      *                    error occurs.
      * 
@@ -312,7 +312,7 @@ public class OtpConnection extends AbstractConnection {
      * @return an {@link OtpMsg OtpMsg} containing the header information about
      *         the sender and recipient, as well as the actual message contents.
      * 
-     * @exception java.io.IOException
+     * @exception IOException
      *                    if the connection is not active or a communication
      *                    error occurs.
      * 
@@ -354,7 +354,7 @@ public class OtpConnection extends AbstractConnection {
      * @param msg
      *                the message to send.
      * 
-     * @exception java.io.IOException
+     * @exception IOException
      *                    if the connection is not active or a communication
      *                    error occurs.
      */
@@ -372,7 +372,7 @@ public class OtpConnection extends AbstractConnection {
      * @param msg
      *                the message to send.
      * 
-     * @exception java.io.IOException
+     * @exception IOException
      *                    if the connection is not active or a communication
      *                    error occurs.
      */
@@ -390,7 +390,7 @@ public class OtpConnection extends AbstractConnection {
      * @param payload
      *                the encoded message to send.
      * 
-     * @exception java.io.IOException
+     * @exception IOException
      *                    if the connection is not active or a communication
      *                    error occurs.
      */
@@ -407,7 +407,7 @@ public class OtpConnection extends AbstractConnection {
      * @param msg
      *                the encoded message to send.
      * 
-     * @exception java.io.IOException
+     * @exception IOException
      *                    if the connection is not active or a communication
      *                    error occurs.
      */
@@ -438,7 +438,7 @@ public class OtpConnection extends AbstractConnection {
      *                an array of Erlang terms, to be used as arguments to the
      *                function.
      * 
-     * @exception java.io.IOException
+     * @exception IOException
      *                    if the connection is not active or a communication
      *                    error occurs.
      */
@@ -469,7 +469,7 @@ public class OtpConnection extends AbstractConnection {
      *                a list of Erlang terms, to be used as arguments to the
      *                function.
      * 
-     * @exception java.io.IOException
+     * @exception IOException
      *                    if the connection is not active or a communication
      *                    error occurs.
      */
@@ -505,7 +505,7 @@ public class OtpConnection extends AbstractConnection {
      *         two-tuple, otherwise null. No further error checking is
      *         performed.
      * 
-     * @exception java.io.IOException
+     * @exception IOException
      *                    if the connection is not active or a communication
      *                    error occurs.
      * 
@@ -541,7 +541,7 @@ public class OtpConnection extends AbstractConnection {
      * @param dest
      *                the Erlang PID of the remote process.
      * 
-     * @exception java.io.IOException
+     * @exception IOException
      *                    if the connection is not active or a communication
      *                    error occurs.
      */
@@ -557,7 +557,7 @@ public class OtpConnection extends AbstractConnection {
      * @param dest
      *                the Erlang PID of the remote process.
      * 
-     * @exception java.io.IOException
+     * @exception IOException
      *                    if the connection is not active or a communication
      *                    error occurs.
      */
@@ -573,7 +573,7 @@ public class OtpConnection extends AbstractConnection {
      * @param reason
      *                an Erlang term describing the exit reason.
      * 
-     * @exception java.io.IOException
+     * @exception IOException
      *                    if the connection is not active or a communication
      *                    error occurs.
      */

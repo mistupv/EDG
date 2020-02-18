@@ -57,7 +57,7 @@ public class OtpEpmd {
 		try {
 		    env = System.getenv("ERL_EPMD_PORT");
 		} 
-		catch (java.lang.SecurityException e) {
+		catch (SecurityException e) {
 		    env = null;
 		}
 		epmdPort = (env != null) ? Integer.parseInt(env) : 4369;
@@ -114,7 +114,7 @@ public class OtpEpmd {
      * @return the listen port for the specified node, or 0 if the node was not
      *         registered with Epmd.
      * 
-     * @exception java.io.IOException
+     * @exception IOException
      *                if there was no response from the name server.
      */
     public static int lookupPort(final AbstractNode node) throws IOException {
@@ -131,7 +131,7 @@ public class OtpEpmd {
      * @return true if the operation was successful. False if the node was
      *         already registered.
      * 
-     * @exception java.io.IOException
+     * @exception IOException
      *                if there was no response from the name server.
      */
     public static boolean publishPort(final OtpLocalNode node)

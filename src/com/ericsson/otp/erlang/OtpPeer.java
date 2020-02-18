@@ -54,10 +54,10 @@ public class OtpPeer extends AbstractNode {
      * 
      * @return a connection to the remote node.
      * 
-     * @exception java.net.UnknownHostException
+     * @exception UnknownHostException
      *                    if the remote host could not be found.
      * 
-     * @exception java.io.IOException
+     * @exception IOException
      *                    if it was not possible to connect to the remote node.
      * 
      * @exception OtpAuthException

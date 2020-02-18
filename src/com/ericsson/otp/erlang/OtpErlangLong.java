@@ -56,7 +56,7 @@ public class OtpErlangLong extends OtpErlangObject implements Serializable,
      */
     public OtpErlangLong(final BigInteger v) {
 	if (v == null) {
-	    throw new java.lang.NullPointerException();
+	    throw new NullPointerException();
 	}
 	if (v.bitLength() < 64) {
 	    val = v.longValue();

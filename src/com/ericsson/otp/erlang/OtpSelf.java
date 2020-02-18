@@ -134,7 +134,7 @@ public class OtpSelf extends OtpLocalNode {
      * @return true if the operation was successful, false if the node was
      *         already registered.
      * 
-     * @exception java.io.IOException
+     * @exception IOException
      *                    if the port mapper could not be contacted.
      */
     public boolean publishPort() throws IOException {
@@ -170,7 +170,7 @@ public class OtpSelf extends OtpLocalNode {
      * 
      * @return a connection to a remote node.
      * 
-     * @exception java.io.IOException
+     * @exception IOException
      *                    if a remote node attempted to connect but no common
      *                    protocol was found.
      * 
@@ -205,10 +205,10 @@ public class OtpSelf extends OtpLocalNode {
      * 
      * @return a connection to the remote node.
      * 
-     * @exception java.net.UnknownHostException
+     * @exception UnknownHostException
      *                    if the remote host could not be found.
      * 
-     * @exception java.io.IOException
+     * @exception IOException
      *                    if it was not possible to connect to the remote node.
      * 
      * @exception OtpAuthException

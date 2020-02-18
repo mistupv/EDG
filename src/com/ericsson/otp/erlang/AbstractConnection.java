@@ -129,7 +129,7 @@ public abstract class AbstractConnection extends Thread {
      * received when handshaking with the peer node, when the remote node is the
      * connection intitiator.
      * 
-     * @exception java.io.IOException if it was not possible to connect to the
+     * @exception IOException if it was not possible to connect to the
      * peer.
      * 
      * @exception OtpAuthException if handshake resulted in an authentication
@@ -172,7 +172,7 @@ public abstract class AbstractConnection extends Thread {
     /**
      * Intiate and open a connection to a remote node.
      * 
-     * @exception java.io.IOException if it was not possible to connect to the
+     * @exception IOException if it was not possible to connect to the
      * peer.
      * 
      * @exception OtpAuthException if handshake resulted in an authentication
@@ -225,7 +225,7 @@ public abstract class AbstractConnection extends Thread {
      * @param payload
      *            the encoded message to send.
      * 
-     * @exception java.io.IOException
+     * @exception IOException
      *                if the connection is not active or a communication error
      *                occurs.
      */
@@ -269,7 +269,7 @@ public abstract class AbstractConnection extends Thread {
      * @param msg
      *            the encoded message to send.
      * 
-     * @exception java.io.IOException
+     * @exception IOException
      *                if the connection is not active or a communication error
      *                occurs.
      */
@@ -375,7 +375,7 @@ public abstract class AbstractConnection extends Thread {
      * @param dest
      *            the Erlang PID of the remote process.
      * 
-     * @exception java.io.IOException
+     * @exception IOException
      *                if the connection is not active or a communication error
      *                occurs.
      */
@@ -411,7 +411,7 @@ public abstract class AbstractConnection extends Thread {
      * @param dest
      *            the Erlang PID of the remote process.
      * 
-     * @exception java.io.IOException
+     * @exception IOException
      *                if the connection is not active or a communication error
      *                occurs.
      */
@@ -453,7 +453,7 @@ public abstract class AbstractConnection extends Thread {
      * @param reason
      *            an Erlang term describing the exit reason.
      * 
-     * @exception java.io.IOException
+     * @exception IOException
      *                if the connection is not active or a communication error
      *                occurs.
      */

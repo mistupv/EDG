@@ -1,4 +1,4 @@
-package eknife.erlang;
+package eknife.erlang.launcher;
 
 import java.io.File;
 import java.io.IOException;

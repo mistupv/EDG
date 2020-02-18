@@ -44,12 +44,12 @@ public class OtpErlangTuple extends OtpErlangObject implements Serializable,
      * @param elem
      *                the element to create the tuple from.
      * 
-     * @exception java.lang.IllegalArgumentException
+     * @exception IllegalArgumentException
      *                    if the element is null.
      */
     public OtpErlangTuple(final OtpErlangObject elem) {
 	if (elem == null) {
-	    throw new java.lang.IllegalArgumentException(
+	    throw new IllegalArgumentException(
 		    "Tuple element cannot be null");
 	} else {
 	    elems = new OtpErlangObject[] { elem };
@@ -62,7 +62,7 @@ public class OtpErlangTuple extends OtpErlangObject implements Serializable,
      * @param elems
      *                the array of terms to create the tuple from.
      * 
-     * @exception java.lang.IllegalArgumentException
+     * @exception IllegalArgumentException
      *                    if the array is empty (null) or contains null
      *                    elements.
      */
@@ -80,14 +80,14 @@ public class OtpErlangTuple extends OtpErlangObject implements Serializable,
      * @param count
      *                the number of terms to insert.
      * 
-     * @exception java.lang.IllegalArgumentException
+     * @exception IllegalArgumentException
      *                    if the array is empty (null) or contains null
      *                    elements.
      */
     public OtpErlangTuple(final OtpErlangObject[] elems, final int start,
 	    final int count) {
 	if (elems == null) {
-	    throw new java.lang.IllegalArgumentException(
+	    throw new IllegalArgumentException(
 		    "Tuple content can't be null");
 	} else if (count < 1) {
 	    this.elems = NO_ELEMENTS;
@@ -97,7 +97,7 @@ public class OtpErlangTuple extends OtpErlangObject implements Serializable,
 		if (elems[start + i] != null) {
 		    this.elems[i] = elems[start + i];
 		} else {
-		    throw new java.lang.IllegalArgumentException(
+		    throw new IllegalArgumentException(
 			    "Tuple element cannot be null (element"
 				    + (start + i) + ")");
 		}

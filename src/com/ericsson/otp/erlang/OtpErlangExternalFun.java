@@ -59,7 +59,7 @@ public class OtpErlangExternalFun extends OtpErlangObject {
 
     @Override
     protected int doHashCode() {
-	OtpErlangObject.Hash hash = new OtpErlangObject.Hash(14);
+	Hash hash = new Hash(14);
 	hash.combine(module.hashCode(), function.hashCode());
 	hash.combine(arity);
 	return hash.valueOf();

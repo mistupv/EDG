@@ -41,18 +41,18 @@ public class OtpErlangAtom extends OtpErlangObject implements Serializable,
      * @param atom
      *                the string to create the atom from.
      * 
-     * @exception java.lang.IllegalArgumentException
+     * @exception IllegalArgumentException
      *                    if the string is null or contains more than
      *                    {@link #maxAtomLength maxAtomLength} characters.
      */
     public OtpErlangAtom(final String atom) {
 	if (atom == null) {
-	    throw new java.lang.IllegalArgumentException(
+	    throw new IllegalArgumentException(
 		    "null string value");
 	}
 
 	if (atom.codePointCount(0, atom.length()) > maxAtomLength) {
-	    throw new java.lang.IllegalArgumentException("Atom may not exceed "
+	    throw new IllegalArgumentException("Atom may not exceed "
 		    + maxAtomLength + " characters: " + atom);
 	}
 	this.atom = atom;

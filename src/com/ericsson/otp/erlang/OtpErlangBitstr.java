@@ -65,11 +65,11 @@ public class OtpErlangBitstr extends OtpErlangObject implements Serializable,
 
     private void check_bitstr(final byte[] bin, final int pad_bits) {
 	if (pad_bits < 0 || 7 < pad_bits) {
-	    throw new java.lang.IllegalArgumentException(
+	    throw new IllegalArgumentException(
 		    "Padding must be in range 0..7");
 	}
 	if (pad_bits != 0 && bin.length == 0) {
-	    throw new java.lang.IllegalArgumentException(
+	    throw new IllegalArgumentException(
 		    "Padding on zero length bitstr");
 	}
 	if (bin.length != 0) {
@@ -111,20 +111,20 @@ public class OtpErlangBitstr extends OtpErlangObject implements Serializable,
 	    bin = toByteArray(o);
 	    pad_bits = 0;
 	} catch (final IOException e) {
-	    throw new java.lang.IllegalArgumentException(
+	    throw new IllegalArgumentException(
 		    "Object must implement Serializable");
 	}
     }
 
     private static byte[] toByteArray(final Object o)
-	    throws java.io.IOException {
+	    throws IOException {
 
 	if (o == null) {
 	    return null;
 	}
 
 	/* need to synchronize use of the shared baos */
-	final java.io.ByteArrayOutputStream baos = new ByteArrayOutputStream();
+	final ByteArrayOutputStream baos = new ByteArrayOutputStream();
 	final java.io.ObjectOutputStream oos = new java.io.ObjectOutputStream(
 		baos);
 
@@ -145,8 +145,8 @@ public class OtpErlangBitstr extends OtpErlangObject implements Serializable,
 	    final java.io.ObjectInputStream ois = new java.io.ObjectInputStream(
 		    bais);
 	    return ois.readObject();
-	} catch (final java.lang.ClassNotFoundException e) {
-	} catch (final java.io.IOException e) {
+	} catch (final ClassNotFoundException e) {
+	} catch (final IOException e) {
 	}
 
 	return null;
@@ -173,7 +173,7 @@ public class OtpErlangBitstr extends OtpErlangObject implements Serializable,
 	    return bin.length;
 	}
 	if (bin.length == 0) {
-	    throw new java.lang.IllegalStateException("Impossible length");
+	    throw new IllegalStateException("Impossible length");
 	}
 	return bin.length - 1;
     }
@@ -216,7 +216,7 @@ public class OtpErlangBitstr extends OtpErlangObject implements Serializable,
 	    return "#Bin<" + bin.length + ">";
 	}
 	if (bin.length == 0) {
-	    throw new java.lang.IllegalStateException("Impossible length");
+	    throw new IllegalStateException("Impossible length");
 	}
 	return "#Bin<" + bin.length + "-" + pad_bits + ">";
     }
