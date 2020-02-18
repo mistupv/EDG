@@ -4,8 +4,12 @@ public class ListConstraint extends AccessConstraint
 {
 	public enum Position { H, T }
 
-	private Position position;
+	protected final Position position;
 
+	public ListConstraint(Operation operation)
+	{
+		this(operation, null);
+	}
 	public ListConstraint(Operation operation, Position position)
 	{
 		super(operation, AccessConstraint.CompositeType.List);
@@ -20,6 +24,8 @@ public class ListConstraint extends AccessConstraint
 
 	public boolean equals(Object object)
 	{
+		if (object == this)
+			return true;
 		if (!(object instanceof ListConstraint))
 			return false;
 
@@ -33,7 +39,9 @@ public class ListConstraint extends AccessConstraint
 	}
 	public String toString()
 	{
-		return super.toString() + this.position.toString();
+		if (this.position != null)
+			return super.toString() + this.position.toString();
+		return super.toString();
 	}
 
 	public ListConstraint opposite()

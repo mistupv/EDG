@@ -1,49 +1,53 @@
 package edg.graph;
 
+import edg.LDASTNodeInfo;
+
 public class NodeInfo
 {
-	// TODO Group types
 	public static enum Type
 	{
-		// Functions
-		Function,
+		// Module
+		Module,
 
-		// Clauses
-		Clause, Guard,
-
-		// Patterns
-		TuplePattern, ListPattern, BinPattern, BinElementPattern, CompoundPattern,
+		// Routine
+		Routine, Clause, Parameters,
 
 		// Expressions
-		FunctionIdentifier, Block, TupleExpression, ListExpression, BinExpression, BinElementExpression, Operation,
-		PatternMatching, Case, If, ListComprehension, BinComprehension, FunctionCall,
-		AnonymousFunction,
+		List, DataConstructor, DataConstructorAccess,
+		Block, Operation, Equality,
+		If, Condition,
+		Switch, Selector, Cases, Case, DefaultCase, Selectable,
+		Call, Callee, Scope, Name, Arguments,
+		ListComprehension, Restrictions, Generator, Filter, Value,
+		Loop, // <- DEPRECATED 
+		CLoop, FLoop, RLoop,
 
 		// Others
-		Body, Return, ListComprehensionResult, BinComprehensionResult,
-		Record, Remote, Atom, String, Integer, Char, Default, Variable, Generator, BinGenerator,
-		Root, Other
+		Body, Guard,
+		Expression, Result,
+		Variable, Literal,
+		Return, Break, Continue,
+		Root,
+		
+		// ADDED 
+		Init, Update, 
+		TypeCheck, // JAVA instanceof 
+		TypeTransformation,
+		Type,
+		ArgumentIn, ArgumentOut
 	}
-
-	private static int nextId = 0;
 
 	private final int id;
 	private final Type type;
-	private final long line;
-	private final String text;
-	private final Object[] info;
+	private final String name;
+	private final LDASTNodeInfo ldASTNodeInfo;
 
-	public NodeInfo(Type type, long line, String text, Object... info)
-	{
-		this(NodeInfo.nextId++, type, line, text, info);
-	}
-	public NodeInfo(int id, Type type, long line, String text, Object... info)
+	public NodeInfo(int id, Type type, String name, LDASTNodeInfo ldASTNodeInfo)
 	{
 		this.id = id;
-		this.line = line;
 		this.type = type;
-		this.text = text;
-		this.info = info;
+		this.name = name;
+		this.ldASTNodeInfo = ldASTNodeInfo;
 	}
 
 	public int getId()
@@ -54,33 +58,35 @@ public class NodeInfo
 	{
 		return this.type;
 	}
-	public long getLine()
+	public String getName()
 	{
-		return this.line;
+		return this.name;
 	}
-	public String getText()
+	public LDASTNodeInfo getInfo()
 	{
-		return this.text;
-	}
-	public Object[] getInfo()
-	{
-		return this.info;
+		return this.ldASTNodeInfo;
 	}
 
 	public boolean isFictitious()
 	{
-		if (this.type == Type.Root)
-			return true;
-		if (this.type == Type.Body)
-			return true;
-		if (this.type == Type.Return)
-			return true;
-		if (this.type == Type.ListComprehensionResult)
-			return true;
-		if (this.type == Type.Variable && this.text.equals("_"))
-			return true;
-		if (this.type == Type.Atom && (this.text.equals("undef") || this.text.equals("funundef")))
-			return true;
-		return false;
+		switch (this.type)
+		{
+			case Root:
+			case Parameters:
+			case Guard:
+			case Body:
+			case Selector:
+			case Cases:
+			case Selectable:
+			case Callee:
+			case Arguments:
+			case Expression:
+			case Result:
+			case Restrictions:
+			case Value:
+				return true;
+			default:
+				return false;
+		}
 	}
 }

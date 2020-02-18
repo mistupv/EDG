@@ -1,0 +1,80 @@
+package edg.constraint;
+
+import java.util.Arrays;
+import java.util.List;
+
+import edg.graph.Edge;
+import edg.slicing.Phase;
+
+public class PhaseConstraint extends EdgeConstraint
+{
+	private final List<Phase> allowedPhases;
+
+	public PhaseConstraint(Phase... phases)
+	{
+		this.allowedPhases = Arrays.asList(phases);
+	}
+
+	public boolean equals(Object object)
+	{
+		if (object == this)
+			return true;
+		if (!(object instanceof PhaseConstraint))
+			return false;
+
+		final PhaseConstraint constraint = (PhaseConstraint) object;
+
+		if (this.allowedPhases.equals(constraint.allowedPhases))
+			return false;
+		return true;
+	}
+	public String toString()
+	{
+		if (this.allowedPhases.size() == 1)
+			return this.allowedPhases.get(0).name();
+		return this.allowedPhases.toString();
+	}
+
+	private boolean allows(Phase phase)
+	{
+		for (Phase allowedPhase : this.allowedPhases)
+			if (phase.isInstanceof(allowedPhase))
+				return true;
+		return false;
+	}
+
+	protected List<Constraints> resolve(Phase phase, Edge edge, Constraints constraints, int productionDepth)
+	{
+		if (this.allows(phase))
+			return super.wrap(constraints);
+		return super.wrap();
+	}
+	protected List<Constraints> resolve(Phase phase, Edge edge, Constraints constraints, AccessConstraint topConstraint, int productionDepth)
+	{
+		if (this.allows(phase))
+			return super.wrap(constraints);
+		return super.wrap();
+	}
+	protected List<Constraints> resolve(Phase phase, Edge edge, Constraints constraints, GrammarConstraint topConstraint, int productionDepth)
+	{
+		super.check(phase, Phase.SummaryGeneration);
+
+		if (this.allows(phase))
+			return super.wrap(constraints);
+		return super.wrap();
+	}
+	protected List<Constraints> resolve(Phase phase, Edge edge, Constraints constraints, SeekingConstraint topConstraint, int productionDepth)
+	{
+		if (this.allows(phase))
+			return super.wrap(constraints);
+		return super.wrap();
+	}
+	protected List<Constraints> resolve(Phase phase, Edge edge, Constraints constraints, AsteriskConstraint topConstraint, int productionDepth)
+	{
+		super.check(phase, Phase.SummaryGeneration);
+
+		if (this.allows(phase))
+			return super.wrap(constraints);
+		return super.wrap();
+	}
+}

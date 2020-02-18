@@ -1,9 +1,11 @@
 package edg;
 
 import java.io.File;
+import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 
-import edg.constraint.Constraint;
+import edg.constraint.EdgeConstraint;
 import edg.graph.EDG;
 import edg.graph.Edge;
 import edg.graph.EdgeInfo;
@@ -12,21 +14,20 @@ import misc.Misc;
 
 public class DotFactory
 {
-	public static File createDot(String outputPath, EDG edg)
+	public static void createDot(File outputFile, EDG edg)
 	{
-		return DotFactory.createDot(outputPath, edg, null, null);
+		DotFactory.createDot(outputFile, edg, null, null, null);
 	}
-	public static File createDot(String outputPath, EDG edg, Node slicingCriterium, List<Node> slice)
+	public static void createDot(File outputFile, EDG edg, Map<EdgeInfo.Type, Boolean> edgeFlags)
 	{
-		final File outputFile = new File(outputPath);
-
-		DotFactory.createDot(outputFile, edg, slicingCriterium, slice);
-
-		return outputFile;
+		DotFactory.createDot(outputFile, edg, null, null, edgeFlags);
 	}
-	public static void createDot(File outputFile, EDG edg, Node slicingCriterium, List<Node> slice)
+	public static void createDot(File outputFile, EDG edg, Node slicingCriterion, List<Node> slice)
 	{
-		final Node root = edg.getRootNode();
+		DotFactory.createDot(outputFile, edg, slicingCriterion, slice, null);
+	}
+	public static void createDot(File outputFile, EDG edg, Node slicingCriterion, List<Node> slice, Map<EdgeInfo.Type, Boolean> edgeFlags)
+	{
 		final List<Node> nodes = edg.getNodes();
 		final List<Edge> edges = edg.getEdges();
 		String text = "digraph PDG {\n";
@@ -35,11 +36,9 @@ public class DotFactory
 		Misc.write(outputFile, "", false);
 		for (Node node : nodes)
 		{
-			if (node == root)
-				continue;
-			final boolean sliceCriterium = node == slicingCriterium;
+			final boolean sliceCriterion = node == slicingCriterion;
 			final boolean sliceNode = slice != null && slice.contains(node);
-			final String nodeText = DotFactory.parseNode(node, sliceCriterium, sliceNode);
+			final String nodeText = DotFactory.parseNode(node, sliceCriterion, sliceNode);
 			text += "\t" + nodeText + ";\n";
 
 			if (++lines % 100 == 0)
@@ -50,7 +49,8 @@ public class DotFactory
 		}
 		for (Edge edge : edges)
 		{
-			if (edge.getFrom() == root || edge.getTo() == root)
+			final EdgeInfo.Type edgeType = edge.getData().getType();
+			if (edgeType != EdgeInfo.Type.Structural && edgeFlags != null && !edgeFlags.get(edgeType))
 				continue;
 
 			final String edgeText = DotFactory.parseEdge(edge);
@@ -67,25 +67,21 @@ public class DotFactory
 		Misc.write(outputFile, text, true);
 	}
 
-	private static String parseNode(Node node, boolean sliceCriterium, boolean sliceNode)
+	private static String parseNode(Node node, boolean sliceCriterion, boolean sliceNode)
 	{
 		final String id = node.getData().getId() + "";
 		final String name = node.getName().replace("\n", "\\n");
-		final boolean fictitious = node.getData().isFictitious();
-
 		String text = "";
 
 		text += id + " ";
 		text += "[";
 		text += "shape=ellipse ";
-		text += "penwidth=" + (sliceCriterium ? "4" : "1") + " ";
+		text += "penwidth=" + (sliceCriterion ? "4" : "1") + " ";
 		text += "style=filled ";
-		text += "color=\"" + (sliceCriterium ? "blue" : "gray") + "\" ";
+		text += "color=\"" + (sliceCriterion ? "blue" : "gray") + "\" ";
 		text += "label=\"" + "Id = " + id + "\\n" + name + "\" ";
 		text += "fontcolor=\"" + (sliceNode ? "blue" : "black") + "\" ";
 		text += "fillcolor=\"" + (sliceNode ? "green" : "gray") + "\" ";
-		if (fictitious)
-			text += "fictitious=true ";
 		text = text.trim();
 		text += "]";
 
@@ -94,35 +90,66 @@ public class DotFactory
 	private static String parseEdge(Edge edge)
 	{
 		final EdgeInfo.Type edgeType = edge.getData().getType();
-		final Constraint constraint = edge.getData().getConstraint();
+		final EdgeConstraint constraint = edge.getData().getConstraint();
+		final int idFrom = edge.getFrom().getData().getId();
+		final int idTo = edge.getTo().getData().getId();
 		String text = "";
 
-		text += edge.getFrom().getData().getId() + " -> " + edge.getTo().getData().getId() + " ";
+// TODO Borrame
+			
+if (edgeType != EdgeInfo.Type.Structural) {
+final List<EdgeInfo.Type> ignoreEdgeTypes = Arrays.asList(EdgeInfo.Type.ControlFlow);
+final List<EdgeInfo.Type> edgeTypes = Arrays.asList(EdgeInfo.Type.Flow, EdgeInfo.Type.Output, EdgeInfo.Type.Input); // Introducir aqui el tipo de arcos que quieres mostrar
+final int[] boundNodeIds = {}; // Introducir aqui los extremos del intervalo en el que se quieren ver los arcos
+final List<Integer> nodesIds = Arrays.asList(107,73,13); // Introducir aqui los nodos de los que se quieren ver los arcos
+
+if (ignoreEdgeTypes.contains(edgeType))
+return "";
+if (!edgeTypes.isEmpty() && !edgeTypes.contains(edgeType))
+return "";
+if (boundNodeIds.length == 2)
+if (idFrom < boundNodeIds[0] || idTo < boundNodeIds[0] || idFrom > boundNodeIds[1] || idTo > boundNodeIds[1])
+return "";
+if (!nodesIds.isEmpty() && !nodesIds.contains(idFrom) && !nodesIds.contains(idTo))
+return "";
+}
+
+		text += idFrom + " -> " + idTo + " ";
 		text += "[";
-		if (constraint != null)
+		if (constraint != null && edgeType != EdgeInfo.Type.Structural && edgeType != EdgeInfo.Type.Control)
 			text += "label=\"" + constraint + "\", ";
 
 		switch (edgeType)
 		{
-			case NormalControl:
+			case Structural:
 				text += "color=black, ";
 				text += "penwidth=3";
 				break;
-			case StructuralControl:
-				text += "color=black, ";
+			case ControlFlow:
+				text += "color=red, ";
 				text += "penwidth=3, ";
-				text += "style=\"dotted\"";
+				text += "constraint=false";
 				break;
-			case GuardRestriction:
-			case FlowDependence:
+			case Control:
+				text += "color=orange, ";
+				text += "constraint=false, ";
+				text += "penwidth=3";
+				break;
+			case Value:
 				text += "color=red, ";
 				text += "constraint=false, ";
 				text += "style=\"dotted\"";
 				break;
-			case ValueDependence:
-				text += "color=black, ";
+			case Flow:
+				text += "color=blue, ";
 				text += "constraint=false, ";
 				text += "style=\"dotted\"";
+				break;
+			case Call:
+				text += "color=green3, ";
+				text += "penwidth=3, ";
+				text += "constraint=false, ";
+				text += "style=\"dashed\"";
 				break;
 			case Input:
 				text += "color=green3, ";
@@ -131,14 +158,14 @@ public class DotFactory
 				text += "style=\"dashed\"";
 				break;
 			case Output:
-				text += "color=blue3, ";
+				text += "color=green3, ";
 				text += "penwidth=3, ";
 				text += "constraint=false, ";
 				text += "style=\"dashed\"";
 				break;
 			case Summary:
 				text += "color=brown, ";
-				text += "penwidth=7, ";
+				text += "penwidth=4, ";
 				text += "constraint=false";
 				break;
 			default:

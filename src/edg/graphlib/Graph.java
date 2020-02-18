@@ -152,7 +152,7 @@ public class Graph<T, S> {
    *           if from/to are not verticies in the graph
    */
   public boolean addEdge(Vertex<T, S> from, Vertex<T, S> to, int cost) throws IllegalArgumentException {
-	  return this.addEdge(from, to, cost, null);
+    return this.addEdge(from, to, cost, null);
   }
 
   /**
@@ -171,12 +171,30 @@ public class Graph<T, S> {
    *           if from/to are not verticies in the graph
    */
   public boolean addEdge(Vertex<T, S> from, Vertex<T, S> to, int cost, S data) throws IllegalArgumentException {
+    Arrow<T, S> e = new Arrow<T, S>(from, to, cost, data);
+    return this.addEdge(e);
+  }
+
+  /**
+   * Insert a directed, weighted Edge<T, S> into the graph.
+   * 
+   * @param e -
+   *          the Edge<T, S>
+   * @return true if the Edge<T, S> was added, false if from already has this Edge<T, S>
+   * @throws IllegalArgumentException
+   *           if from/to are not verticies in the graph
+   */
+  public boolean addEdge(Arrow<T, S> e) {
+    Vertex<T, S> from = e.getFrom();
+    Vertex<T, S> to = e.getTo();
+    int cost = e.getCost();
+    S data = e.getData();
+
     if (verticies.contains(from) == false)
       throw new IllegalArgumentException("from is not in graph");
     if (verticies.contains(to) == false)
       throw new IllegalArgumentException("to is not in graph");
 
-    Arrow<T, S> e = new Arrow<T, S>(from, to, cost, data);
     List<Arrow<T, S>> es2 = from.findEdges(to);
 
     for (Arrow<T, S> e2 : es2)
@@ -244,8 +262,9 @@ public class Graph<T, S> {
     for (int n = 0; n < v.getIncomingEdgeCount(); n++) {
       Arrow<T, S> e = v.getIncomingEdge(n);
       v.remove(e);
-      Vertex<T, S> predecessor = e.getFrom();
-      predecessor.remove(e);
+      Vertex<T, S> from = e.getFrom();
+      from.remove(e);
+      edges.remove(e);
     }
     return true;
   }

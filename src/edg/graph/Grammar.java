@@ -5,69 +5,48 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 
-import edg.constraint.Constraint;
-import edg.constraint.SummaryConstraint;
+import edg.constraint.Constraints;
+import edg.constraint.GrammarConstraint;
 
 public class Grammar
 {
-	private final Map<Node, SummaryConstraint> summaries = new HashMap<Node, SummaryConstraint>();
-	private final Map<SummaryConstraint, List<List<Constraint>>> grammar = new HashMap<SummaryConstraint, List<List<Constraint>>>();
+	private final Map<Node, GrammarConstraint> grammarConstraints = new HashMap<Node, GrammarConstraint>();
+	private final Map<GrammarConstraint, List<Constraints>> grammar = new HashMap<GrammarConstraint, List<Constraints>>();
 
-	private List<List<Constraint>> createProductions(SummaryConstraint summaryConstraint)
+	private List<Constraints> createProductions(GrammarConstraint grammarConstraint)
 	{
-		List<List<Constraint>> productions = this.getProductions(summaryConstraint);
+		List<Constraints> productions = this.getProductions(grammarConstraint);
 
 		if (productions == null)
 		{
-			productions = new LinkedList<List<Constraint>>();
-			this.grammar.put(summaryConstraint, productions);
+			productions = new LinkedList<Constraints>();
+			this.grammar.put(grammarConstraint, productions);
 		}
 
 		return productions;
 	}
-	public List<List<Constraint>> getProductions(SummaryConstraint summaryConstraint)
+	public List<Constraints> getProductions(GrammarConstraint grammarConstraint)
 	{
-		final Node summaryFormalIn = summaryConstraint.getFormalIn();
-		SummaryConstraint summary = this.summaries.get(summaryFormalIn);
+		final Node refNode = grammarConstraint.getRefNode();
+		GrammarConstraint grammarConstraint0 = this.grammarConstraints.get(refNode);
 
-		if (summary == null)
+		if (grammarConstraint0 == null)
 		{
-			summary = summaryConstraint;
-			this.summaries.put(summaryFormalIn, summary);
+			grammarConstraint0 = grammarConstraint;
+			this.grammarConstraints.put(refNode, grammarConstraint0);
 		}
 
-		return this.grammar.get(summary);
+		return this.grammar.get(grammarConstraint0);
 	}
-	public void addProduction(SummaryConstraint summaryConstraint, List<Constraint> production)
+	public void addProduction(GrammarConstraint grammarConstraint, Constraints production)
 	{
-		final List<List<Constraint>> productions = this.createProductions(summaryConstraint);
+		if (production.sizeEdgeConstraints() == 1 && production.getEdgeConstraint(0).equals(grammarConstraint))
+			return; // Ignore recursive productions
 
+		final List<Constraints> productions = this.createProductions(grammarConstraint);
 		if (productions.contains(production))
 			return; // Do not add duplicated productions
-		if (production.size() == 1 && production.get(0).equals(summaryConstraint))
-			return; // Ignore recursive productions
 
 		productions.add(production);
 	}
-
-// TODO Delete
-public void printGrammar(Constraint constraint)
-{
-	this.printGrammar(constraint, new LinkedList<Constraint>());
-}
-public void printGrammar(Constraint constraint, List<Constraint> processedConstraints)
-{
-	if (!(constraint instanceof SummaryConstraint) || processedConstraints.contains(constraint))
-		return;
-	final SummaryConstraint summaryConstraint = (SummaryConstraint) constraint;
-	final List<List<Constraint>> productions = this.getProductions(summaryConstraint);
-
-	System.out.println(summaryConstraint + ")");
-	for (List<Constraint> production : productions)
-		System.out.println("\t" + production);
-	processedConstraints.add(constraint);
-	for (List<Constraint> production : productions)
-		for (Constraint constraint0 : production)
-			this.printGrammar(constraint0, processedConstraints);
-}
 }

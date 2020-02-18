@@ -169,9 +169,9 @@ public class Vertex<T, S> {
    */
   public boolean remove(Arrow<T, S> e) {
     if (e.getFrom() == this)
-      incomingEdges.remove(e);
-    else if (e.getTo() == this)
       outgoingEdges.remove(e);
+    else if (e.getTo() == this)
+      incomingEdges.remove(e);
     else
       return false;
     return true;

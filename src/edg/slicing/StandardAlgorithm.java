@@ -1,5 +1,6 @@
-package edg.slicingAlgorithm;
+package edg.slicing;
 
+import java.util.Arrays;
 import java.util.LinkedList;
 import java.util.List;
 
@@ -21,21 +22,22 @@ public class StandardAlgorithm implements SlicingAlgorithm
 
 		return slice;
 	}
-	private void traverse(List<Node> slice, EdgeInfo.Type ignoreEdgeType)
+	private void traverse(List<Node> slice, EdgeInfo.Type... ignoreEdgeTypes)
 	{
 		final List<Node> pendingNodes = new LinkedList<Node>(slice);
+		final List<EdgeInfo.Type> listIgnoreEdgeTypes = Arrays.asList(ignoreEdgeTypes);
 
 		while (!pendingNodes.isEmpty())
 		{
 			final Node pendingNode = pendingNodes.remove(0);
 			final List<Edge> incomingEdges = pendingNode.getIncomingEdges();
 
+			incomingEdges.removeIf(edge -> edge.getData().getType() == EdgeInfo.Type.ControlFlow);
+			incomingEdges.removeIf(edge -> listIgnoreEdgeTypes.contains(edge.getData().getType()));
 			for (Edge incomingEdge : incomingEdges)
 			{
 				final Node nodeFrom = incomingEdge.getFrom();
 				if (slice.contains(nodeFrom))
-					continue;
-				if (incomingEdge.getData().getType() == ignoreEdgeType)
 					continue;
 
 				pendingNodes.add(nodeFrom);

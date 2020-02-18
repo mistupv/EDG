@@ -1,4 +1,4 @@
-package edg.slicingAlgorithm;
+package edg.slicing;
 
 import java.util.List;
 
