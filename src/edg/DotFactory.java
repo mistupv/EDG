@@ -99,9 +99,9 @@ public class DotFactory
 			
 if (edgeType != EdgeInfo.Type.Structural) {
 final List<EdgeInfo.Type> ignoreEdgeTypes = Arrays.asList();
-final List<EdgeInfo.Type> edgeTypes = Arrays.asList(EdgeInfo.Type.ControlFlow); // Introducir aqui el tipo de arcos que quieres mostrar
+final List<EdgeInfo.Type> edgeTypes = Arrays.asList(EdgeInfo.Type.Flow, EdgeInfo.Type.Control,EdgeInfo.Type.ControlFlow,EdgeInfo.Type.Call); // Introducir aqui el tipo de arcos que quieres mostrar
 final int[] boundNodeIds = {}; // Introducir aqui los extremos del intervalo en el que se quieren ver los arcos
-final List<Integer> nodesIds = Arrays.asList(15,54,81,50); // Introducir aqui los nodos de los que se quieren ver los arcos
+final List<Integer> nodesIds = Arrays.asList(); // Introducir aqui los nodos de los que se quieren ver los arcos
 
 if (ignoreEdgeTypes.contains(edgeType))
 return "";
@@ -158,7 +158,7 @@ return "";
 				text += "style=\"dashed\"";
 				break;
 			case Output:
-				text += "color=green3, ";
+				text += "color=pink, ";
 				text += "penwidth=3, ";
 				text += "constraint=false, ";
 				text += "style=\"dashed\"";
@@ -166,6 +166,11 @@ return "";
 			case Summary:
 				text += "color=brown, ";
 				text += "penwidth=4, ";
+				text += "constraint=false";
+				break;
+			case Exception:
+				text += "color=orange, ";
+				text += "penwidth=3, ";
 				text += "constraint=false";
 				break;
 			default:

@@ -3,9 +3,12 @@ package edg.edge;
 import java.util.List;
 
 import edg.constraint.AccessConstraint;
+import edg.constraint.AddNodeConstraint;
 import edg.constraint.EdgeConstraint;
+import edg.constraint.IgnoreEdgeConstraint;
 import edg.constraint.ListComprehensionConstraint;
 import edg.constraint.ListConstraint;
+import edg.constraint.NodeConstraint;
 import edg.constraint.AsteriskConstraint;
 import edg.constraint.DataConstructorConstraint;
 import edg.graph.EDG;
@@ -33,6 +36,22 @@ public class ValueEdgeGenerator extends EdgeGenerator
 		this.generateSwitchEdges();
 		this.generateListComprehensionEdges();
 		this.generateRoutineCallEdges();
+		this.generateReturnEdges();
+		this.generateRoutineEdges();
+		this.generateTypeEdges(); // ADDED
+	}
+	public void generateJava()	// GLOBAL VARIABLE ADAPTATION
+	{
+		this.generateVariableEdges();
+		this.generateLiteralEdges();
+		this.generateEqualityEdges();
+		this.generateDataConstructorEdges();
+		this.generateListEdges();
+		this.generateDataConstructorAccessEdges();
+		this.generateOperationEdges();
+		this.generateSwitchJavaEdges();
+		this.generateListComprehensionEdges();
+		this.generateRoutineCallEdgesJava(); // THESE CALL EDGES ARE DIFFERENT IN JAVA
 		this.generateReturnEdges();
 		this.generateRoutineEdges();
 		this.generateTypeEdges(); // ADDED
@@ -141,19 +160,23 @@ public class ValueEdgeGenerator extends EdgeGenerator
 	private void generateDataConstructorAccessEdges()
 	{
 		final List<Node> dataConstructorAccesses = EDGTraverser.getNodes(this.edg, NodeInfo.Type.DataConstructorAccess);
+		final List<Node> fieldAccesses = EDGTraverser.getNodes(this.edg, NodeInfo.Type.FieldAccess);
+		dataConstructorAccesses.addAll(fieldAccesses);
 
 		for (Node dataConstructorAccess : dataConstructorAccesses)
 		{
 			final Node dataConstructorAccessResult = EDGTraverser.getResult(dataConstructorAccess);
 			final Node dataConstructor = EDGTraverser.getChild(dataConstructorAccess, 0);
-			final Node dataConstructorResult = EDGTraverser.getResult(dataConstructor);
+			final Node dataConstructorName = EDGTraverser.getChild(dataConstructor, 0);
+//			final Node dataConstructorResult = EDGTraverser.getResult(dataConstructor);
 			final Node indexExpression = EDGTraverser.getChild(dataConstructorAccess, 1);
 			final Node index = EDGTraverser.getChild(indexExpression, 0);
 			final Node indexResult = EDGTraverser.getResult(index);
-			final String indexValue = index.getData().getType() == NodeInfo.Type.Literal ? index.getData().getName() : "*";
-			final EdgeConstraint constraint = new DataConstructorConstraint(AccessConstraint.Operation.Add, indexValue);
+//			final String indexValue = index.getData().getType() == NodeInfo.Type.Literal ? index.getData().getName() : "*";
+//			final EdgeConstraint constraint = new DataConstructorConstraint(AccessConstraint.Operation.Add, indexValue);
 
-			this.edg.addEdge(dataConstructorResult, dataConstructorAccessResult, 0, new EdgeInfo(EdgeInfo.Type.Value, constraint));
+			//this.edg.addEdge(dataConstructorResult, dataConstructorAccessResult, 0, new EdgeInfo(EdgeInfo.Type.Value, constraint));
+			this.edg.addEdge(dataConstructorName, dataConstructorAccessResult, 0, new EdgeInfo(EdgeInfo.Type.Value));
 			this.edg.addEdge(indexResult, dataConstructorAccessResult, 0, new EdgeInfo(EdgeInfo.Type.Value, AsteriskConstraint.getConstraint()));
 		}
 	}
@@ -199,6 +222,37 @@ public class ValueEdgeGenerator extends EdgeGenerator
 			}
 		}
 	}
+	private void generateSwitchJavaEdges() // REVIEW CONTROL DEPENDENCE IN JAVA SWITCH
+	{
+		final List<Node> switches = EDGTraverser.getNodes(this.edg, NodeInfo.Type.Switch);
+
+		for (Node _switch : switches)
+		{
+			final Node selectorNode = EDGTraverser.getChild(_switch, 0);
+			final Node casesNode = EDGTraverser.getChild(_switch, 1);
+			final List<Node> selectors = EDGTraverser.getChildren(selectorNode);
+			final List<Node> cases = EDGTraverser.getChildren(casesNode);
+
+			for (Node _case : cases)
+			{
+				final Node selectableNode = EDGTraverser.getChild(_case, 0);
+				if (selectableNode.getData().getType() != NodeInfo.Type.Selectable)
+					continue;
+				
+				final List<Node> selectables = EDGTraverser.getChildren(selectableNode);
+				if (selectors.isEmpty() || selectables.isEmpty())
+					continue;
+				
+				final Node selector = selectors.get(0);
+				final Node selectable = selectables.get(0);
+				
+				final Node selectorResult = EDGTraverser.getResult(selector);
+				final Node selectableResult = EDGTraverser.getResult(selectable);
+				this.edg.addEdge(selectorResult, selectableResult, 0, new EdgeInfo(EdgeInfo.Type.Control));
+			}
+		}
+	}
+
 	private void generateListComprehensionEdges()
 	{
 		final List<Node> listComprehensionNodes = EDGTraverser.getNodes(this.edg, NodeInfo.Type.ListComprehension);
@@ -244,6 +298,37 @@ public class ValueEdgeGenerator extends EdgeGenerator
 				final List<Node> inputs = EDGTraverser.getInputs(calleeResult, EDGTraverser.Direction.Forwards);
 				if (inputs.isEmpty())
 					this.edg.addEdge(callResult, scopeResult, 0, new EdgeInfo(EdgeInfo.Type.Value));
+			}	
+			
+			final Node nameNode = EDGTraverser.getChild(callee, 1);
+			final Node name = EDGTraverser.getChild(nameNode, 0);
+			final Node nameResult = EDGTraverser.getResult(name);
+			this.edg.addEdge(nameResult, calleeResult, 0, new EdgeInfo(EdgeInfo.Type.Value));
+		}
+	}
+	private void generateRoutineCallEdgesJava()
+	{
+		final List<Node> calls = EDGTraverser.getNodes(this.edg, NodeInfo.Type.Call);
+
+		for (Node call : calls)
+		{
+			final Node callResult = EDGTraverser.getResult(call);
+			final Node callee = EDGTraverser.getChild(call, 0);
+			final Node calleeResult = EDGTraverser.getChild(callee, 2);
+			this.edg.addEdge(calleeResult, callResult, 0, new EdgeInfo(EdgeInfo.Type.Value, AsteriskConstraint.getConstraint()));
+
+			final Node scopeNode = EDGTraverser.getChild(callee, 0);
+			final List<Node> scopeChildren = EDGTraverser.getChildren(scopeNode);
+			if (!scopeChildren.isEmpty())
+			{
+				final Node scope = EDGTraverser.getChild(scopeNode, 0);
+				final Node scopeName = EDGTraverser.getChild(scope,0);
+				final NodeConstraint nodeConstraint = new IgnoreEdgeConstraint(EdgeInfo.Type.Value);
+				final EdgeConstraint ignoreConstraint = new AddNodeConstraint(nodeConstraint); // Constraint usada para las declaraciones
+				this.edg.addEdge(scopeName, calleeResult, 0, new EdgeInfo(EdgeInfo.Type.Value, ignoreConstraint));
+				final List<Node> inputs = EDGTraverser.getInputs(calleeResult, EDGTraverser.Direction.Forwards);
+				if (inputs.isEmpty())
+					this.edg.addEdge(callResult, scopeName, 0, new EdgeInfo(EdgeInfo.Type.Value));
 			}	
 			
 			final Node nameNode = EDGTraverser.getChild(callee, 1);

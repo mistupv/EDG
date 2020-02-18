@@ -91,8 +91,8 @@ public class WorkList
 		final Entry<String, Set<Work>> entry = iterator.next();
 		final Set<Work> pendingWorks = entry.getValue();
 		final Iterator<Work> workIterator = pendingWorks.iterator();
-		final Work work = workIterator.next();
-
+		final Work work = workIterator.next();			
+		
 		workIterator.remove();
 		if (pendingWorks.isEmpty())
 			iterator.remove();
@@ -135,24 +135,24 @@ public class WorkList
 		for (String key : keys)
 			this.repend(key);
 	}
-private long rependedTimes = 0;
-private long rependedWorks = 0;
+//private long rependedTimes = 0;
+//private long rependedWorks = 0;
 	public void repend(String key)
 	{
 // TODO Borrame
-this.rependedTimes++;
-System.out.println("Repending " + key);
+//this.rependedTimes++;
+//System.out.println("Repending " + key);
 		final Set<Work> doneWorks = this.doneWorks.get(key);
 		if (doneWorks == null)
 			return;
 
-this.rependedWorks += doneWorks.size();
-System.out.println("Repended so far: " + this.rependedWorks + " [" + doneWorks.size() + "]");
+//this.rependedWorks += doneWorks.size();
+//System.out.println("Repended so far: " + this.rependedWorks + " [" + doneWorks.size() + "]");
 		final Set<Work> pendingWorks = this.createPendingWorks(key);
 		pendingWorks.addAll(doneWorks);
 		this.doneWorks.remove(key);
 	}
-
+	
 	public boolean contains(Work work)
 	{
 		final String key = work.getId();
@@ -166,5 +166,5 @@ System.out.println("Repended so far: " + this.rependedWorks + " [" + doneWorks.s
 			return true;
 
 		return false;
-	}
+	}	
 }

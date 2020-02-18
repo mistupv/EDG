@@ -6,17 +6,22 @@ import java.util.List;
 import java.util.Map;
 import java.util.Stack;
 
+
 import edg.ASTBuilder.Where;
 import edg.graph.EDG;
 import edg.graph.NodeInfo;
+import edg.graph.Node;
+import edg.traverser.EDGTraverser;
 
 public abstract class EDGFactory
 {
 	private EDG edg;
 	private final Stack<Branch> branches = new Stack<Branch>();
-
+	final protected Map<String,Integer> currentLabels = new HashMap<String,Integer>();
+	final protected Map<String,List<Integer>> unresolvedLabels = new HashMap<String,List<Integer>>();
+	
 	private <R> void processElements(R[] elements)
-	{
+	{	
 		for (int elementIndex = 0; elementIndex < elements.length; elementIndex++)
 		{
 			final R element = elements[elementIndex];
@@ -59,17 +64,19 @@ public abstract class EDGFactory
 	protected <R> EDG createEDG(boolean generateArcs, R[] classes, LDASTNodeInfo info)
 	{
 		this.branches.clear();
-
+long start = System.currentTimeMillis();
 		this.edg = ASTBuilder.createEDG(info);
 		this.processElements(classes);
 		ASTBuilder.completeEDG(this.edg);
-
+long structure = System.currentTimeMillis();
+//System.out.println("Conversion AST - EDG (Structure Arcs): "+(structure-start)/1000.0+" seconds");
+		// Añadir en el EDG la info de metodos y fields
+		ASTBuilder.addInheritanceInfomation(this.edg);
 		if (generateArcs)
 			ASTBuilder.generateDependencies(this.edg);
 
 		return this.edg;
 	}
-
 	protected <R> void addModule(String name, Iterable<R> members, LDASTNodeInfo info)
 	{
 		final R[] members0 = this.getArray(members);
@@ -113,6 +120,8 @@ public abstract class EDGFactory
 		final int clauseId = ASTBuilder.addClause(this.edg, parentId, info);
 		final Branch branch = this.branches.push(new Branch(clauseId, NodeInfo.Type.Clause, info));
 
+		currentLabels.clear(); // Clear Label list when generating a Clause
+		
 		branch.setWhere(Where.Parameters);
 		this.processElements(parameters);
 		branch.setWhere(Where.Guard);
@@ -227,6 +236,18 @@ public abstract class EDGFactory
 		this.processElement(type,2,1);
 		this.branches.pop();
 	}
+	protected <R,T> void addTypeTransformation(T type, R expression, LDASTNodeInfo info, boolean isEnclosedExpr)
+	{
+		final Branch parent = this.branches.peek();
+		final int parentId = parent.getNodeId();
+		final Where where = parent.getWhere();
+		final int typeTransformId = ASTBuilder.addTypeTransformation(this.edg, parentId, where, info, isEnclosedExpr);
+		
+		this.branches.push(new Branch(typeTransformId, NodeInfo.Type.TypeTransformation, info));
+		this.processElement(type,1,1);
+		this.processElement(expression,2,1);
+		this.branches.pop();
+	}
 	protected <R,T> void addTypeTransformation(T type, R expression, LDASTNodeInfo info)
 	{
 		final Branch parent = this.branches.peek();
@@ -291,6 +312,18 @@ public abstract class EDGFactory
 		this.branches.push(new Branch(dataConstructorId, NodeInfo.Type.DataConstructorAccess, info));
 		this.processElement(dataConstructor, 1, 2);
 		this.processElement(access, 2, 2);
+		this.branches.pop();
+	}
+	protected <R, S> void addFieldAccess(R structure, S field, LDASTNodeInfo info)
+	{
+		final Branch parent = this.branches.peek();
+		final int parentId = parent.getNodeId();
+		final Where where = parent.getWhere();
+		final int fieldAccessId = ASTBuilder.addFieldAccess(this.edg, parentId, where, info);
+
+		this.branches.push(new Branch(fieldAccessId, NodeInfo.Type.FieldAccess, info));
+		this.processElement(structure, 1, 2);
+		this.processElement(field, 2, 2);
 		this.branches.pop();
 	}
 	protected <R> void addBlock(Iterable<R> expressions, LDASTNodeInfo info)
@@ -439,7 +472,8 @@ public abstract class EDGFactory
 			this.processElement(function, 2, 2);
 		branch.setWhere(Where.Arguments);
 		this.processElements(arguments);
-//		ASTBuilder.addArgumentsInOut(this.edg, callId,Where.Arguments, null); // Nodes In-Out as children of arguments node
+// TODO DELETE
+// ASTBuilder.addArgumentsInOut(this.edg, callId,Where.Arguments, null); // Nodes In-Out as children of arguments node
 		this.branches.pop();
 	}
 	protected <R, S> void addListComprehension(Iterable<R> restrictions, S value, LDASTNodeInfo info)
@@ -553,6 +587,27 @@ public abstract class EDGFactory
 		this.processElement(condition, 1, 1);
 		this.branches.pop();
 	}
+	protected <R, S, T> void addForeach(R varDeclaration, S iterableExpr, Iterable<T> bodyExpressions, LDASTNodeInfo info)
+	{
+		final T[] bodyExpressions0 = this.getArray(bodyExpressions);
+		this.addForeach(varDeclaration, iterableExpr, bodyExpressions0, info);
+	}
+	protected <R, S, T> void addForeach(R varDeclaration, S iterableExpr, T[] bodyExpressions, LDASTNodeInfo info)
+	{
+		final Branch parent = this.branches.peek();
+		final int parentId = parent.getNodeId();
+		final Where where = parent.getWhere();
+		final int foreachId = ASTBuilder.addForeach(this.edg, parentId, where, info);
+		final Branch branch = this.branches.push(new Branch(foreachId, NodeInfo.Type.Foreach, info));
+		
+		branch.setWhere(Where.Iterator);
+		this.addGenerator(varDeclaration, iterableExpr, info);
+		branch.setWhere(Where.Body);
+		this.processElements(bodyExpressions);
+		this.branches.pop();
+
+	}
+	
 	protected <R> void addReturn(R expression, int dstId, LDASTNodeInfo info)
 	{
 		final Branch parent = this.branches.peek();
@@ -573,13 +628,23 @@ public abstract class EDGFactory
 
 		ASTBuilder.addBreak(this.edg, parentId, where, dstId, info);
 	}
-	protected void addContinue(int dstId, LDASTNodeInfo info)
+	protected void addContinue(int dstId, String labelText, LDASTNodeInfo info)
 	{
 		final Branch parent = this.branches.peek();
 		final int parentId = parent.getNodeId();
 		final Where where = parent.getWhere();
-
-		ASTBuilder.addContinue(this.edg, parentId, where, dstId, info);
+		
+		final int continueId = ASTBuilder.addContinue(this.edg, parentId, where, dstId, info);
+		
+		if(dstId == -1)
+		{
+			final List<Integer> unresolvedContinues = unresolvedLabels.get(labelText);
+			final List<Integer> continueList = new LinkedList<Integer>();
+			if(unresolvedContinues != null)
+				continueList.addAll(unresolvedContinues);
+			continueList.add(continueId);
+			unresolvedLabels.put(labelText, continueList);
+		}
 	}
 
 	// Exceptions
@@ -626,6 +691,50 @@ public abstract class EDGFactory
 		this.processElements(catchBlock);
 		this.branches.pop();
 	}
+	protected <R> void addThrow(R expression, LDASTNodeInfo info)
+	{
+		final Branch parent = this.branches.peek();
+		final int parentId = parent.getNodeId();
+		final Where where = parent.getWhere();
+		final int throwId = ASTBuilder.addThrow(this.edg, parentId, where, info);
+		
+		this.branches.push(new Branch(throwId, NodeInfo.Type.Throw, info));
+		this.processElement(expression,1,1);
+		this.branches.pop();
+	}
+	
+	// Reference
+	protected void addSuperReference(String value, LDASTNodeInfo info)
+	{
+		final Branch parent = this.branches.peek();
+		final int parentId = parent.getNodeId();
+		final Where where = parent.getWhere();
+		
+		ASTBuilder.addSuperReference(this.edg, parentId, where, value, info);
+	}
+	protected void addThisReference(String value, LDASTNodeInfo info)
+	{
+		final Branch parent = this.branches.peek();
+		final int parentId = parent.getNodeId();
+		final Where where = parent.getWhere();
+		
+		ASTBuilder.addSuperReference(this.edg, parentId, where, value, info);
+	}
+	protected <R> void addLabel(String labelText, R labeledExpr, LDASTNodeInfo info)
+	{
+		final Branch parent = this.branches.peek();
+		final int parentId = parent.getNodeId();
+		final Where where = parent.getWhere();
+		final int labelId = ASTBuilder.addLabel(this.edg, parentId, where, labelText, info);
+		
+		currentLabels.put(labelText, labelId);
+		resolveLabel(labelText, labelId);
+		
+		this.branches.push(new Branch(labelId, NodeInfo.Type.Label, info));
+		this.processElement(labeledExpr,1,1);
+		this.branches.pop();
+
+	}
 	
 	@SuppressWarnings("unchecked")
 	private <R> R[] getArray(Iterable<R> iterable)
@@ -668,7 +777,19 @@ public abstract class EDGFactory
 
 		return false;
 	}
-
+	
+	private void resolveLabel(String labelText, Integer jumpId)
+	{
+		if (!unresolvedLabels.containsKey(labelText))
+				return;
+		final List<Integer> unresolvedIds = unresolvedLabels.get(labelText);
+		for (Integer id : unresolvedIds)
+		{
+			Node jumpNode = EDGTraverser.getNode(edg, id);
+			jumpNode.setName("continue "+jumpId);
+		}
+	}
+	
 	public static class Branch
 	{
 		private final int nodeId;

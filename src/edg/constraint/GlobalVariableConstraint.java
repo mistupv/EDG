@@ -1,5 +1,7 @@
 package edg.constraint;
 
+import edg.constraint.SeekingConstraint.Operation;
+
 public class GlobalVariableConstraint extends SeekingConstraint
 {
 	private final String variableName;
@@ -24,6 +26,20 @@ public class GlobalVariableConstraint extends SeekingConstraint
 			return new GlobalVariableConstraint(Operation.Add, this.variableName);
 		return new GlobalVariableConstraint(Operation.LetThrough, this.variableName);
 	}
+	public boolean cancels(SeekingConstraint constraint)
+	{
+		if (this.operation == Operation.LetThrough)
+			return false;
+		if (this.operation == Operation.Remove)
+		{
+			if (!(constraint instanceof GlobalVariableConstraint))
+				return false;
+			final GlobalVariableConstraint gvConstraint = (GlobalVariableConstraint) constraint;
+			if (gvConstraint.operation == Operation.Add && gvConstraint.variableName.equals("*"))
+				return true;
+		}	
+		return this.equals(constraint.opposite());
+	}
 	public boolean letThrough(SeekingConstraint constraint)
 	{
 		if (!(constraint instanceof GlobalVariableConstraint))
@@ -33,7 +49,7 @@ public class GlobalVariableConstraint extends SeekingConstraint
 
 		if (!super.letThrough(gvConstraint))
 			return false;
-		if (!this.variableName.equals(gvConstraint.variableName))
+		if (!this.variableName.equals(gvConstraint.variableName) && !gvConstraint.variableName.equals("*"))
 			return false;
 		return true;
 	}

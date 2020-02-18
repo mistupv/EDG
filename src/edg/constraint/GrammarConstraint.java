@@ -115,10 +115,12 @@ public class GrammarConstraint extends EdgeConstraint
 			final int productionSize = production.sizeEdgeConstraints();
 
 // TODO NO SE SI ESTO PUEDE TENER CONSECUENCIAS, REVISAR.
-// Esto es para que los summaries que no pueden resolver una Seeking Constraint no se atraviesen
+// Esto es para que los summaries sin producciones que no pueden resolver una Seeking Constraint no se atraviesen
 /* ************************************* */
-if (productionSize == 0)   
-	continue;
+
+if (!constraints.getEdgeConstraints().isEmpty())
+	if(constraints.getEdgeConstraints().peek() instanceof SeekingConstraint && productionSize == 0)   
+		continue;
 /* ************************************* */
 			for (int constraintIndex = 0; constraintIndex < productionSize; constraintIndex++)
 			{

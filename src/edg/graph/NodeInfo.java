@@ -13,15 +13,15 @@ public class NodeInfo
 		Routine, Clause, Parameters,
 
 		// Expressions
-		List, DataConstructor, DataConstructorAccess,
+		List, DataConstructor, DataConstructorAccess, FieldAccess,
 		Block, Operation, Equality,
 		If, Condition,
 		Switch, Selector, Cases, Case, DefaultCase, Selectable,
 		Call, Callee, Scope, Name, Arguments,
 		ListComprehension, Restrictions, Generator, Filter, Value,
-		Loop, // <- DEPRECATED 
-		CLoop, FLoop, RLoop, // LOOPS
-		ExHandler, Try, Catch, Finally, CatchClause, // EXCEPTIONS
+		Loop, // <- DEPRECATED USED IN PHP
+		CLoop, FLoop, RLoop, Foreach, Iterator, // LOOPS
+		ExHandler, Try, Catch, Finally, CatchClause, Throw, // EXCEPTIONS
 
 		// Others
 		Body, Guard,
@@ -35,7 +35,9 @@ public class NodeInfo
 		TypeCheck, // JAVA instanceof 
 		TypeTransformation,
 		Type,
+		Reference, Label,
 		ArgumentIn, ArgumentOut
+		
 		
 	}
 

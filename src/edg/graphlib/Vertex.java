@@ -36,7 +36,8 @@ public class Vertex<T, S> {
 
   private List<Arrow<T, S>> outgoingEdges;
 
-  private String name;
+//  private String name;
+  protected String name;
 
   private boolean mark;
 

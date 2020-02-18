@@ -52,4 +52,8 @@ public class Node extends Vertex<NodeInfo, EdgeInfo>
 
 		return edges;
 	}
+	public void setName(String newName)
+	{
+		this.name = newName;
+	}
 }

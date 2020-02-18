@@ -11,14 +11,89 @@ import edg.traverser.EDGTraverser;
 
 public abstract class EdgeGenerator
 {
+final static boolean timeMeassure = true;
 	public static void generateEdges(EDG edg)
 	{
+
+long start;
+if(timeMeassure)
+{
+start = System.currentTimeMillis();
+new ControlFlowEdgeGenerator(edg).generate();
+long cfedges = System.currentTimeMillis();
+System.out.println("ControlFlow Arcs: "+(cfedges-start)/1000.0+" seconds");
+}
+else
+	
 		new ControlFlowEdgeGenerator(edg).generate();
+
+if(timeMeassure)
+{
+start = System.currentTimeMillis();
+new ControlEdgeGenerator(edg).generate();
+long controledges = System.currentTimeMillis();
+System.out.println("Control Arcs: "+(controledges-start)/1000.0+" seconds");
+}
+else
+	
 		new ControlEdgeGenerator(edg).generate();
+
+if(timeMeassure)
+{
+start = System.currentTimeMillis();
+new InterproceduralEdgeGenerator(edg).generate();
+long ipedges = System.currentTimeMillis();
+System.out.println("Interprocedural Arcs: "+(ipedges-start)/1000.0+" seconds");
+}
+else
+	
 		new InterproceduralEdgeGenerator(edg).generate();
+
+if(timeMeassure)
+{
+start = System.currentTimeMillis();
+new FlowEdgeGenerator(edg).generate();
+long flowedges = System.currentTimeMillis();
+System.out.println("Flow Arcs: "+(flowedges-start)/1000.0+" seconds");
+}
+else
+	
 		new FlowEdgeGenerator(edg).generate();
-		new ValueEdgeGenerator(edg).generate();
+
+if(timeMeassure)
+{
+start = System.currentTimeMillis();
+new ValueEdgeGenerator(edg).generateJava();
+long valedges = System.currentTimeMillis();
+System.out.println("Value Arcs: "+(valedges-start)/1000.0+" seconds");
+}
+else
+	
+		new ValueEdgeGenerator(edg).generateJava();
+
+if(timeMeassure)
+{
+start = System.currentTimeMillis();
+new SummaryEdgeGenerator(edg).generate();
+long sumedges = System.currentTimeMillis();
+System.out.println("Summary Arcs: "+(sumedges-start)/1000.0+" seconds");
+}
+else
+	
 		new SummaryEdgeGenerator(edg).generate();
+
+if(timeMeassure)
+{
+start = System.currentTimeMillis();
+
+new ExceptionEdgeGenerator(edg).generate();
+long exedges = System.currentTimeMillis();
+System.out.println("Exception Arcs: "+(exedges-start)/1000.0+" seconds");
+}
+else
+		// EXCEPTIONS
+		new ExceptionEdgeGenerator(edg).generate();
+
 	}
 
 	protected final EDG edg;

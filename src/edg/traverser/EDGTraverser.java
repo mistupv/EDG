@@ -9,6 +9,8 @@ import edg.graph.Edge;
 import edg.graph.EdgeInfo;
 import edg.graph.Node;
 import edg.graph.NodeInfo;
+import edg.graph.VariableInfo;
+import edg.graph.VariableInfo.Context;
 
 public class EDGTraverser
 {
@@ -196,15 +198,16 @@ public class EDGTraverser
 		{
 			// This expression
 			case Result:
+			case Update:
 				return node;
 
 			// Last sibling
-			case Variable:
 			case Literal:
 			case Block:
 			case If:
 			case Call:
 			case DataConstructorAccess:
+			case FieldAccess:
 			case List:
 			case DataConstructor:
 			case Operation:
@@ -212,8 +215,15 @@ public class EDGTraverser
 			case Equality:
 			case ListComprehension:
 			case Routine:
+			case CLoop:
+			case RLoop:
+			case FLoop:
+			case Throw:
+			case Reference:
 				return siblings.get(siblings.size() - 1);
 
+			case Variable:
+				return getVarResult(node, siblings);
 			// Last child
 			case Clause:
 			case Case:
@@ -242,6 +252,30 @@ public class EDGTraverser
 		}
 	}
 
+	private static Node getVarResult(Node node, List<Node> siblings) {
+		
+		final Node grandParentUseNode = EDGTraverser.getParent(EDGTraverser.getParent(node));
+		if (grandParentUseNode.getData().getType() == NodeInfo.Type.DataConstructorAccess)
+		{
+			final Node parentNode = EDGTraverser.getParent(node);
+			if (EDGTraverser.getChildIndex(parentNode) == 0)
+				return EDGTraverser.getSibling(grandParentUseNode, 1);
+		}
+		return siblings.get(siblings.size() - 1);
+	}
+	
+	public static Node getModuleByName(EDG edg, String name)
+	{
+		final List<Node> moduleNodes = EDGTraverser.getNodes(edg, NodeInfo.Type.Module);
+		
+		for (Node moduleNode : moduleNodes)
+		{
+			if(moduleNode.getData().getName().equals(name))
+				return moduleNode;
+		}
+		return null;
+	}
+	
 	public static boolean isPatternZone(Node node)
 	{
 		Node ancestor = node;

@@ -71,6 +71,7 @@ public class AsteriskConstraint extends EdgeConstraint
 		final EdgeConstraint peekConstraint = newConstraints.peekEdgeConstraint();
 		return super.resolve(phase, edge, newConstraints, peekConstraint, productionDepth);
 	}
+		
 	protected List<Constraints> resolve(Phase phase, Edge edge, Constraints constraints, AsteriskConstraint topConstraint, int productionDepth)
 	{
 		super.check(phase, Phase.SummaryGeneration);

@@ -11,7 +11,8 @@ public class EdgeInfo
 		ControlFlow,
 		Structural, Control,
 		Value, Flow,
-		Call, Input, Output, Summary
+		Call, Input, Output, Summary,
+		Exception
 	}
 
 	private final Type type;

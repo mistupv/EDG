@@ -3,7 +3,10 @@ package edg.edge;
 import java.util.LinkedList;
 import java.util.List;
 
+import edg.ASTBuilder.ClassInfo;
+import edg.constraint.GlobalVariableConstraint;
 import edg.constraint.PhaseConstraint;
+import edg.constraint.SeekingConstraint;
 import edg.graph.EDG;
 import edg.graph.EdgeInfo;
 import edg.graph.Node;
@@ -73,7 +76,8 @@ public class InterproceduralEdgeGenerator extends EdgeGenerator
 
 		// Module
 		final Node moduleRef0 = scopeChildren.isEmpty() ? EDGTraverser.getAncestor(call, NodeInfo.Type.Module) : scopeChildren.get(0);
-		final Node moduleRef = moduleRef0.getData().getType() != NodeInfo.Type.Expression ? moduleRef0 : EDGTraverser.getChild(moduleRef0, 0);
+		final Node moduleRef1 = moduleRef0.getData().getType() != NodeInfo.Type.Expression ? moduleRef0 : EDGTraverser.getChild(moduleRef0, 0);
+		final Node moduleRef = moduleRef1.getData().getType() != NodeInfo.Type.TypeTransformation ? moduleRef1 : EDGTraverser.getChild(EDGTraverser.getChild(moduleRef1, 1),0);
 		final NodeInfo.Type moduleRefType = moduleRef.getData().getType();
 		
 		//String moduleName = moduleRefType == NodeInfo.Type.Literal ? moduleRef.getData().getName() : null;//moduleRef.getData().getInfo().getClassName();
@@ -102,9 +106,56 @@ public class InterproceduralEdgeGenerator extends EdgeGenerator
 			moduleName = null;
 		if (moduleName == null && nameType != NodeInfo.Type.Routine)
 			routineName = null;
-
+		
+//		if (moduleName.equals("_"))
+//		{
+//			final Node callModule = EDGTraverser.getAncestor(call, NodeInfo.Type.Module);
+//			final ClassInfo moduleInfo = (ClassInfo) callModule.getData().getInfo().getInfo()[2];
+//			final List<Node> classClauses = this.getAllClauses(moduleInfo, routineName);
+//			System.out.println("STOP");
+//			return classClauses;
+//		}
+//		else 
+		if (moduleName != null)
+		{
+			final String moduleScopeName = moduleName;
+			if (moduleScopeName.equals("super"))
+			{
+				final Node module = EDGTraverser.getAncestor(call, NodeInfo.Type.Module);
+				moduleName = module.getData().getName();
+			}
+			final List<Node> modules = EDGTraverser.getNodes(this.edg, NodeInfo.Type.Module);
+			for (Node module : modules)
+			{
+				final String moduleText = module.getData().getName();
+				if (moduleName.equals(moduleText))
+				{
+					final ClassInfo moduleInfo = (ClassInfo) module.getData().getInfo().getInfo()[2];
+					final List<Node> classClauses;
+					if (!scopeChildren.isEmpty())
+					{
+						if (moduleScopeName.equals("super") && routineName.equals("<constructor>"))
+							routineName = moduleScopeName+routineName;
+						classClauses = this.getAllClauses(moduleInfo, routineName);
+					}
+					else
+					{	
+						final Node parentRoutineNode = EDGTraverser.getAncestor(call, NodeInfo.Type.Routine);
+						if (parentRoutineNode != null)
+						{
+							final String parentRoutineName = EDGTraverser.getAncestor(call, NodeInfo.Type.Routine).getData().getName();
+							classClauses = this.getClassClauses(moduleInfo, routineName, parentRoutineName);
+						}
+						else 
+							classClauses = this.getAllClauses(moduleInfo, routineName);
+					}
+					return classClauses;
+				}
+			}
+		}
+		
 		final List<Node> possibleClauses = new LinkedList<Node>();
-		final List<Node> clauses = EDGTraverser.getNodes(this.edg, NodeInfo.Type.Clause);
+		final List<Node> clauses = EDGTraverser.getNodes(this.edg, NodeInfo.Type.Clause); // ONLY WHEN THERE IS ONLY A DEFINITION OF A FUNCTION, NOT FOR POLIMORPHIC CALLS
 		final boolean thisAnonymousRoutine = moduleName == null && routineName != null;
 		final boolean allRoutines = moduleName == null && routineName == null;
 
@@ -113,10 +164,6 @@ public class InterproceduralEdgeGenerator extends EdgeGenerator
 			final Node routine = EDGTraverser.getParent(clause);
 			if (thisAnonymousRoutine && routine != name)
 				continue;
-			
-//			final String clauseModule = clause.getData().getInfo().getClassName();
-//			if (TypeName != null && !TypeName.equals(clauseModule))
-//				continue;
 			
 			if (!thisAnonymousRoutine && !allRoutines)
 			{
@@ -188,15 +235,74 @@ public class InterproceduralEdgeGenerator extends EdgeGenerator
 			final Node result = EDGTraverser.getResult(callingFunction);
 
 			if (result != null)
+			{
+				final String routineName = EDGTraverser.getAncestor(callingFunction,NodeInfo.Type.Routine).getData().getName();
+				if (routineName.equals("<constructor>"))
+				{
+					final GlobalVariableConstraint addConstraint = new GlobalVariableConstraint(SeekingConstraint.Operation.Add, "*");
+					this.edg.addEdge(EDGTraverser.getSibling(result, 0), callResult, 0, new EdgeInfo(EdgeInfo.Type.Output, addConstraint));
+				}
 				this.edg.addEdge(result, callResult, 0, new EdgeInfo(EdgeInfo.Type.Output, new PhaseConstraint(Phase.Output)));
+			}
 		}
 	}
 	
+	private List<Node> getAllClauses(ClassInfo moduleInfo, String routineName)
+	{
+		final List<Node> methodClauses = new LinkedList<Node>();
+		final List<Node> classClauses = moduleInfo.getMethods().get(routineName);
+		if (classClauses != null)
+			methodClauses.addAll(classClauses);
+		
+		final List<ClassInfo> childrenClassInfo = moduleInfo.getChildrenClasses();
+		if (childrenClassInfo.isEmpty())
+			return methodClauses;
+		else
+		{
+			final List<Node> childrenMethodClauses = new LinkedList<Node>();
+			for (ClassInfo childClassInfo : childrenClassInfo)
+				childrenMethodClauses.addAll(this.getAllClauses(childClassInfo, routineName));
+			
+			for (Node childrenMethodClause : childrenMethodClauses)
+				if (!methodClauses.contains(childrenMethodClause))
+					methodClauses.add(childrenMethodClause);
+		}
+		return methodClauses;
+	}
+	private List<Node> getClassClauses(ClassInfo moduleInfo, String routineName, String parentRoutineName)
+	{
+		final List<Node> methodClauses = new LinkedList<Node>();
+		final List<Node> classClauses = moduleInfo.getMethods().get(routineName);
+		
+		if (classClauses != null)
+			methodClauses.addAll(classClauses);
+		
+		final List<ClassInfo> childrenClassInfo = moduleInfo.getChildrenClasses();
+		if (childrenClassInfo.isEmpty())
+			return methodClauses;
+		else
+		{	
+			List<Node> parentMethodClauses = moduleInfo.getMethods().get(parentRoutineName); 
+			
+			final List<Node> childrenMethodClauses = new LinkedList<Node>();
+			for (ClassInfo childClassInfo : childrenClassInfo)
+			{
+				List<Node> childParentMethodClauses = childClassInfo.getMethods().get(parentRoutineName);
+				if (childParentMethodClauses == parentMethodClauses)
+					childrenMethodClauses.addAll(this.getClassClauses(childClassInfo, routineName, parentRoutineName));
+			}
+			
+			for (Node childrenMethodClause : childrenMethodClauses)
+				if (!methodClauses.contains(childrenMethodClause))
+					methodClauses.add(childrenMethodClause);
+		}
+		return methodClauses;
+	}
 	
 	
 	/*****************************************/
 	/** Sacar tipos buscando la declaracion **/
-	/*****************************************/
+	/*****************************************/	
 	
 //	private String getVarTypeName(Node node)
 //	{

@@ -1,7 +1,9 @@
 package edg;
 
+import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 
 import edg.edge.EdgeGenerator;
 import edg.graph.EDG;
@@ -17,7 +19,7 @@ public class ASTBuilder
 {
 	public static int nextId = 0;
 	public static enum Where { Parameters, Arguments, Guard, Scope, Name, Body, Condition, Then, Else, Selector, Cases, Selectable, Restrictions, Value,
-		Init, Update, Try, Catch, Finally // ADDED SERGIO NEW LOOP
+		Init, Update, Try, Catch, Finally, Throw, Reference, Iterator // ADDED BY SERGIO
 		}
 
 	// EDG
@@ -167,10 +169,20 @@ public class ASTBuilder
 		final Node parent = ASTBuilder.getParentNode(edg, parentId, where);
 		final Node expression = ASTBuilder.addNode(edg, parent, NodeInfo.Type.Expression, "expression", null);
 		final Node dataConstructorAccess = ASTBuilder.addNode(edg, expression, NodeInfo.Type.DataConstructorAccess, "data constructor access", "data constructor" + "\\n" + "access", info);
-		ASTBuilder.addNode(edg, expression, NodeInfo.Type.Result, "result", null);
+		ASTBuilder.addNode(edg, expression, NodeInfo.Type.Result, "result", info);
 
 		return dataConstructorAccess.getData().getId();
 	}
+	public static int addFieldAccess(EDG edg, int parentId, Where where, LDASTNodeInfo info)
+	{
+		final Node parent = ASTBuilder.getParentNode(edg, parentId, where);
+		final Node expression = ASTBuilder.addNode(edg, parent, NodeInfo.Type.Expression, "expression", null);
+		final Node fieldAccess = ASTBuilder.addNode(edg, expression, NodeInfo.Type.FieldAccess, "field access", "field access", info);
+		ASTBuilder.addNode(edg, expression, NodeInfo.Type.Result, "result", info);
+		
+		return fieldAccess.getData().getId();
+	}
+	
 	public static int addBlock(EDG edg, int parentId, Where where, LDASTNodeInfo info)
 	{
 		final Node parent = ASTBuilder.getParentNode(edg, parentId, where);
@@ -250,6 +262,17 @@ public class ASTBuilder
 		ASTBuilder.addNode(edg, call, NodeInfo.Type.ArgumentOut, "argsOut", null);
 		return call.getData().getId();
 	}
+
+	public static int addLabel(EDG edg, int parentId, Where where, String labelText, LDASTNodeInfo info)
+	{
+		final Node parent = ASTBuilder.getParentNode(edg, parentId, where);
+	
+		final Node expression = ASTBuilder.addNode(edg, parent, NodeInfo.Type.Expression, "expression", null);
+		final Node label = ASTBuilder.addNode(edg, expression, NodeInfo.Type.Label, "labeledExpr" + "\\n" + labelText, info);
+		ASTBuilder.addNode(edg, expression, NodeInfo.Type.Result, "result", null);
+		
+		return label.getData().getId();
+	}
 //	public static void addArgumentsInOut(EDG edg, int callId, Where where, LDASTNodeInfo info)
 //	{
 //		final Node callNode = EDGTraverser.getNode(edg, callId);
@@ -282,7 +305,15 @@ public class ASTBuilder
 
 		return catchClause.getData().getId();
 	}
-	
+	public static int addThrow(EDG edg, int parentId, Where where, LDASTNodeInfo info)
+	{
+		final Node parent = ASTBuilder.getParentNode(edg, parentId, where);
+		final Node expression = ASTBuilder.addNode(edg, parent, NodeInfo.Type.Expression, "expression", null);
+		final Node _throw = ASTBuilder.addNode(edg, expression, NodeInfo.Type.Throw, "throw", info);
+		ASTBuilder.addNode(edg, expression, NodeInfo.Type.Result, "result", null);
+		
+		return _throw.getData().getId();
+	}
 	
 	public static int addListComprehension(EDG edg, int parentId, Where where, LDASTNodeInfo info)
 	{
@@ -314,8 +345,8 @@ public class ASTBuilder
 		final Node parent = ASTBuilder.getParentNode(edg, parentId, where);
 		final Node expression = ASTBuilder.addNode(edg, parent, NodeInfo.Type.Expression, "expression", null);
 		final Node loop = ASTBuilder.addNode(edg, expression, NodeInfo.Type.FLoop, "loop", info);
-		
 		ASTBuilder.addNode(edg, expression, NodeInfo.Type.Result, "result", null);
+		
 		ASTBuilder.addNode(edg, loop, NodeInfo.Type.Init, "init", null);
 		ASTBuilder.addNode(edg, loop, NodeInfo.Type.Condition, "condition", null);
 		ASTBuilder.addNode(edg, loop, NodeInfo.Type.Body, "body", null);
@@ -328,8 +359,8 @@ public class ASTBuilder
 		final Node parent = ASTBuilder.getParentNode(edg, parentId, where);
 		final Node expression = ASTBuilder.addNode(edg, parent, NodeInfo.Type.Expression, "expression", null);
 		final Node loop = ASTBuilder.addNode(edg, expression, NodeInfo.Type.CLoop, "loop", info);
-		
 		ASTBuilder.addNode(edg, expression, NodeInfo.Type.Result, "result", null);
+		
 		ASTBuilder.addNode(edg, loop, NodeInfo.Type.Condition, "condition", null);
 		ASTBuilder.addNode(edg, loop, NodeInfo.Type.Body, "body", null);
 		
@@ -352,6 +383,18 @@ public class ASTBuilder
 //		ASTBuilder.addNode(edg, loop, NodeInfo.Type.Body, "body", null);
 		
 		return loop.getData().getId();
+	}
+	public static int addForeach(EDG edg, int parentId, Where where, LDASTNodeInfo info)
+	{
+		final Node parent = ASTBuilder.getParentNode(edg, parentId, where);
+		final Node expression = ASTBuilder.addNode(edg, parent, NodeInfo.Type.Expression, "expression", null);
+		final Node foreach = ASTBuilder.addNode(edg, expression, NodeInfo.Type.Foreach, "foreach", info);
+		ASTBuilder.addNode(edg, expression, NodeInfo.Type.Result, "result", null);
+		
+		ASTBuilder.addNode(edg, foreach, NodeInfo.Type.Iterator, "iterator", null);
+		ASTBuilder.addNode(edg, foreach, NodeInfo.Type.Body, "body", null);
+		
+		return foreach.getData().getId();
 	}
 	public static int addReturn(EDG edg, int parentId, Where where, int dstId, LDASTNodeInfo info)
 	{
@@ -430,7 +473,6 @@ public class ASTBuilder
 		return null;
 	}
 
-	
 	// Typed languages
 	public static int addTypeCheck(EDG edg, int parentId, Where where, LDASTNodeInfo info)
 	{
@@ -441,20 +483,60 @@ public class ASTBuilder
 
 		return typeCheck.getData().getId();
 	}
+	public static int addTypeTransformation(EDG edg, int parentId, Where where, LDASTNodeInfo info, boolean isEnclosedExpr)
+	{
+		final Node parent = ASTBuilder.getParentNode(edg, parentId, where);
+		final Node expression = ASTBuilder.addNode(edg, parent, NodeInfo.Type.Expression, "expression", new LDASTNodeInfo(-1, "", isEnclosedExpr));
+		final Node typeTrans = ASTBuilder.addNode(edg, expression, NodeInfo.Type.TypeTransformation, "typeTransformation", info);
+		ASTBuilder.addNode(edg, expression, NodeInfo.Type.Result, "result", null);
+		
+		return typeTrans.getData().getId();
+	}
 	public static int addTypeTransformation(EDG edg, int parentId, Where where, LDASTNodeInfo info)
 	{
 		final Node parent = ASTBuilder.getParentNode(edg, parentId, where);
 		final Node expression = ASTBuilder.addNode(edg, parent, NodeInfo.Type.Expression, "expression", null);
-		final Node typeTrans = ASTBuilder.addNode(edg, expression, NodeInfo.Type.TypeTransformation, "typetransform", info);
+		final Node typeTrans = ASTBuilder.addNode(edg, expression, NodeInfo.Type.TypeTransformation, "typeTransformation", info);
 		ASTBuilder.addNode(edg, expression, NodeInfo.Type.Result, "result", null);
 		
 		return typeTrans.getData().getId();
+	}
+	public static int addSuperReference(EDG edg, int parentId, Where where, String value, LDASTNodeInfo info)
+	{
+		final Node parent = ASTBuilder.getParentNode(edg, parentId, where);
+		
+		// TODO asignar tipo a super
+//		final Node classNode = EDGTraverser.getAncestor(parent, NodeInfo.Type.Module);
+//		final String extendedClassName = classNode.getData().getInfo().getInfo()[0].toString();
+
+		final Node expression = ASTBuilder.addNode(edg, parent, NodeInfo.Type.Expression, "expression", null);
+		final Node reference = ASTBuilder.addNode(edg, expression, NodeInfo.Type.Reference, value, "reference" + "\\n" + value, info);
+		ASTBuilder.addNode(edg, expression, NodeInfo.Type.Result, "result", null);
+
+		return reference.getData().getId();
+
+	}
+	public static int addThisReference(EDG edg, int parentId, Where where, String value, LDASTNodeInfo info)
+	{
+		final Node parent = ASTBuilder.getParentNode(edg, parentId, where);
+		
+		// TODO asignar tipo a super
+//		final Node classNode = EDGTraverser.getAncestor(parent, NodeInfo.Type.Module);
+//		final String extendedClassName = classNode.getData().getInfo().getInfo()[0].toString();
+
+		final Node expression = ASTBuilder.addNode(edg, parent, NodeInfo.Type.Expression, "expression", null);
+		final Node reference = ASTBuilder.addNode(edg, expression, NodeInfo.Type.Reference, value, "reference" + "\\n" + value, info);
+		ASTBuilder.addNode(edg, expression, NodeInfo.Type.Result, "result", null);
+
+		return reference.getData().getId();
+
 	}
 	public static int addType(EDG edg, int parentId, Where where, String value, LDASTNodeInfo info)
 	{
 		final Node parent = ASTBuilder.getParentNode(edg, parentId, where);
 		final Node expression = ASTBuilder.addNode(edg, parent, NodeInfo.Type.Expression, "expression", null);
-		final Node type = ASTBuilder.addNode(edg, expression, NodeInfo.Type.Type, value, "type" + "\\n" + value, info);
+		final String label = info.getInfo().length == 0 ? "type" + "\\n" + value : "type" + "\\n" + value +"[]" ;
+		final Node type = ASTBuilder.addNode(edg, expression, NodeInfo.Type.Type, value, label, info);
 		ASTBuilder.addNode(edg, expression, NodeInfo.Type.Result, "result", null);
 
 		return type.getData().getId();
@@ -515,6 +597,125 @@ public class ASTBuilder
 		}
 	}
 
+	// Add class inheritance information
+	public static void addInheritanceInfomation(EDG edg) {
+		final Node root = edg.getRootNode();
+		final List<Node> children = EDGTraverser.getChildren(root);
+		
+		final List<String> definedClasses = new LinkedList<String>();
+		for (Node child : children)
+			definedClasses.add(child.getData().getInfo().getClassName());
+		
+		final Map<String, Node> treatedClasses = new HashMap<String, Node>();
+		int index = 0;
+		while (!children.isEmpty())
+		{	
+			final Node child = children.get(index);
+			final String className = child.getData().getInfo().getClassName();
+			final String extendedClassName = child.getData().getInfo().getInfo()[0].toString();
+			if (extendedClassName.equals("") || !definedClasses.contains(extendedClassName))
+			{
+				ASTBuilder.addNonExtendedClassInfo(child);
+				treatedClasses.put(className,children.remove(index));
+				index = 0;
+			}
+			else if(treatedClasses.containsKey(extendedClassName))
+			{
+				// TRATAR LA INFORMACION LINKEANDO SUS METODOS
+				final Node parent = treatedClasses.get(extendedClassName);
+				ASTBuilder.addExtendedClassInfo(child, parent);
+				treatedClasses.put(className,children.remove(index));
+				index = 0;
+			}
+			else
+				// TRATAR LA SIGUIENTE
+				index++;
+		}
+	}
+	public static void addNonExtendedClassInfo(Node node)
+	{
+		final List<Node> children = EDGTraverser.getChildren(node);
+		
+		final Map<String, List<Node>> methods = new HashMap<String, List<Node>>();
+		final Map<String, Node> variables = new HashMap<String, Node>();
+		
+		for (Node child : children)
+		{
+			if (child.getData().getType() == NodeInfo.Type.Expression)
+			{
+				final Node expressionInstanceNode = EDGTraverser.getChild(child,0);
+				final Node variableNode = expressionInstanceNode.getData().getType() == NodeInfo.Type.Variable ? 
+							expressionInstanceNode : EDGTraverser.getChild(EDGTraverser.getChild(expressionInstanceNode,0),0);
+				final String name = variableNode.getData().getName();
+				
+				variables.put(name, variableNode);
+			}
+			else
+			{ 
+				final String methodName = child.getData().getName();
+				final List<Node> methodClauses = EDGTraverser.getChildren(child);
+				List<Node> previousClauses = methods.get(methodName);
+				if (previousClauses != null)
+					methodClauses.addAll(previousClauses);
+				methods.put(methodName, methodClauses);
+			}
+		}
+		LDASTNodeInfo nodeInfo = node.getData().getInfo();
+		ClassInfo classInfo = new ClassInfo(methods, variables);
+		nodeInfo.addInfo(classInfo);
+	}
+	public static void addExtendedClassInfo(Node node, Node parent)
+	{
+		ClassInfo parentClassInfo = (ClassInfo) parent.getData().getInfo().getInfo()[2];
+		ClassInfo nodeClassInfo = new ClassInfo(parentClassInfo);
+		
+		final List<Node> children = EDGTraverser.getChildren(node);
+		
+		for (Node child : children)
+		{
+			if (child.getData().getType() == NodeInfo.Type.Expression)
+			{
+				final Node expressionInstanceNode = EDGTraverser.getChild(child,0);
+				final Node variableNode = expressionInstanceNode.getData().getType() == NodeInfo.Type.Variable ? 
+							expressionInstanceNode : EDGTraverser.getChild(EDGTraverser.getChild(expressionInstanceNode,0),0);
+				final String name = variableNode.getData().getName();
+				
+				nodeClassInfo.variables.put(name, variableNode);
+			}
+			else
+			{ 
+				final String methodName = child.getData().getName();
+				final List<Node> methodClauses = EDGTraverser.getChildren(child);
+				final List<Integer> resultArities = new LinkedList<Integer>();
+				for (Node clause : methodClauses)
+				{	
+					final int arity = EDGTraverser.getChildren(EDGTraverser.getChild(clause, 0)).size();
+					if (!resultArities.contains(arity))
+						resultArities.add(arity);
+				}
+				
+				if (nodeClassInfo.methods.containsKey(methodName) && methodName.equals("<constructor>"))
+					nodeClassInfo.methods.put("super<constructor>", nodeClassInfo.methods.get("<constructor>"));
+				
+				if (nodeClassInfo.methods.containsKey(methodName))
+				{
+					final List<Node> parentMethodClauses = nodeClassInfo.methods.get(methodName);
+					for (Node parentMethodClause : parentMethodClauses)
+					{
+						final int existentArity = EDGTraverser.getChildren(EDGTraverser.getChild(parentMethodClause, 0)).size();
+						if (!resultArities.contains(existentArity))
+							methodClauses.add(parentMethodClause);
+					}
+				}
+				nodeClassInfo.methods.put(methodName, methodClauses);
+			}
+		}
+		LDASTNodeInfo nodeInfo = node.getData().getInfo();
+		nodeInfo.addInfo(nodeClassInfo);
+		
+		parentClassInfo.addChildClass(nodeClassInfo);
+	}
+	
 	// Child node
 	private static Node getClauseChildNode(Node clause, Where where)
 	{
@@ -624,6 +825,18 @@ public class ASTBuilder
 				throw new RuntimeException("A loop cannot contain " + where);
 		}
 	}
+	private static Node getForeachChildNode(Node foreach, Where where)
+	{
+		switch (where)
+		{
+			case Iterator:
+				return EDGTraverser.getChild(foreach, NodeInfo.Type.Iterator);
+			case Body:
+				return EDGTraverser.getChild(foreach, NodeInfo.Type.Body);
+			default:
+				throw new RuntimeException("A loop cannot contain " + where);
+		}
+	}
 	private static Node getExhandlerChildNode(Node exHandler, Where where)
 	{
 		switch (where)
@@ -638,7 +851,6 @@ public class ASTBuilder
 				throw new RuntimeException("An exception handler cannot contain " + where);
 		}
 	}
-	
 	
 	// Common
 	public static List<Where> getWheres(NodeInfo.Type type)
@@ -731,6 +943,8 @@ public class ASTBuilder
 			case CLoop:
 			case RLoop:
 				return ASTBuilder.getLoopChildNode(parentNode, where);
+			case Foreach:
+				return ASTBuilder.getForeachChildNode(parentNode, where);
 //ADDED
 //case ForLoop:
 //	return ASTBuilder.getLoopChildNode(parentNode, where);
@@ -740,6 +954,7 @@ public class ASTBuilder
 				
 			case TypeCheck: // ADDED
 			case TypeTransformation: // ADDED
+			case Throw:
 			case Module:
 			case Routine:
 			case Block:
@@ -751,6 +966,8 @@ public class ASTBuilder
 			case Generator:
 			case Filter:
 			case Return:
+			case Label:
+			case FieldAccess:
 				if (where == null)
 					return parentNode;
 			default:
@@ -768,5 +985,45 @@ public class ASTBuilder
 	public static void generateDependencies(EDG edg)
 	{
 		EdgeGenerator.generateEdges(edg);
+	}
+	
+	
+	public static class ClassInfo
+	{
+		private Map<String, List<Node>> methods;
+		private Map<String, Node> variables;
+		private List<ClassInfo> childrenClasses = new LinkedList<ClassInfo>();
+		
+		public ClassInfo(ClassInfo ci)
+		{
+			this.methods = new HashMap<String, List<Node>>();
+			this.variables = new HashMap<String, Node>();
+			methods.putAll(ci.methods);
+			variables.putAll(ci.variables);
+		}
+		
+		public ClassInfo(Map<String, List<Node>> methodMap, Map<String, Node> variableMap)
+		{
+			methods = methodMap;
+			variables = variableMap;
+		}
+		
+		public void addChildClass(ClassInfo child)
+		{
+			childrenClasses.add(child);
+		}
+		public List<ClassInfo> getChildrenClasses()
+		{
+			return this.childrenClasses;
+		}
+		public Map<String,List<Node>> getMethods()
+		{
+			return this.methods;
+		}
+		public Map<String,Node> getVariables()
+		{
+			return this.variables;
+		}
+		
 	}
 }

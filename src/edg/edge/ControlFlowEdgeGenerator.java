@@ -3,6 +3,8 @@ package edg.edge;
 import java.util.LinkedList;
 import java.util.List;
 
+import edg.constraint.ExceptionConstraint;
+import edg.constraint.SeekingConstraint.Operation;
 import edg.graph.EDG;
 import edg.graph.EdgeInfo;
 import edg.graph.Node;
@@ -14,7 +16,9 @@ public class ControlFlowEdgeGenerator extends EdgeGenerator
 	private static enum Way { Forwards, Backwards }
 
 	private final EdgeInfo controlFlowEdgeInfo = new EdgeInfo(EdgeInfo.Type.ControlFlow);
-
+	private final EdgeInfo exceptionFlowEdgeInfo = new EdgeInfo(EdgeInfo.Type.Exception, new ExceptionConstraint(Operation.LetThrough));
+	private boolean isTryContext = false;
+	
 	public ControlFlowEdgeGenerator(EDG edg)
 	{
 		super(edg);
@@ -35,7 +39,7 @@ public class ControlFlowEdgeGenerator extends EdgeGenerator
 		final NodeInfo.Type type = node.getData().getType();
 		final List<Node> children = EDGTraverser.getChildren(node);
 
-		if (type != NodeInfo.Type.Break && type != NodeInfo.Type.Return)
+		if (type != NodeInfo.Type.Break && type != NodeInfo.Type.Return && type != NodeInfo.Type.Continue)
 			if (children.isEmpty())
 				return this.generateSingleNode(node);
 
@@ -79,11 +83,20 @@ public class ControlFlowEdgeGenerator extends EdgeGenerator
 			case TypeCheck:	//ADDED
 			case TypeTransformation: //ADDED
 			// EXCEPTIONS
-			case Try:
 			case CatchClause:
 			case Finally:
+			case Throw:
+			case Label:
+			case Iterator:
+			case FieldAccess:
 				return this.generateStructure(node, Way.Forwards);
 
+			case Try:
+				this.isTryContext = true;
+				final List<Node> result = this.generateStructure(node, Way.Forwards);
+				this.isTryContext = false;
+				return result;
+				
 			case Equality:
 			case Generator:
 				return this.generateStructure(node, Way.Backwards);
@@ -105,6 +118,8 @@ public class ControlFlowEdgeGenerator extends EdgeGenerator
 				return this.generateCLoopStructure(node);
 			case RLoop:
 				return this.generateRLoopStructure(node);
+			case Foreach:
+				return this.generateForeachStructure(node);
 				
 			case ExHandler:
 				return this.generateExHandlerStructure(node);
@@ -115,7 +130,8 @@ public class ControlFlowEdgeGenerator extends EdgeGenerator
 				return this.generateJumpStructure(node);
 
 			case Continue:
-				return new LinkedList<Node>();
+				//return new LinkedList<Node>();
+				return this.generateContinueJumpStructure(node);
 
 			case Root:
 			default:
@@ -142,6 +158,8 @@ public class ControlFlowEdgeGenerator extends EdgeGenerator
 		final Node lastChild = children.get(endIndex);
 		final List<Node> lastChildResultNodes = this.generate(lastChild);
 
+		if (this.isTryContext)
+			this.edg.addEdge(node, firstChild, 0, this.exceptionFlowEdgeInfo);
 		this.edg.addEdge(node, firstChild, 0, this.controlFlowEdgeInfo);
 		for (int childIndex = beginIndex; childIndex != endIndex; childIndex += increment)
 		{
@@ -149,7 +167,11 @@ public class ControlFlowEdgeGenerator extends EdgeGenerator
 			final Node nextChild = children.get(childIndex + increment);
 			final List<Node> resultNodes = this.generate(child);
 			for (Node resultNode : resultNodes)
+			{
+				if (this.isTryContext)
+					this.edg.addEdge(resultNode, nextChild, 0, this.exceptionFlowEdgeInfo);
 				this.edg.addEdge(resultNode, nextChild, 0, this.controlFlowEdgeInfo);
+			}
 		}
 		nodes.addAll(lastChildResultNodes);
 
@@ -167,7 +189,11 @@ public class ControlFlowEdgeGenerator extends EdgeGenerator
 				continue;
 
 			for (Node resultNode : resultNodes)
+			{
+				if (this.isTryContext)
+					this.edg.addEdge(resultNode, child, 0, this.exceptionFlowEdgeInfo);
 				this.edg.addEdge(resultNode, child, 0, this.controlFlowEdgeInfo);
+			}
 			resultNodes = this.generate(child);
 		}
 
@@ -183,9 +209,16 @@ public class ControlFlowEdgeGenerator extends EdgeGenerator
 		final List<Node> thenResultNodes = this.generate(thenChild);
 		final List<Node> elseResultNodes = this.generate(elseChild);
 
+		if (this.isTryContext)
+			this.edg.addEdge(node, conditionChild, 0, this.exceptionFlowEdgeInfo);
 		this.edg.addEdge(node, conditionChild, 0, this.controlFlowEdgeInfo);
 		for (Node resultNode : conditionResultNodes)
-		{
+		{				
+			if (this.isTryContext)
+			{
+				this.edg.addEdge(resultNode, thenChild, 0, this.exceptionFlowEdgeInfo);
+				this.edg.addEdge(resultNode, elseChild, 0, this.exceptionFlowEdgeInfo);
+			}
 			this.edg.addEdge(resultNode, thenChild, 0, this.controlFlowEdgeInfo);
 			this.edg.addEdge(resultNode, elseChild, 0, this.controlFlowEdgeInfo);
 		}
@@ -207,6 +240,8 @@ public class ControlFlowEdgeGenerator extends EdgeGenerator
 			cases.add(defaultCase);
 
 		final Node firstCase = cases.isEmpty() ? defaultCase : cases.get(0);
+		if (this.isTryContext)
+			this.edg.addEdge(node, firstCase, 0, this.exceptionFlowEdgeInfo);
 		this.edg.addEdge(node, firstCase, 0, this.controlFlowEdgeInfo);
 
 		// Cases
@@ -228,9 +263,17 @@ public class ControlFlowEdgeGenerator extends EdgeGenerator
 			if (nextCase != null)
 			{
 				if (!caseSelectorsChildren.isEmpty())
+				{	
+					if (this.isTryContext)
+						this.edg.addEdge(caseGuard, nextCase, 0, this.exceptionFlowEdgeInfo);
 					this.edg.addEdge(caseGuard, nextCase, 0, this.controlFlowEdgeInfo);
+				}
 				if (caseGuardResult != null)
+				{
+					if (this.isTryContext)
+						this.edg.addEdge(caseGuardResult, nextCase, 0, this.exceptionFlowEdgeInfo);
 					this.edg.addEdge(caseGuardResult, nextCase, 0, this.controlFlowEdgeInfo);
+				}
 			}
 			else
 			{
@@ -249,7 +292,11 @@ public class ControlFlowEdgeGenerator extends EdgeGenerator
 				final int bodyIndex = nextChildType == NodeInfo.Type.DefaultCase ? 0 : 2;
 				final Node nextCaseBody = EDGTraverser.getChild(nextChild, bodyIndex);
 				for (Node resultNode : resultNodes)
+				{
+					if (this.isTryContext)
+						this.edg.addEdge(resultNode, nextCaseBody, 0, this.exceptionFlowEdgeInfo);
 					this.edg.addEdge(resultNode, nextCaseBody, 0, this.controlFlowEdgeInfo);
+				}
 			}
 			else
 				nodes.addAll(resultNodes);
@@ -257,24 +304,7 @@ public class ControlFlowEdgeGenerator extends EdgeGenerator
 
 		return nodes;
 	}
-//	private List<Node> generateLoopStructure(Node node)
-//	{
-//		final List<Node> nodes = new LinkedList<Node>();
-//		final Node conditionChild = EDGTraverser.getChild(node, NodeInfo.Type.Condition);
-//		final Node bodyChild = EDGTraverser.getChild(node, NodeInfo.Type.Body);
-//		final List<Node> conditionResultNodes = this.generate(conditionChild);
-//		final List<Node> bodyResultNodes = this.generate(bodyChild);
-//
-//		this.edg.addEdge(node, conditionChild, 0, this.controlFlowEdgeInfo);
-//		for (Node resultNode : conditionResultNodes)
-//			this.edg.addEdge(resultNode, bodyChild, 0, this.controlFlowEdgeInfo);
-//		for (Node resultNode : bodyResultNodes)
-//			this.edg.addEdge(resultNode, conditionChild, 0, this.controlFlowEdgeInfo);
-//		nodes.addAll(conditionResultNodes);
-//
-//		return nodes;
-//	}
-//ADDED 2 different type of loops
+
 	private List<Node> generateFLoopStructure(Node node)
 	{
 		final Node initChild = EDGTraverser.getChild(node, NodeInfo.Type.Init);
@@ -288,19 +318,68 @@ public class ControlFlowEdgeGenerator extends EdgeGenerator
 		final List<Node> bodyResultNodes = this.generate(bodyChild);
 		final List<Node> updateResultNodes = this.generate(updateChild);
 
+		if (this.isTryContext)
+			this.edg.addEdge(node, initChild, 0, this.exceptionFlowEdgeInfo);
 		this.edg.addEdge(node, initChild, 0, this.controlFlowEdgeInfo);
 		for (Node resultNode : initResultNodes)
+		{
+			if (this.isTryContext)
+				this.edg.addEdge(resultNode, conditionChild, 0, this.exceptionFlowEdgeInfo);
 			this.edg.addEdge(resultNode, conditionChild, 0, this.controlFlowEdgeInfo);
+		}
 		for (Node resultNode : conditionResultNodes)
+		{
+			if (this.isTryContext)
+				this.edg.addEdge(resultNode, bodyChild, 0, this.exceptionFlowEdgeInfo);
 			this.edg.addEdge(resultNode, bodyChild, 0, this.controlFlowEdgeInfo);
+		}
 		for (Node resultNode : bodyResultNodes)
+		{
+			if (this.isTryContext)
+				this.edg.addEdge(resultNode, updateChild, 0, this.exceptionFlowEdgeInfo);
 			this.edg.addEdge(resultNode, updateChild, 0, this.controlFlowEdgeInfo);
+		}
 		for (Node resultNode : updateResultNodes)
+		{
+			if (this.isTryContext)
+				this.edg.addEdge(resultNode, conditionChild, 0, this.exceptionFlowEdgeInfo);
 			this.edg.addEdge(resultNode, conditionChild, 0, this.controlFlowEdgeInfo);
+		}
 		nodes.addAll(conditionResultNodes);
 		
 		return nodes;
 	}
+	
+	private List<Node> generateForeachStructure(Node node)
+	{
+		final Node iteratorChild = EDGTraverser.getChild(node, NodeInfo.Type.Iterator);
+		final Node bodyChild = EDGTraverser.getChild(node, NodeInfo.Type.Body);
+		
+		final List<Node> nodes = new LinkedList<Node>();
+		final List<Node> iteratorResultNodes = this.generate(iteratorChild);
+		final List<Node> bodyResultNodes = this.generate(bodyChild);
+
+		if (this.isTryContext)
+			this.edg.addEdge(node, iteratorChild, 0, this.exceptionFlowEdgeInfo);
+		this.edg.addEdge(node, iteratorChild, 0, this.controlFlowEdgeInfo);
+		for (Node resultNode : iteratorResultNodes)
+		{
+			if (this.isTryContext)
+				this.edg.addEdge(resultNode, bodyChild, 0, this.exceptionFlowEdgeInfo);
+			this.edg.addEdge(resultNode, bodyChild, 0, this.controlFlowEdgeInfo);
+		}
+		for (Node resultNode : bodyResultNodes)
+		{
+			if (this.isTryContext)
+				this.edg.addEdge(resultNode, iteratorChild, 0, this.exceptionFlowEdgeInfo);
+			this.edg.addEdge(resultNode, iteratorChild, 0, this.controlFlowEdgeInfo);
+		}
+
+		nodes.addAll(iteratorResultNodes);
+		
+		return nodes;
+	}
+	
 	private List<Node> generateCLoopStructure(Node node)
 	{
 		final List<Node> nodes = new LinkedList<Node>();
@@ -309,11 +388,21 @@ public class ControlFlowEdgeGenerator extends EdgeGenerator
 		final List<Node> conditionResultNodes = this.generate(conditionChild);
 		final List<Node> bodyResultNodes = this.generate(bodyChild);
 
+		if (this.isTryContext)
+			this.edg.addEdge(node, conditionChild, 0, this.exceptionFlowEdgeInfo);
 		this.edg.addEdge(node, conditionChild, 0, this.controlFlowEdgeInfo);
 		for (Node resultNode : conditionResultNodes)
+		{
+			if (this.isTryContext)
+				this.edg.addEdge(resultNode, bodyChild, 0, this.exceptionFlowEdgeInfo);
 			this.edg.addEdge(resultNode, bodyChild, 0, this.controlFlowEdgeInfo);
+		}
 		for (Node resultNode : bodyResultNodes)
+		{
+			if (this.isTryContext)
+				this.edg.addEdge(resultNode, conditionChild, 0, this.exceptionFlowEdgeInfo);
 			this.edg.addEdge(resultNode, conditionChild, 0, this.controlFlowEdgeInfo);
+		}
 		nodes.addAll(conditionResultNodes);
 
 		return nodes;
@@ -326,11 +415,21 @@ public class ControlFlowEdgeGenerator extends EdgeGenerator
 		final List<Node> bodyResultNodes = this.generate(bodyChild);
 		final List<Node> conditionResultNodes = this.generate(conditionChild);
 
+		if (this.isTryContext)
+			this.edg.addEdge(node, bodyChild, 0, this.exceptionFlowEdgeInfo);
 		this.edg.addEdge(node, bodyChild, 0, this.controlFlowEdgeInfo);
 		for (Node resultNode : bodyResultNodes)
+		{
+			if (this.isTryContext)
+				this.edg.addEdge(resultNode, conditionChild, 0, this.exceptionFlowEdgeInfo);
 			this.edg.addEdge(resultNode, conditionChild, 0, this.controlFlowEdgeInfo);
+		}
 		for (Node resultNode : conditionResultNodes)
+		{
+			if (this.isTryContext)
+				this.edg.addEdge(resultNode, bodyChild, 0, this.exceptionFlowEdgeInfo);
 			this.edg.addEdge(resultNode, bodyChild, 0, this.controlFlowEdgeInfo);
+		}
 		nodes.addAll(conditionResultNodes);
 
 		return nodes;
@@ -346,28 +445,43 @@ public class ControlFlowEdgeGenerator extends EdgeGenerator
 		final List<Node> catchResultNodes = this.generateCatchStructure(catchChild);
 		final List<Node> finallyResultNodes = this.generate(finallyChild);
 
+		if (this.isTryContext)
+			this.edg.addEdge(node, tryChild, 0, this.exceptionFlowEdgeInfo);
+
 		this.edg.addEdge(node, tryChild, 0, this.controlFlowEdgeInfo);
+		this.edg.addEdge(tryChild, catchChild, 0, this.controlFlowEdgeInfo);
+		
 		for (Node resultNode : tryResultNodes)
 		{
-			this.edg.addEdge(resultNode, catchChild, 0, this.controlFlowEdgeInfo);
+			if (this.isTryContext)
+				this.edg.addEdge(resultNode, finallyChild, 0, this.exceptionFlowEdgeInfo);
 			this.edg.addEdge(resultNode, finallyChild, 0, this.controlFlowEdgeInfo);
 		}
 		List<Node> catchClauses = EDGTraverser.getChildren(catchChild);
 		for (Node clause : catchClauses)
+		{
+			if (this.isTryContext)
+				this.edg.addEdge(catchChild, clause, 0, this.exceptionFlowEdgeInfo);
 			this.edg.addEdge(catchChild, clause, 0, this.controlFlowEdgeInfo);
+		}
 		for (Node resultNode : catchResultNodes)
+		{
+			if (this.isTryContext)
+				this.edg.addEdge(resultNode, finallyChild, 0, this.exceptionFlowEdgeInfo);
 			this.edg.addEdge(resultNode, finallyChild, 0, this.controlFlowEdgeInfo);
+		}
 		nodes.addAll(finallyResultNodes);
 
 		return nodes;
 	}
-	
 	private List<Node> generateCatchStructure(Node node)
 	{
 		List<Node> catchResultNodes = new LinkedList<Node>();
 		List<Node> catchClauses = EDGTraverser.getChildren(node);
 		for (Node clause : catchClauses)
 		{
+			if (this.isTryContext)
+				this.edg.addEdge(node, clause, 0, this.exceptionFlowEdgeInfo);
 			this.edg.addEdge(node, clause, 0, this.controlFlowEdgeInfo);
 			List<Node> resultNodes = this.generate(clause);
 			catchResultNodes.addAll(resultNodes);
@@ -386,13 +500,51 @@ public class ControlFlowEdgeGenerator extends EdgeGenerator
 		final Node dstNode = EDGTraverser.getNode(this.edg, dstId);
 		final Node dstResult = EDGTraverser.getResult(dstNode);
 
+		//final boolean isJumpingToTryContext = EDGTraverser.getAncestor(dstNode, NodeInfo.Type.Try) != null;
+		
 		if (child != null)
+		{
+			if (this.isTryContext) // && isJumpingToTryContext)
+				this.edg.addEdge(node, child, 0, this.exceptionFlowEdgeInfo);
 			this.edg.addEdge(node, child, 0, this.controlFlowEdgeInfo);
+		}
 		else
 			resultNodes.add(node);
 		if (dstResult != null)
 			for (Node resultNode : resultNodes)
+			{
+				if (this.isTryContext) // && isJumpingToTryContext)
+					this.edg.addEdge(resultNode, dstResult, 0, this.exceptionFlowEdgeInfo);
 				this.edg.addEdge(resultNode, dstResult, 0, this.controlFlowEdgeInfo);
+			}
+
+		return nodes;
+	}
+	private List<Node> generateContinueJumpStructure(Node node)
+	{
+		final List<Node> nodes = new LinkedList<Node>();
+		final List<Node> children = EDGTraverser.getChildren(node);
+		final Node child = children.isEmpty() ? null : children.get(0);
+		final List<Node> resultNodes = child == null ? new LinkedList<Node>() : this.generate(child);
+		final String dstText = node.getData().getName();
+		final int dstId = Integer.parseInt(dstText.substring(dstText.lastIndexOf(" ") + 1));
+		final Node dstNode = EDGTraverser.getNode(this.edg, dstId);
+		
+		if (child != null)
+		{
+			if (this.isTryContext) 
+				this.edg.addEdge(node, child, 0, this.exceptionFlowEdgeInfo);
+			this.edg.addEdge(node, child, 0, this.controlFlowEdgeInfo);
+		}
+		else
+			resultNodes.add(node);
+		if (dstNode != null)
+			for (Node resultNode : resultNodes)
+			{
+				if (this.isTryContext) 
+					this.edg.addEdge(resultNode, dstNode, 0, this.exceptionFlowEdgeInfo);
+				this.edg.addEdge(resultNode, dstNode, 0, this.controlFlowEdgeInfo);
+			}
 
 		return nodes;
 	}

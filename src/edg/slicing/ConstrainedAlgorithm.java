@@ -6,6 +6,7 @@ import java.util.List;
 import java.util.Set;
 
 import edg.constraint.EdgeConstraint;
+import edg.constraint.ExceptionConstraint;
 import edg.constraint.NodeConstraint;
 import edg.constraint.Constraints;
 import edg.graph.Edge;
@@ -65,6 +66,9 @@ public class ConstrainedAlgorithm implements SlicingAlgorithm
 		final List<Edge> edges = currentNode.getIncomingEdges();
 
 		edges.removeIf(edge -> edge.getData().getType() == EdgeInfo.Type.ControlFlow);
+		if(phase == Phase.SummaryGeneration)
+			edges.removeIf(edge -> edge.getData().getType() == EdgeInfo.Type.Exception);
+		
 		for (NodeConstraint nodeConstraint : nodeConstraints)
 			nodeConstraint.resolve(phase, edges);
 
@@ -81,19 +85,30 @@ public class ConstrainedAlgorithm implements SlicingAlgorithm
 		final Node initialNode = work.getInitialNode();
 		final Edge currentEdge = work.getCurrentEdge();
 		final Node nodeFrom = currentEdge.getFrom();
-
+//if (initialNode.getData().getId() == 7)
+//System.out.print(initialNode.getData().getId()+": ");
+		
+final Node nodeTo = currentEdge.getTo();		
+//if(nodeTo.getData().getId() == 212 && nodeFrom.getData().getId() == 228)
+//	System.out.print("STOP");
 		// NECESSARY TO CONTROL THE OUTPUT EDGES WITH LET_THROUGH_CONSTRAINTS
-		if (phase == Phase.Input && currentEdge.getData().getType() == EdgeInfo.Type.Output)
+		final EdgeInfo.Type edgeType = currentEdge.getData().getType(); 
+		if (phase == Phase.Input && edgeType == EdgeInfo.Type.Output)
 			return newWorks;
-		if (phase == Phase.Output && currentEdge.getData().getType() == EdgeInfo.Type.Input)
+		if (phase == Phase.Output && edgeType == EdgeInfo.Type.Input)
+			return newWorks;
+		if (phase == Phase.SummaryGeneration && (edgeType == EdgeInfo.Type.Input || edgeType == EdgeInfo.Type.Output))
 			return newWorks;
 		
 // TODO Borrame
 final List<Phase> phases = Arrays.asList(Phase.Input);
 final List<Integer> nodesIds = Arrays.asList();
-final Node nodeTo = currentEdge.getTo();
-if(nodeFrom.getData().getId() == 85 && nodeTo.getData().getId() == 71)
-	System.out.print("STOP");
+//if(initialNode.getData().getId() == 200 && nodeTo.getData().getId() == 209 && currentEdge.getData().getType() != EdgeInfo.Type.Structural)
+//{
+//if (initialNode.getData().getId() == 7)
+//System.out.print(nodeTo.getData().getId() + " -> " + nodeFrom.getData().getId()+" - EdgeType: " + currentEdge.getData().getType().name());
+//	System.out.print("");
+//}
 final int currentId = nodeTo.getData().getId();
 final int nextId = nodeFrom.getData().getId();
 if (phases.contains(phase) && (nodesIds.contains(currentId) || nodesIds.contains(nextId)))
@@ -109,6 +124,15 @@ System.out.print("");
 
 			for (Constraints newConstraints : newConstraintsList)
 				newWorks.add(new NodeWork(initialNode, nodeFrom, newConstraints));
+			
+//if(initialNode.getData().getId() == 7) // && currentEdge.getData().getType() != EdgeInfo.Type.Structural)
+//{
+//	boolean atravesado = !newConstraintsList.isEmpty();
+//	if (atravesado)
+//		System.out.println(" Yes");
+//	else
+//		System.out.println(" No");
+//}
 
 			return newWorks;
 		}

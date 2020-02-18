@@ -40,7 +40,7 @@ public class EmptyConstraint extends EdgeConstraint
 		super.check(phase, Phase.SummaryGeneration);
 
 		return super.wrap(constraints);
-	}
+	}	
 	protected List<Constraints> resolve(Phase phase, Edge edge, Constraints constraints, SeekingConstraint topConstraint, int productionDepth)
 	{
 		if (topConstraint.operation == SeekingConstraint.Operation.LetThrough)
@@ -53,6 +53,7 @@ public class EmptyConstraint extends EdgeConstraint
 
 		return super.wrap(constraints);
 	}
+
 	protected List<Constraints> resolve(Phase phase, Edge edge, Constraints constraints, AsteriskConstraint topConstraint, int productionDepth)
 	{
 		super.check(phase, Phase.SummaryGeneration);

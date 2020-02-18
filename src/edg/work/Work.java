@@ -38,8 +38,8 @@ public abstract class Work
 		final Work work = (Work) object;
 
 		// I think the formal out is not important
-//		if (this.initialNode != work.initialNode)
-//			return false;
+		if (this.initialNode != work.initialNode)
+			return false;
 		if (!this.constraints.equals(work.constraints))
 			return false;
 		return true;

@@ -6,7 +6,7 @@ public class LDASTNodeInfo
 	private String className;
 	private final long line;
 	private final String construction;
-	private final Object[] info;
+	private Object[] info;
 
 	public LDASTNodeInfo(long line, String construction, Object... info)
 	{
@@ -53,5 +53,14 @@ public class LDASTNodeInfo
 	public void setClassName(String className)
 	{
 		this.className = className;
+	}
+	public void addInfo(Object o)
+	{
+		int lastIndex = this.info.length;
+		Object[] newInfo = new Object[lastIndex+1];
+		for (int i = 0; i < lastIndex; i++)
+			newInfo[i] = this.info[i];
+		newInfo[lastIndex] = o;
+		this.info = newInfo;
 	}
 }

@@ -79,8 +79,12 @@ private final Map<String, Integer> ids = new Hashtable<String, Integer>();
 long worksProcessed = 0;
 		while (workList.hasMore())
 		{
+		
+//if (workList.getPendingWorks().size() == 1)
+//	System.out.println("PARA");
+//if (workList.getPendingWorks().containsKey("203->228"))
+//	System.out.println("Aun esta 1");
 			final Work work = workList.next();
-			
 //if (workList.contains(work))
 //	continue;
 			
@@ -92,16 +96,27 @@ ids.put(id, prev == null ? 0 : prev + 1);
 if (prev != null && prev == 100000)
 System.out.println(work.getId() + " - " + work.getConstraints().getEdgeConstraints().toString());
 			final Node initialNode = work.getInitialNode();
+			
+//final int initialNodeId = initialNode.getData().getId();
+//if(initialNodeId == 48)
+//	System.out.print("");
 			final Constraints constraints = work.getConstraints();
 			boolean isFormalIn = false;
-
+			
 			if (work instanceof NodeWork)
 			{
 				final NodeWork nodeWork = (NodeWork) work;
 				final Node currentNode = nodeWork.getCurrentNode();
+//final int currentNodeId = currentNode.getData().getId();
+//if(currentNodeId == 228)
+//System.out.println(" Node "+currentNodeId);
+
+				// ESTO SE USA PARA EVITAR BUCLES INFINITOS AL GENERAR SUMMARIES, SE PIERDE PRECISION Y PUEDE DAR COMO RESULTADO GRAMATICAS INCOMPLETAS O INCLUSO ERRONEAS
+				if (workList.getDoneNodes().contains(currentNode) && EDGTraverser.getParent(initialNode).getData().getType() != NodeInfo.Type.Clause)
+					continue;
 
 				if (isFormalIn = this.isFormalIn(currentNode, initialNode))
-				{
+				{	
 					final List<Node> nodesToContinue = this.createSummaryEdges(initialNode, currentNode, constraints);
 					this.rependWorks(workList, nodesToContinue);
 				}
@@ -111,12 +126,14 @@ System.out.println(work.getId() + " - " + work.getConstraints().getEdgeConstrain
 				continue;
 
 			final List<Work> newWorks = slicingAlgorithm.processWork(Phase.SummaryGeneration, work);
+//if(initialNodeId == 48)
+//	System.out.print("");
 			workList.pendAll(newWorks);
 		}
 // TODO Borrame
-System.out.println("Works done: " + workList.getDoneNodes().size());
-System.out.println("Works processed: " + worksProcessed);
-System.out.println();
+//System.out.println("Works done: " + workList.getDoneNodes().size());
+//System.out.println("Works processed: " + worksProcessed);
+//System.out.println();
 	}
 	private List<Work> getInitialWorks()
 	{
@@ -198,7 +215,7 @@ System.out.println();
 							final GlobalVariableConstraint removeConstraint = new GlobalVariableConstraint(SeekingConstraint.Operation.Remove, varName);
 							final Node callNode = EDGTraverser.getSibling(callResult, 0);
 							final Node callArgOut = EDGTraverser.getChild(callNode, 3);
-							this.edg.addEdge(input, callArgOut, 0, new EdgeInfo(EdgeInfo.Type.Flow, removeConstraint));
+							this.edg.addEdge(input, callArgOut, 0, new EdgeInfo(EdgeInfo.Type.Summary, removeConstraint));
 						}
 				}
 				else // PART FOR FUNCTION RESULT'S SUMMARIES

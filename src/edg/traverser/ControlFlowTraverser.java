@@ -1,7 +1,10 @@
 package edg.traverser;
 
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -136,18 +139,76 @@ public class ControlFlowTraverser
 		final Set<NodeWork<T>> doneWorks = new HashSet<NodeWork<T>>();
 		final boolean collectAndStop = collect == stop;
 		boolean ignore = configuration.ignoreInitialNode;
-
+// ADDED FOR ARRAYS		
+		final List<String> visitedArrayDefinitions = new LinkedList<String>();
+		final Node nodeWorkNode = nodeWork.node;
+		final Node nodeWorkSibling = EDGTraverser.getSibling(nodeWorkNode, 0);
+		final NodeInfo.Type nodeWorkSiblingType = nodeWorkSibling.getData().getType();
+//System.out.println("--------------");
+//System.out.println(nodeWorkNode.getData().getId());
+//System.out.println("--------------"); 
+// ----------------
 		pendingWorks.add(nodeWork);
 		while (!pendingWorks.isEmpty())
 		{
-			final NodeWork<T> currentNodeWork = pendingWorks.iterator().next();
-			final boolean collectWork = ignore ? false : collect.test(currentNodeWork);
-			final boolean stopHere = collectAndStop || ignore ? collectWork : stop.test(currentNodeWork);
+//System.out.println(++cont);
+			final NodeWork<T> currentNodeWork = pendingWorks.iterator().next();			
+			final Node node = currentNodeWork.node;
+//int k = node.getData().getId();
+//System.out.print(k + " -> ");
+
+			final Node grandParent = EDGTraverser.getParent(EDGTraverser.getParent(node));
+			final NodeInfo.Type grandParentType = grandParent.getData().getType();
+			boolean collectWork = ignore ? false : collect.test(currentNodeWork);
+			boolean stopHere = collectAndStop || ignore ? collectWork : stop.test(currentNodeWork);
+			
 			final Set<NodeWork<T>> nextWorks = new HashSet<NodeWork<T>>();
 
 			pendingWorks.remove(currentNodeWork);
+// ADDED FOR ARRAYS (TREATING THE USES)
+			if (collectWork)
+			{
+				if (grandParentType == NodeInfo.Type.DataConstructorAccess)
+				{
+					final Node index = EDGTraverser.getChild(EDGTraverser.getChild(grandParent, 1),0);
+					if (nodeWorkSiblingType == NodeInfo.Type.DataConstructorAccess)
+					{
+						final Node nodeWorkIndex = EDGTraverser.getChild(EDGTraverser.getChild(nodeWorkSibling, 1),0);
+						if (nodeWorkIndex.getData().getType() == NodeInfo.Type.Literal && index.getData().getType() == NodeInfo.Type.Literal && !nodeWorkIndex.getData().getName().equals(index.getData().getName()))
+							collectWork = false;
+					}
+					else
+					{
+						final String fullVarName = node.getData().getName() +"["+ index.getData().getName()+"]";
+						if (visitedArrayDefinitions.contains(fullVarName))
+							collectWork = false;
+					}
+				}
+			}
+// ------------------
 			if (collectWork)
 				collectedWorks.add(currentNodeWork);
+// ADDED FOR ARRAYS (TREATING THE DEFINITIONS)
+			if (stopHere)
+			{
+				if (grandParentType == NodeInfo.Type.DataConstructorAccess)
+				{	
+					final Node index = EDGTraverser.getChild(EDGTraverser.getChild(grandParent, 1),0);
+					if (nodeWorkSiblingType == NodeInfo.Type.DataConstructorAccess)
+					{
+						final Node nodeWorkIndex = EDGTraverser.getChild(EDGTraverser.getChild(nodeWorkSibling, 1),0);
+						if (!(index.getData().getType() == NodeInfo.Type.Literal) || !nodeWorkIndex.getData().getName().equals(index.getData().getName()))
+							stopHere = false;
+					}
+					else
+					{
+						if (index.getData().getType() == NodeInfo.Type.Literal)
+							visitedArrayDefinitions.add(node.getData().getName() +"["+ index.getData().getName() + "]");
+						stopHere = false;
+					}
+				}
+			}
+// ------------------
 			if (!stopHere)
 			{
 				final Set<Node> nextNodes = ControlFlowTraverser.step(currentNodeWork.node, configuration);
@@ -159,9 +220,11 @@ public class ControlFlowTraverser
 			if (newNode != null)
 				nextWorks.forEach(nextWork -> newNode.accept(nextWork.node));
 			pendingWorks.addAll(nextWorks);
-			ignore = false;
-		}
 
+			ignore = false;
+//nextWorks.forEach(nextWork -> System.out.print(nextWork.node.getData().getId()+", "));
+//System.out.println();
+		}
 		return collectedWorks;
 	}
 
