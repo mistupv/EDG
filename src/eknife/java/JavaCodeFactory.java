@@ -42,6 +42,7 @@ import com.github.javaparser.ast.nodeTypes.NodeWithBlockStmt;
 import com.github.javaparser.ast.nodeTypes.NodeWithOptionalBlockStmt;
 import com.github.javaparser.ast.nodeTypes.NodeWithParameters;
 import com.github.javaparser.ast.stmt.BlockStmt;
+import com.github.javaparser.ast.stmt.CatchClause;
 import com.github.javaparser.ast.stmt.DoStmt;
 import com.github.javaparser.ast.stmt.EmptyStmt;
 import com.github.javaparser.ast.stmt.ExpressionStmt;
@@ -51,6 +52,7 @@ import com.github.javaparser.ast.stmt.ReturnStmt;
 import com.github.javaparser.ast.stmt.Statement;
 import com.github.javaparser.ast.stmt.SwitchEntryStmt;
 import com.github.javaparser.ast.stmt.SwitchStmt;
+import com.github.javaparser.ast.stmt.TryStmt;
 import com.github.javaparser.ast.stmt.WhileStmt;
 import com.github.javaparser.ast.type.ClassOrInterfaceType;
 import com.github.javaparser.ast.type.PrimitiveType;
@@ -66,6 +68,8 @@ import edg.graph.NodeInfo;
 import edg.graph.VariableInfo;
 import edg.traverser.EDGTraverser;
 import misc.Misc;
+
+import eknife.java.JavaEDGFactory.*;
 
 public class JavaCodeFactory
 {
@@ -267,6 +271,8 @@ System.out.println("\n"+text);
 				return this.parseFLoop(statement);
 			case Return:
 				return this.parseReturn(statement);
+			case ExHandler:
+				return this.parseExHandler(statement);
 			default:
 				return new ExpressionStmt(this.parseExpression(statement));
 		}
@@ -405,7 +411,46 @@ System.out.println("\n"+text);
 
 		return new ForStmt(initBlock, conditionExpression, updateBlock, bodyBlock);
 	}
+	
+	// Exception Statements
+	private Statement parseExHandler(Node exHandler)
+	{
+		// Try
+		final Node tryNode = EDGTraverser.getChild(exHandler, 0);
+		final BlockStmt tryBlock0 = this.parseBlockStatements(tryNode);
+		final BlockStmt tryBlock = tryBlock0 == null ? new BlockStmt() : tryBlock0;
 
+		// Catch
+		final Node catchNode = EDGTraverser.getChild(exHandler, 1);
+		final NodeList<CatchClause> catchClauses = (NodeList<CatchClause>) this.parseCatch(catchNode);
+
+		// Finally
+		final Node finallyNode = EDGTraverser.getChild(exHandler, 2);
+		final BlockStmt finallyBlock = this.parseBlockStatements(finallyNode);
+
+		return new TryStmt(tryBlock, catchClauses, finallyBlock);
+	}
+	private List<CatchClause> parseCatch(Node _catch)
+	{
+		final List<Node> clauses = EDGTraverser.getChildren(_catch);
+		final List<CatchClause> catchClauses = new NodeList<CatchClause>();
+		for (Node clause : clauses)
+		{
+			if (this.slice != null && !this.slice.contains(clause))
+				continue;
+			
+			final Node parameters = EDGTraverser.getChild(clause, 0);
+			final Node parameter = EDGTraverser.getChild(parameters,0);
+			final Parameter parameter0 = this.parseParameter(parameter);
+			
+			final Node body = EDGTraverser.getChild(clause, 2);
+			final BlockStmt bodyBlock = this.parseBlockStatements(body);
+			
+			catchClauses.add(new CatchClause(parameter0, bodyBlock));
+		}
+		return catchClauses;
+	}
+	
 	private Statement parseReturn(Node _return)
 	{
 		final List<Node> returnChildren = EDGTraverser.getChildren(_return);
@@ -417,7 +462,19 @@ System.out.println("\n"+text);
 
 		return new ReturnStmt(returnExpression);
 	}
-
+	private BlockStmt parseBlockStatements(Node blockRoot)
+	{
+		if (this.slice != null && !this.slice.contains(blockRoot))
+			return null;
+		
+		final List<Node> bodyChildren = EDGTraverser.getChildren(blockRoot);
+		final List<Statement> bodyStatements = this.parseStatements(bodyChildren, false);
+		final BlockStmt bodyBlock = new BlockStmt();
+		for (Statement bodyStatement : bodyStatements)
+			bodyBlock.addStatement(bodyStatement);
+		return bodyBlock;
+	}
+	
 	// Expressions
 	private List<Expression> parseExpressions(List<Node> nodes, boolean transformUnused)
 	{
@@ -477,8 +534,15 @@ System.out.println("\n"+text);
 		final Node target = EDGTraverser.getChild(targetExpression, 0);
 		final LDASTNodeInfo ldNodeInfo = target.getData().getInfo();
 		final Object[] info = ldNodeInfo.getInfo();
-
-		if (info == null || info.length == 0)
+		
+		if(target.getData().getType() == NodeInfo.Type.Variable)
+		{
+			VariableInfo vi = (VariableInfo) target.getData();
+			if (vi.isDeclaration())
+				return this.parseDeclaration(equality);
+			return this.parseDefinition(equality);
+		}
+		else if (info == null || info.length == 0)
 			return this.parseDefinition(equality);
 		return this.parseDeclaration(equality);
 	}
@@ -516,6 +580,7 @@ System.out.println("\n"+text);
 
 		return new ArrayInitializerExpr(NodeList.nodeList(expressions));
 	}
+	
 	// OLD VERSION (Errors when extracting the name of the class and the name of the function)
 	// EMPTY SCOPE not considered
 //	private Expression parseCall2(Node call) 
@@ -548,6 +613,8 @@ System.out.println("\n"+text);
 //		}
 //		else
 //			return new MethodCallExpr(scopeExpression, new SimpleName(nameText), argumentsList);
+	
+	
 //	}
 	private Expression parseCall(Node call)
 	{

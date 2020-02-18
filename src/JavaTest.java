@@ -26,38 +26,36 @@ public class JavaTest
 /* ********************************************************************************************* */
 		// GLOBAL VARIABLES TESTS:
 /* ********************************************************************************************* */
-
+		//testGlobalVariables(config);
 //		final String className = "Explicit_Explicit.java";
 //		final SlicingCriterion slicingCriterion = new SlicingCriterion(className, 7, "n", 1); 
 		
 //		final String className = "Explicit_Call.java";
 //		final SlicingCriterion slicingCriterion = new SlicingCriterion(className, 5, "n", 1);
-//		
+		
 //		final String className = "Explicit_No_use.java";
 //		final SlicingCriterion slicingCriterion = new SlicingCriterion(className, 5, "n", 1);
-//		
+		
 //		final String className = "Call_Explicit.java";
 //		final SlicingCriterion slicingCriterion = new SlicingCriterion(className, 11, "n", 1);
-//		
-		final String className = "Call_Call.java";
-		final SlicingCriterion slicingCriterion = new SlicingCriterion(className, 18, "ene", 1);
-//		
+		
+//		final String className = "Call_Call.java";
+//		final SlicingCriterion slicingCriterion = new SlicingCriterion(className, 18, "ene", 1);
+		
 //		final String className = "Call_No_use.java";
-//		final SlicingCriterion slicingCriterion = new SlicingCriterion(className, 10, "n", 1);
-//		
+//		final SlicingCriterion slicingCriterion = new SlicingCriterion(className, 5, "n", 1);
+		
 //		final String className = "Parameters_Explicit.java";
 //		final SlicingCriterion slicingCriterion = new SlicingCriterion(className, 6, "n", 1);
-//		
+		
 //		final String className = "Parameters_Call.java";
 //		final SlicingCriterion slicingCriterion = new SlicingCriterion(className, 16, "ene", 1);
 		
 //		final String className = "AdvancedTest.java";
-//		final SlicingCriterion slicingCriterion = new SlicingCriterion(className, 10, "z", 1);
+//		final SlicingCriterion slicingCriterion = new SlicingCriterion(className, 17, "v", 1);
 		
-		final String codebase = "/Users/serperu/Desktop/Benchmarks/GVTests/";
-		if (true)
-			throw new RuntimeException("SET THE TEST PATH BEFORE CONTINUING");
-		final String sourcePath = null;// config.getTestPath() + className; // GLOBAL VARIABLES TESTS
+//		final String codebase = "/Users/serperu/Desktop/Benchmarks/GVTests/";
+//		final String sourcePath = config.getTestPath() + className; // GLOBAL VARIABLES TESTS
 /* ********************************************************************************************* */		
 /* ********************************************************************************************* */		
 //		final String className = "Test2.java";
@@ -115,8 +113,11 @@ public class JavaTest
 		
 //		final String sourcePath = config.getSourcesPath() + className;
 
-//		final String codebase = "/Users/serperu/Desktop/Benchmarks/";
-//		final String sourcePath = config.getTestPathBenchmarks() + className; // BENCHMARK DIRECTORY (DESKTOP)
+		final String className = "TryClass.java";
+		final SlicingCriterion slicingCriterion = new SlicingCriterion(className, 8, "e", 1); // ObjectCreation.java
+		
+		final String codebase = "/Users/serperu/Desktop/Benchmarks/";
+		final String sourcePath = config.getTestPathBenchmarks() + className; // BENCHMARK DIRECTORY (DESKTOP)
 		
 		final String outputDotPath = codebase + "output.dot";
 		final String outputPdfPath = codebase + "output.pdf";
@@ -135,5 +136,60 @@ public class JavaTest
 		DotFactory.createDot(outputDotFile, edg, SC, slice);
 		PdfFactory.createPdf(outputPdfFile, outputDotFile);
 		CodeFactory.createCode(Language.Java, outputJavaFile, edg, slice);
+	}
+
+	private static void testGlobalVariables(Config config) {
+		
+		final TestGV[] GVList = new TestGV[9];
+		GVList[0] = new TestGV("Explicit_Explicit.java", new SlicingCriterion("Explicit_Explicit.java", 7, "n", 1));
+		GVList[1] = new TestGV("Explicit_Call.java", new SlicingCriterion("Explicit_Call.java",5, "n", 1));
+		GVList[2] = new TestGV("Explicit_No_use.java", new SlicingCriterion("Explicit_No_use.java", 5, "n", 1));
+		GVList[3] = new TestGV("Call_Explicit.java", new SlicingCriterion("Call_Explicit.java", 11, "n", 1));
+		GVList[4] = new TestGV("Call_Call.java", new SlicingCriterion("Call_Call.java",18, "ene", 1));
+		GVList[5] = new TestGV("Call_No_use.java", new SlicingCriterion("Call_No_use.java", 5, "n", 1));
+		GVList[6] = new TestGV("Parameters_Explicit.java", new SlicingCriterion("Parameters_Explicit.java", 6, "n", 1));
+		GVList[7] = new TestGV("Parameters_Call.java", new SlicingCriterion("Parameters_Call.java", 16, "ene", 1));
+		GVList[8] = new TestGV("AdvancedTest.java", new SlicingCriterion("AdvancedTest.java", 17, "v", 1));
+		
+		final String codebase = "/Users/serperu/Desktop/Benchmarks/GVTests/";
+		
+		
+		for (int i = 0; i < GVList.length; i++)
+		{
+			final String className = GVList[i].className;
+			final SlicingCriterion slicingCriterion = GVList[i].sc;
+			final String sourcePath = config.getTestPath() + className; // GLOBAL VARIABLES TESTS
+			
+			//final String outputDotPath = codebase + "output.dot";
+			//final String outputPdfPath = codebase + "output.pdf";
+			final String outputJavaPath = codebase + "output.java";
+			//final File outputDotFile = new File(outputDotPath);
+			//final File outputPdfFile = new File(outputPdfPath);
+			final File outputJavaFile = new File(outputJavaPath);
+			
+			final EDG edg = EDGFactory.createEDG(Language.Java, sourcePath);
+			
+			final Node SC = edg.getNode(slicingCriterion);
+			final SlicingAlgorithm slicingAlgorithm = new ConstrainedAlgorithm();
+			final List<Node> slice = slicingAlgorithm.slice(SC); 
+
+			//DotFactory.createDot(outputDotFile, edg, SC, slice);
+			//PdfFactory.createPdf(outputPdfFile, outputDotFile);
+			CodeFactory.createCode(Language.Java, outputJavaFile, edg, slice);
+			
+			//ABRIR Y COMPARAR LOS .java del Gold Standard y del output
+			
+		}
+	}
+	private static class TestGV
+	{
+		private String className;
+		private SlicingCriterion sc;
+		
+		public TestGV(String cn, SlicingCriterion sc)
+		{
+			this.className = cn;
+			this.sc = sc;
+		}
 	}
 }

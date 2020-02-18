@@ -1,7 +1,7 @@
 import java.util.Random;
 
 import misc.Misc;
-import misc.math.PermutatorWithoutRepetition;
+import misc.math.PermutatorWithoutRepetitions;
 
 public class PrimitivaProblem
 {
@@ -113,13 +113,13 @@ public class PrimitivaProblem
 		int times = 0;
 
 		System.out.println(Misc.getCurrentTime());
-		final PermutatorWithoutRepetition pwr1 = new PermutatorWithoutRepetition(size, limit - 1);
+		final PermutatorWithoutRepetitions pwr1 = new PermutatorWithoutRepetitions(size, limit - 1);
 		while ((combination1 = pwr1.next()) != null)
 		{
-			final PermutatorWithoutRepetition pwr2 = new PermutatorWithoutRepetition(size, limit - 1);
+			final PermutatorWithoutRepetitions pwr2 = new PermutatorWithoutRepetitions(size, limit - 1);
 			while ((combination2 = pwr2.next()) != null)
 			{
-				final PermutatorWithoutRepetition pwr3 = new PermutatorWithoutRepetition(size, limit - 1);
+				final PermutatorWithoutRepetitions pwr3 = new PermutatorWithoutRepetitions(size, limit - 1);
 				while ((combination3 = pwr3.next()) != null)
 				{
 					combinations:

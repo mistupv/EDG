@@ -48,6 +48,7 @@ import com.github.javaparser.ast.expr.UnaryExpr;
 import com.github.javaparser.ast.expr.VariableDeclarationExpr;
 import com.github.javaparser.ast.stmt.BlockStmt;
 import com.github.javaparser.ast.stmt.BreakStmt;
+import com.github.javaparser.ast.stmt.CatchClause;
 import com.github.javaparser.ast.stmt.ContinueStmt;
 import com.github.javaparser.ast.stmt.DoStmt;
 import com.github.javaparser.ast.stmt.ExpressionStmt;
@@ -217,6 +218,8 @@ public class JavaEDGFactory extends EDGFactory
 			this.process((ClassOrInterfaceType) element);
 		else if (element instanceof PrimitiveType)
 			this.process((PrimitiveType) element);
+		else if (element instanceof CatchClause)
+			this.process((CatchClause) element);
 		else
 			throw new RuntimeException("Element not contemplated: " + element);
 	}
@@ -380,10 +383,35 @@ this.addVariableToContext(new VariableRecord(name.getName(), modifiers, type));
 
 		super.addDataConstructorAccess(name, index, ldNodeInfo);
 	}
+
+	// Exceptions
 	private void process(TryStmt _try)
 	{
-		// TODO
+		final long line = _try.getRange().get().begin.line;
+		
+		final Optional<BlockStmt> tryBlock = _try.getTryBlock();
+		final List<CatchClause> catchClauses = _try.getCatchClauses();
+		final Optional<BlockStmt>	finallyBlock = _try.getFinallyBlock();
+		
+		final List<Statement> tryStatements = tryBlock.isPresent() ? tryBlock.get().getStatements() : new LinkedList<Statement>();
+		// SOMETHING TODO WITH catchClauses
+		
+		final List<Statement> finallyStatements = finallyBlock.isPresent() ? finallyBlock.get().getStatements() : new LinkedList<Statement>();
+		final LDASTNodeInfo ldNodeInfo = new LDASTNodeInfo(line, "exHandler");
+
+		super.addExHandler(tryStatements, catchClauses, finallyStatements, ldNodeInfo);
 	}
+	private void process(CatchClause catchClause)
+	{
+		final long line = catchClause.getRange().get().begin.line;
+		final Parameter parameter = catchClause.getParameter();
+		final List<Statement> statements = catchClause.getBody().getStatements();
+		
+		final LDASTNodeInfo ldNodeInfo = new LDASTNodeInfo(line, "catchClause");
+		super.addCatchClause(parameter, null, statements, ldNodeInfo);
+	}
+	
+	
 	private void process(ForeachStmt foreach)
 	{
 		// TODO
@@ -856,7 +884,7 @@ this.addVariableToContext(new VariableRecord(name, type));
 		throw new RuntimeException("Wrong jump instruction");
 	}
 
-	private static class Variable
+	static class Variable
 	{
 		private final Node node;
 		private final String name;
