@@ -1,5 +1,10 @@
 package eknife.edg.constraint;
 
+import java.util.LinkedList;
+import java.util.List;
+
+import eknife.edg.traverser.EdgeTraverser.Phase;
+
 public class MapConstraint extends AccessConstraint{
 
 	public MapConstraint(Operation operation)
@@ -25,5 +30,22 @@ public class MapConstraint extends AccessConstraint{
 		if (this.operation == Operation.Add)
 			return new MapConstraint(Operation.Remove);
 		return new MapConstraint(Operation.Add);
+	}
+
+	public List<Constraints> resolve(Phase phase, Constraints constraintsStack)
+	{
+		final List<Constraints> constraintsStacks = new LinkedList<Constraints>();
+
+
+
+		return constraintsStacks;
+	}
+	public List<Constraints> resolve(Phase phase, Constraints constraintsStack, Constraint topConstraint)
+	{
+		final List<Constraints> constraintsStacks = new LinkedList<Constraints>();
+
+
+
+		return constraintsStacks;
 	}
 }

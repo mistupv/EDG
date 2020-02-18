@@ -1,5 +1,10 @@
 package eknife.edg.constraint;
 
+import java.util.LinkedList;
+import java.util.List;
+
+import eknife.edg.traverser.EdgeTraverser.Phase;
+
 public class ListConstraint extends AccessConstraint
 {
 	public enum Position { H, T }
@@ -41,5 +46,22 @@ public class ListConstraint extends AccessConstraint
 		if (this.operation == Operation.Add)
 			return new ListConstraint(Operation.Remove, this.position);
 		return new ListConstraint(Operation.Add, this.position);
+	}
+
+	public List<Constraints> resolve(Phase phase, Constraints constraintsStack)
+	{
+		final List<Constraints> constraintsStacks = new LinkedList<Constraints>();
+
+
+
+		return constraintsStacks;
+	}
+	public List<Constraints> resolve(Phase phase, Constraints constraintsStack, Constraint topConstraint)
+	{
+		final List<Constraints> constraintsStacks = new LinkedList<Constraints>();
+
+
+
+		return constraintsStacks;
 	}
 }

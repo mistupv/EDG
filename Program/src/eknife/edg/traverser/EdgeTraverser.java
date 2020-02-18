@@ -5,30 +5,31 @@ import java.util.List;
 
 import eknife.config.Config;
 import eknife.edg.EDG;
+import eknife.edg.EDG.GrammarType;
 import eknife.edg.Edge;
 import eknife.edg.EdgeInfo;
+import eknife.edg.Grammar;
 import eknife.edg.Node;
 import eknife.edg.NodeInfo;
 import eknife.edg.constraint.AccessConstraint;
 import eknife.edg.constraint.BinComprehensionConstraint;
 import eknife.edg.constraint.Constraint;
 import eknife.edg.constraint.Constraints;
+import eknife.edg.constraint.Constraints.SummaryType;
 import eknife.edg.constraint.ExceptionArgumentConstraint;
 import eknife.edg.constraint.ExceptionConstraint;
 import eknife.edg.constraint.StarConstraint;
 import eknife.edg.constraint.SummaryConstraint;
 import eknife.edg.constraint.TupleConstraint;
 import eknife.edg.constraint.UnresolvableConstraint;
-import eknife.edg.constraint.AccessConstraint.CompositeType;
 import eknife.edg.constraint.AccessConstraint.Operation;
 import eknife.edg.constraint.ListComprehensionConstraint;
 import eknife.edg.constraint.ListConstraint;
-import eknife.edg.constraint.RecordConstraint;
+import eknife.edg.constraint.SeekingConstraint;
 
 public class EdgeTraverser
 {
 	// TODO Delete me
-
 	public static void main(String[] args)
 	{
 		EdgeTraverser.example1();
@@ -40,8 +41,11 @@ public class EdgeTraverser
 	}
 	public static void example1()
 	{
-		final SummaryConstraint procedureP1 = new SummaryConstraint(new Node());
-		final SummaryConstraint procedureP2 = new SummaryConstraint(new Node());
+		final EDG graph = new EDG();
+		final Grammar grammar = graph.getGrammar(GrammarType.Value);
+
+		final SummaryConstraint procedureP1 = new SummaryConstraint(grammar, new Node());
+		final SummaryConstraint procedureP2 = new SummaryConstraint(grammar, new Node());
 		final List<Constraint> productionP1a = new LinkedList<Constraint>();
 		final List<Constraint> productionP2a = new LinkedList<Constraint>();
 		final List<Constraint> productionP2b = new LinkedList<Constraint>();
@@ -57,13 +61,11 @@ public class EdgeTraverser
 
 		final Constraints constraintsStack1 = new Constraints();
 
-		final EDG graph = new EDG();
+		graph.addProduction(GrammarType.Value, procedureP1, productionP1a);
+		graph.addProduction(GrammarType.Value, procedureP2, productionP2a);
+		graph.addProduction(GrammarType.Value, procedureP2, productionP2b);
 
-		graph.addProduction(procedureP1, productionP1a);
-		graph.addProduction(procedureP2, productionP2a);
-		graph.addProduction(procedureP2, productionP2b);
-
-		final EdgeTraverser edgeTraverser = new EdgeTraverser(graph, true);
+		final EdgeTraverser edgeTraverser = new EdgeTraverser(graph, Phase.Slicing);
 
 		final List<Constraints> newConstraintsStacks = edgeTraverser.traverseEdge(constraintsStack1, procedureP1);
 		System.out.println("Starts");
@@ -73,7 +75,10 @@ public class EdgeTraverser
 	}
 	public static void example2()
 	{
-		final SummaryConstraint procedureP1 = new SummaryConstraint(new Node());
+		final EDG graph = new EDG();
+		final Grammar grammar = graph.getGrammar(GrammarType.Value);
+
+		final SummaryConstraint procedureP1 = new SummaryConstraint(grammar, new Node());
 		final List<Constraint> productionP1a = new LinkedList<Constraint>();
 		final List<Constraint> productionP1b = new LinkedList<Constraint>();
 		final List<Constraint> productionP1c = new LinkedList<Constraint>();
@@ -97,17 +102,15 @@ public class EdgeTraverser
 		final Constraints constraintsStack1 = new Constraints();
 		final Constraints constraintsStack2 = new Constraints();
 
-		constraintsStack1.add(plusB);
-		constraintsStack1.add(plusA);
+		constraintsStack1.push(plusB);
+		constraintsStack1.push(plusA);
 
-		final EDG graph = new EDG();
+		graph.addProduction(GrammarType.Value, procedureP1, productionP1a);
+		graph.addProduction(GrammarType.Value, procedureP1, productionP1b);
+		graph.addProduction(GrammarType.Value, procedureP1, productionP1c);
+		graph.addProduction(GrammarType.Value, procedureP1, productionP1d);
 
-		graph.addProduction(procedureP1, productionP1a);
-		graph.addProduction(procedureP1, productionP1b);
-		graph.addProduction(procedureP1, productionP1c);
-		graph.addProduction(procedureP1, productionP1d);
-
-		final EdgeTraverser edgeTraverser = new EdgeTraverser(graph, true);
+		final EdgeTraverser edgeTraverser = new EdgeTraverser(graph, Phase.Slicing);
 
 		final List<Constraints> newConstraintsStacks1 = edgeTraverser.traverseEdge(constraintsStack1, procedureP1);
 		System.out.println("Starts");
@@ -122,9 +125,12 @@ public class EdgeTraverser
 	}
 	public static void example3()
 	{
-		final SummaryConstraint procedureP1 = new SummaryConstraint(new Node());
-		final SummaryConstraint procedureP2 = new SummaryConstraint(new Node());
-		final SummaryConstraint procedureP3 = new SummaryConstraint(new Node());
+		final EDG graph = new EDG();
+		final Grammar grammar = graph.getGrammar(GrammarType.Value);
+
+		final SummaryConstraint procedureP1 = new SummaryConstraint(grammar, new Node());
+		final SummaryConstraint procedureP2 = new SummaryConstraint(grammar, new Node());
+		final SummaryConstraint procedureP3 = new SummaryConstraint(grammar, new Node());
 		final List<Constraint> productionP1a = new LinkedList<Constraint>();
 		final List<Constraint> productionP1b = new LinkedList<Constraint>();
 		final List<Constraint> productionP2a = new LinkedList<Constraint>();
@@ -149,15 +155,13 @@ public class EdgeTraverser
 
 		final Constraints constraintsStack1 = new Constraints();
 
-		final EDG graph = new EDG();
+		graph.addProduction(GrammarType.Value, procedureP1, productionP1a);
+		graph.addProduction(GrammarType.Value, procedureP1, productionP1b);
+		graph.addProduction(GrammarType.Value, procedureP2, productionP2a);
+		graph.addProduction(GrammarType.Value, procedureP3, productionP3a);
+		graph.addProduction(GrammarType.Value, procedureP3, productionP3b);
 
-		graph.addProduction(procedureP1, productionP1a);
-		graph.addProduction(procedureP1, productionP1b);
-		graph.addProduction(procedureP2, productionP2a);
-		graph.addProduction(procedureP3, productionP3a);
-		graph.addProduction(procedureP3, productionP3b);
-
-		final EdgeTraverser edgeTraverser = new EdgeTraverser(graph, true);
+		final EdgeTraverser edgeTraverser = new EdgeTraverser(graph, Phase.Slicing);
 
 		final List<Constraints> newConstraintsStacks1 = edgeTraverser.traverseEdge(constraintsStack1, procedureP1);
 		System.out.println("Starts");
@@ -166,21 +170,20 @@ public class EdgeTraverser
 		System.out.println("Finishes");
 	}
 
-	
-	
-	
-	
-	
-	private static final int maxDepth = 5;
-	private static final int maxStackSize = 9;
+
+
+
+
+
+	public enum Phase { Summary, Slicing };
 
 	private final EDG graph;
-	private final boolean resolveSummary;
+	private final Phase phase;
 
-	public EdgeTraverser(EDG graph, boolean resolveSummary)
+	public EdgeTraverser(EDG graph, Phase phase)
 	{
 		this.graph = graph;
-		this.resolveSummary = resolveSummary;
+		this.phase = phase;
 	}
 
 	public List<Constraints> traverseIncomingEdge(Edge edge, Constraints constraints)
@@ -190,26 +193,25 @@ public class EdgeTraverser
 		final NodeInfo.Type newNodeType = nodeFrom.getData().getType();
 		final List<Constraints> newConstraintsStacks = new LinkedList<Constraints>();
 
-		// Going up using control edges empties the stack
-/*******/
-// TODO SOLUCION TEMPORAL, MIRAR ESTO  
-/**** 
- * PROBLEMA: Al atravesar un arco de control en la resolución del summary se vacía la pila 
- * y el bottom de la pila deja de ser ExceptionConstraint. Despues de atravesar este arco
- * alcanzamos el parámetro de entrada para el que queremos crear el summary, pero cuando
- * consultamos si el camino se ha hecho empezando por un arco de exception (-Ex) la pila
- * se vació previamente y no se consigue crear el summary en el exceptionReturn.
- * Mirar Ejemplo magic6  
-****/
+		Constraints newConstraints = (Constraints) constraints.clone();
 		
-
-		if (edgeType == EdgeInfo.Type.NormalControl) // <- Linea original
+		if (this.phase == Phase.Summary && constraints.getSummaryType() == null)
 		{
-			Constraints newConstraints = (Constraints) constraints.clone();
+			final SummaryType summaryType = (edge.getData().getType() == EdgeInfo.Type.Exception) ? SummaryType.Exception : SummaryType.Return;
+			newConstraints.setSummaryType(summaryType);
+		}
+		
+		// Going up using control edges empties the stack only in slicing time
+		// TODO Borrar si funciona bien
+/**
+		if (edgeType == EdgeInfo.Type.NormalControl) // PLANTEAR BORRAR ESTE IF Y HACER QUE SE EJECUTE EL resolve DE StarConstraint
+		{
 			newConstraints.clear();
+			if (this.phase == Phase.Summary)
+				newConstraints.push(edge.getData().getConstraint());
 			newConstraintsStacks.add(newConstraints);
 		}
-/*******/		
+**/
 		// Structural control edges that belong to expressions can only be traversed the other way round.
 		// Traverse it this way means that one descendant is the slicing criterion, and we let go up emptying the stack.
 		if (edgeType == EdgeInfo.Type.StructuralControl &&
@@ -219,15 +221,37 @@ public class EdgeTraverser
 			newConstraintsStacks.add(new Constraints());
 		if (!newConstraintsStacks.isEmpty())
 			return newConstraintsStacks;
-
-		if (!constraints.isEmpty())
+		// ExceptionArgument constraints forbid to traverse the non-exception edges
+		if (!newConstraints.isEmpty())
 		{
-if (!(edge.getData().getType() == EdgeInfo.Type.Exception && edge.getData().getConstraint() == null)) // Sin esto no se atraviesan los arcos Exception sin constraint
+			final Constraint topConstraint = newConstraints.peek();
+			if (topConstraint instanceof ExceptionArgumentConstraint &&
+					((ExceptionArgumentConstraint) topConstraint).getOperation() == Operation.Add &&
+					(edgeType != EdgeInfo.Type.Exception))
+				return new LinkedList<Constraints>();
+		}
+/*********** MODIFIED *************			
+if (edgeType != EdgeInfo.Type.Exception && constraints.isSeekingConstraint()) 
 {
+	Constraints newConstraints = (Constraints) constraints.clone();
+	newConstraints.clear();
+	newConstraintsStacks.add(newConstraints);
+	return new LinkedList<Constraints>();
+}
+/**********************************/
+		
+		// TODO Considerar borrar este if entero
+/*		if (!constraints.isEmpty())
+		{
+//if (!(edge.getData().getType() == EdgeInfo.Type.Exception && edge.getData().getConstraint() == null)) // Sin esto no se atraviesan los arcos Exception sin constraint
+//{
 			final Constraint topConstraint = constraints.peek();
 			final Constraint edgeConstraint = edge.getData().getConstraint();
 			if ((topConstraint instanceof ExceptionConstraint || topConstraint instanceof ExceptionArgumentConstraint) && ((AccessConstraint) topConstraint).getOperation() == Operation.Add)
 				if (!(edgeConstraint instanceof ExceptionConstraint || edgeConstraint instanceof ExceptionArgumentConstraint))
+					return new LinkedList<Constraints>();
+*/
+/*********			
 if (!(edge.getTo().getData().getType() == NodeInfo.Type.ExceptionReturn)) 
 // PARA RECORRER LOS ARCOS FuncName -> ExceptionReturn Y LOS SUMMARY NECESITO 
 // PERMITIR AL ALGORITMO PASAR DESDE LOS NODOS EXCEPTIONRETURN
@@ -238,10 +262,11 @@ else
 // SI PASO POR UN ARCO DESDE EL EXCEPTIONRETURN A OTRO NODO VACIO LA PILA 
 // PARA PODER SEGUIR RECORRIENDO ARCOS DE DATOS. CASO DE LAS HIGH ORDER FUNCTIONS
 }
-}
-		}
+*******/
+//}
+//		}
 
-		final Constraints constraintsClone = (Constraints) constraints.clone();
+		final Constraints constraintsClone = (Constraints) newConstraints.clone();
 		final Constraint constraint = edge.getData().getConstraint();
 		return this.traverseEdge(constraintsClone, constraint);
 	}
@@ -257,6 +282,9 @@ else
 			nodeType != NodeInfo.Type.BinExpression && nodeType != NodeInfo.Type.BinElementExpression)
 			return newConstraintsStacks;
 
+if (this.phase == Phase.Summary && edge.getData().getType() == EdgeInfo.Type.Exception)
+	return new LinkedList<Constraints>();
+		
 		final Constraint constraint = edge.getData().getConstraint();
 		return this.traverseEdge(constraints, constraint);
 	}
@@ -271,15 +299,21 @@ else
 		final List<Constraints> newConstraintsStacks = new LinkedList<Constraints>();
 
 		if (constraint == null)
+		{
+if (!constraintsStack.isSeekingConstraint()) // ADDED SERGIO 
 			newConstraintsStacks.add(constraintsStack);
-		else if (!this.resolveSummary)
-			newConstraintsStacks.add(this.resolveCollectingNonTerminals(constraintsStack, constraint));
+		}
 		else
-			newConstraintsStacks.addAll(this.resolveProcessingNonTerminals(constraintsStack, constraint, 0));
+			newConstraintsStacks.addAll(this.resolveConstraint(constraintsStack, constraint));
+		// TODO Si funciona bien, esto sobra!!
+//			if (this.phase == Phase.Summary)
+//				newConstraintsStacks.add(this.resolveCollectingNonTerminals(constraintsStack, constraint));
+//			else
+//				newConstraintsStacks.addAll(this.resolveProcessingNonTerminals(constraintsStack, constraint, 0));
 		if (newConstraintsStacks.size() == 1 && newConstraintsStacks.get(0) == null)
 		{
 			newConstraintsStacks.clear();
-			if (this.resolveSummary)
+			if (this.phase == Phase.Slicing)
 				newConstraintsStacks.add(new Constraints());
 		}
 
@@ -293,6 +327,31 @@ else
 
 		return newConstraintsStacks;
 	}
+
+	private List<Constraints> resolveConstraint(Constraints constraintsStack, Constraint constraint)
+	{
+		final Constraints constraintsStackClone = (Constraints) constraintsStack.clone();
+		final Constraint lastConstraint = constraintsStackClone.isEmpty() ? null : constraintsStackClone.peek();
+		final List<Constraints> constraintsStacks = constraint.resolve(this.phase, constraintsStackClone, lastConstraint, 0);
+
+		if (constraintsStacks.size() == 1 && constraintsStacks.get(0) == null)
+		{
+			constraintsStacks.clear();
+			constraintsStacks.add(new Constraints());
+		}
+		return constraintsStacks;
+	}
+
+
+
+
+
+
+/**************
+ 	TODO Borrar si todo funciona bien
+ 	
+	private static final int maxDepth = 5;
+	private static final int maxStackSize = 9;
 
 	private Constraints resolveCollectingNonTerminals(Constraints constraintsStack, Constraint constraint)
 	{
@@ -348,18 +407,56 @@ if (constraintsStack.size() >= EdgeTraverser.maxStackSize)
 		throw new RuntimeException("Type of constraint not contempled");
 	}
 
+	private Constraints resolveSeekingConstraint(Constraints constraintsStack, SeekingConstraint constraint)
+	{
+		if (constraintsStack.isEmpty())
+		{
+			if (!constraint.letThroughWithEmptyStack(this.phase))
+				return null;
+			final Constraints newConstraintsStack = new Constraints();
+
+			if (this.phase == Phase.Summary)
+				newConstraintsStack.setExceptionSummary(true);
+						
+			if (constraint.getOperation() != null)
+				newConstraintsStack.push(constraint);
+			return newConstraintsStack;
+		}
+		
+		final Constraints constraintsStackClone = (Constraints) constraintsStack.clone();
+		final Constraint lastConstraint = constraintsStackClone.pop();
+		final Constraints constraintsStackClone2 = (Constraints) constraintsStack.clone();
+		constraintsStackClone2.push(constraint);
+
+		if (lastConstraint instanceof SeekingConstraint)
+		{
+			final SeekingConstraint lastEdgeConstraint = (SeekingConstraint) lastConstraint;
+			final SeekingConstraint.Operation constraintOperation = constraint.getOperation();
+			final SeekingConstraint.Operation lastConstraintOperation = lastEdgeConstraint.getOperation();
+
+			// TODO Falta por terminar
+			if (constraintOperation == null && lastConstraintOperation == SeekingConstraint.Operation.Add)
+				return constraint.letThrough(lastEdgeConstraint) ? constraintsStack : null;
+			if (constraintOperation == SeekingConstraint.Operation.Remove && lastConstraintOperation == SeekingConstraint.Operation.Add)
+				return constraint.cancels(lastEdgeConstraint) ? constraintsStackClone : null;
+			return constraintsStackClone2;
+		}
+		if (lastConstraint instanceof SummaryConstraint)
+			return constraintsStackClone2;
+		if (lastConstraint instanceof UnresolvableConstraint && constraint.getOperation() == SeekingConstraint.Operation.Add)
+			return constraintsStackClone2;
+		return null;
+		
+	}
 	private Constraints resolveAccessConstraint(Constraints constraintsStack, AccessConstraint constraint)
 	{
 		if (constraintsStack.isEmpty())
 		{
-			if (!constraint.letThroughWithEmptyStack(this.resolveSummary))
+			if (!constraint.letThroughWithEmptyStack(this.phase))
 				return null;
-			
+
 			final Constraints newConstraintsStack = new Constraints();
-			
-if (!this.resolveSummary && constraint instanceof ExceptionConstraint)
-	newConstraintsStack.setExceptionSummary(true);
-			
+
 			if (constraint.getOperation() != null)
 				newConstraintsStack.push(constraint);
 			return newConstraintsStack;
@@ -521,4 +618,5 @@ if (!this.resolveSummary && constraint instanceof ExceptionConstraint)
 
 		return stacks;
 	}
+************/
 }

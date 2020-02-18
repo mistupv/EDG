@@ -13,6 +13,7 @@ import eknife.edg.constraint.BinConstraint;
 import eknife.edg.constraint.BinElementConstraint;
 import eknife.edg.constraint.ListConstraint;
 import eknife.edg.constraint.RecordConstraint;
+import eknife.edg.constraint.StarConstraint;
 import eknife.edg.constraint.TupleConstraint;
 import eknife.edg.traverser.GraphTraverser;
 
@@ -267,7 +268,7 @@ this.graph.addEdge(clauseNode, bodyNode, 0, edgeInfo3);
 				this.parseListPattern(parent, pattern);
 				break;
 			case "op":
-				this.parseUnaryOperationPattern(parent, pattern);
+				this.parseOperationPattern(parent, pattern);
 				break;
 			case "bin":
 				this.parseBinPattern(parent, pattern);
@@ -379,6 +380,23 @@ this.graph.addEdge(clauseNode, bodyNode, 0, edgeInfo3);
 		final OtpErlangTuple compoundPatternVariable2 = (OtpErlangTuple) compoundPattern.elementAt(3);
 		this.parsePattern(compoundPatternNode, compoundPatternVariable2);
 	}
+	private void parseOperationPattern(Node parent, OtpErlangTuple operation)
+	{
+		final OtpErlangAtom operationType = (OtpErlangAtom) operation.elementAt(2);
+
+		switch (operation.arity())
+		{
+			case 4:
+				this.parseUnaryOperationPattern(parent, operation);
+				break;
+			case 5:
+				this.parseBinaryOperationPattern(parent, operation);
+				break;
+			default:
+				throw new RuntimeException("Operation type not contempled: " + operationType.atomValue());
+		}
+
+	}
 	private void parseUnaryOperationPattern(Node parent, OtpErlangTuple operation)
 	{
 		// Add operation
@@ -395,7 +413,27 @@ this.graph.addEdge(clauseNode, bodyNode, 0, edgeInfo3);
 		final OtpErlangTuple operationPattern = (OtpErlangTuple) operation.elementAt(3);
 		this.parsePattern(operationNode, operationPattern);
 	}
+	private void parseBinaryOperationPattern(Node parent, OtpErlangTuple operation)
+	{
+		// Add operation
+		final OtpErlangAtom operationSign = (OtpErlangAtom) operation.elementAt(2);
+		final String operationSignValue = operationSign.atomValue();
+		final String operationNodeName = "(op)" + "\\n" + operationSignValue;
+		final NodeInfo info = new NodeInfo(this.nodeId++, NodeInfo.Type.Operation, operationSignValue);
+		final Node operationNode = new Node(operationNodeName, info);
+		final EdgeInfo edgeInfo = this.getEdgeInfo(parent);
+		this.graph.addNode(operationNode);
+		this.graph.addEdge(parent, operationNode, 0, edgeInfo);
 
+		// Process expression1
+		final OtpErlangTuple operationPattern1 = (OtpErlangTuple) operation.elementAt(3);
+		this.parsePattern(operationNode, operationPattern1);
+
+		// Process expression2
+		final OtpErlangTuple operationPattern2 = (OtpErlangTuple) operation.elementAt(4);
+		this.parsePattern(operationNode, operationPattern2);
+	}
+	
 	// Expressions
 	private void parseExpressions(Node parent, OtpErlangList expressions)
 	{
@@ -1438,7 +1476,7 @@ this.graph.addEdge(catchNode, catch0Node, 0, edgeInfo0);
 			case MapUpdate:
 				return new EdgeInfo(EdgeInfo.Type.StructuralControl);
 			default:
-				return new EdgeInfo(EdgeInfo.Type.NormalControl);
+				return new EdgeInfo(EdgeInfo.Type.NormalControl, new StarConstraint());
 		}
 	}
 	private EdgeInfo getBinEdgeInfo(Node parent, OtpErlangTuple child)

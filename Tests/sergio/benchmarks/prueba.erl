@@ -1,14 +1,9 @@
 -module(prueba).
 -compile(export_all).
 
-main(X,F) ->
-    try 
-        f(X)        
-    catch 
-        _:_ ->      
-             {slice,2}      
+main(X) ->   
+    case X of 
+        {1,3} -> 9;                       
+        {1,Z} = {Y,2} -> 1;
+        {1,B} -> {slice,X}
     end.
-
-f(X) -> 
-    
-    throw(true).  

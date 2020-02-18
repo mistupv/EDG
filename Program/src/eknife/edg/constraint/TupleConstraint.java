@@ -1,5 +1,10 @@
 package eknife.edg.constraint;
 
+import java.util.LinkedList;
+import java.util.List;
+
+import eknife.edg.traverser.EdgeTraverser.Phase;
+
 public class TupleConstraint extends AccessConstraint
 {
 	private int index;
@@ -39,5 +44,22 @@ public class TupleConstraint extends AccessConstraint
 		if (this.operation == Operation.Add)
 			return new TupleConstraint(Operation.Remove, this.index);
 		return new TupleConstraint(Operation.Add, this.index);
+	}
+
+	public List<Constraints> resolve(Phase phase, Constraints constraintsStack)
+	{
+		final List<Constraints> constraintsStacks = new LinkedList<Constraints>();
+
+
+
+		return constraintsStacks;
+	}
+	public List<Constraints> resolve(Phase phase, Constraints constraintsStack, Constraint topConstraint)
+	{
+		final List<Constraints> constraintsStacks = new LinkedList<Constraints>();
+
+
+
+		return constraintsStacks;
 	}
 }

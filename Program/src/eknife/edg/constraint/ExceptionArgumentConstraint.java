@@ -1,5 +1,11 @@
 package eknife.edg.constraint;
 
+import java.util.LinkedList;
+import java.util.List;
+
+import eknife.edg.constraint.AccessConstraint.Operation;
+import eknife.edg.traverser.EdgeTraverser.Phase;
+
 public class ExceptionArgumentConstraint  extends AccessConstraint{
 	
 	private String argumentField;
@@ -14,10 +20,6 @@ public class ExceptionArgumentConstraint  extends AccessConstraint{
 	public String getField()
 	{
 		return this.argumentField;
-	}
-	public boolean letThroughWithEmptyStack(boolean resolveSummary)
-	{
-		return !resolveSummary || this.operation == AccessConstraint.Operation.Add;
 	}
 	public boolean equals(Object object)
 	{
@@ -57,5 +59,12 @@ public class ExceptionArgumentConstraint  extends AccessConstraint{
 			return true;
 		else
 			return false;
+	}
+
+	public List<Constraints> resolve(Phase phase, Constraints constraintsStack, int productionDepth)
+	{
+		if (phase == Phase.Slicing && this.operation == Operation.Remove)
+			return new LinkedList<Constraints>();
+		return super.resolve(phase, constraintsStack, productionDepth);
 	}
 }

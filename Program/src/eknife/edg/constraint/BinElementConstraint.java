@@ -1,5 +1,10 @@
 package eknife.edg.constraint;
 
+import java.util.LinkedList;
+import java.util.List;
+
+import eknife.edg.traverser.EdgeTraverser.Phase;
+
 public class BinElementConstraint extends AccessConstraint
 {
 	public enum Component { V, S, T }
@@ -41,5 +46,14 @@ public class BinElementConstraint extends AccessConstraint
 		if (this.operation == Operation.Add)
 			return new BinElementConstraint(Operation.Remove, this.component);
 		return new BinElementConstraint(Operation.Add, this.component);
+	}
+
+	public List<Constraints> resolve(Phase phase, Constraints constraintsStack)
+	{
+		return new LinkedList<Constraints>();
+	}
+	public List<Constraints> resolve(Phase phase, Constraints constraintsStack, Constraint topConstraint)
+	{
+		return new LinkedList<Constraints>();
 	}
 }

@@ -11,18 +11,21 @@ import eknife.lib.graph.Arrow;
 import eknife.lib.graph.Graph;
 import eknife.lib.graph.Vertex;
 
-public class EDG extends Graph<NodeInfo, EdgeInfo>
+public class EDG
 {
-	private final Grammar grammar = new Grammar();
+	/*****************/
+	/***** Nodes *****/
+	/*****************/
+	private Graph<NodeInfo, EdgeInfo> graph = new Graph<NodeInfo, EdgeInfo>();
 
 	public Node getRootNode()
 	{
-		return (Node) super.getRootVertex();
+		return (Node) this.graph.getRootVertex();
 	}
 	public List<Node> getNodes()
 	{
 		final List<Node> nodes = new LinkedList<Node>();
-		final List<Vertex<NodeInfo, EdgeInfo>> verticies = super.getVerticies();
+		final List<Vertex<NodeInfo, EdgeInfo>> verticies = this.graph.getVerticies();
 
 		for (Vertex<NodeInfo, EdgeInfo> vertex : verticies)
 			nodes.add((Node) vertex);
@@ -32,32 +35,33 @@ public class EDG extends Graph<NodeInfo, EdgeInfo>
 	public List<Edge> getEdges()
 	{
 		final List<Edge> edges = new LinkedList<Edge>();
-		final List<Arrow<NodeInfo, EdgeInfo>> arrows = super.getArrows();
+		final List<Arrow<NodeInfo, EdgeInfo>> arrows = this.graph.getArrows();
 
 		for (Arrow<NodeInfo, EdgeInfo> arrow : arrows)
 			edges.add((Edge) arrow);
 
 		return edges;
 	}
-	public List<List<Constraint>> getProductions(SummaryConstraint summaryConstraint)
-	{
-		return this.grammar.getProductions(summaryConstraint);
-	}
 
 	public void setRootNode(Node node)
 	{
-		super.setRootVertex(node);
+		this.graph.setRootVertex(node);
 	}
 
 	public boolean addNode(Node node)
 	{
-		return super.addVertex(node);
+		return this.graph.addVertex(node);
 	}
 	public boolean addEdge(Node from, Node to, int cost, EdgeInfo data) throws IllegalArgumentException
 	{
-		if (super.verticies.contains(from) == false)
+		final Edge e = new Edge(from, to, cost, data);
+
+		return this.graph.addEdge(e);
+		// TODO Si el programa sigue funcionando bien, esto sobra!!
+/*
+		if (this.graph.getVerticies().contains(from) == false)
 			throw new IllegalArgumentException("from is not in graph");
-		if (super.verticies.contains(to) == false)
+		if (this.graph.getVerticies().contains(to) == false)
 			throw new IllegalArgumentException("to is not in graph");
 
 		Edge e = new Edge(from, to, cost, data);
@@ -71,28 +75,35 @@ public class EDG extends Graph<NodeInfo, EdgeInfo>
 
 		from.addEdge(e);
 		to.addEdge(e);
-		edges.add(e);
+		this.graph.addEdge(e);
 		return true;
+*/
 	}
-	public void addProduction(SummaryConstraint summaryConstraint, List<Constraint> production)
-	{
-		this.grammar.addProduction(summaryConstraint, production);
-	}
+
 
 	public Node findNodeByData(NodeInfo data, Comparator<NodeInfo> compare)
 	{
-		return (Node) super.findNodeByData(data, compare);
+		return (Node) this.graph.findNodeByData(data, compare);
 	}
 	public List<Node> findNodesByData(NodeInfo data, Comparator<NodeInfo> compare)
 	{
 		final List<Node> nodes = new LinkedList<Node>();
-		final List<Vertex<NodeInfo, EdgeInfo>> verticies = super.findVerticiesByData(data, compare);
+		final List<Vertex<NodeInfo, EdgeInfo>> verticies = this.graph.findVerticiesByData(data, compare);
 
 		for (Vertex<NodeInfo, EdgeInfo> vertex : verticies)
 			nodes.add((Node) vertex);
 
 		return nodes;
 	}
+	public boolean removeVertex(Node node)
+	{
+		return this.graph.removeVertex(node);
+	}
+	public int size()
+	{
+		return this.graph.size();
+	}
+
 	public int getSC()
 	{
 		final List<Node> nodes = this.getNodes();
@@ -105,5 +116,36 @@ public class EDG extends Graph<NodeInfo, EdgeInfo>
 		final Node tuple = GraphTraverser.getParent(sliceAtomNode, EdgeInfo.Type.Control);
 		final Node sliceNode = GraphTraverser.getChild(tuple, 1);
 		return sliceNode.getData().getId();
+	}
+
+	/*****************/
+	/**** Grammar ****/
+	/*****************/
+	public static enum GrammarType { Value, Exception }
+
+	private final Grammar valueGrammar = new Grammar();
+	private final Grammar exceptionGrammar = new Grammar();
+
+	public Grammar getGrammar(GrammarType grammarType)
+	{
+		if (grammarType == GrammarType.Value)
+			return this.valueGrammar;
+		else if (grammarType == GrammarType.Exception)
+			return this.exceptionGrammar;
+		else
+			throw new RuntimeException("Grammar type not contemplated: " + grammarType);
+	}
+	public List<List<Constraint>> getProductions(GrammarType grammarType, SummaryConstraint summaryConstraint)
+	{
+		final Grammar grammar = this.getGrammar(grammarType);
+
+		return grammar.getProductions(summaryConstraint);
+	}
+
+	public void addProduction(GrammarType grammarType, SummaryConstraint summaryConstraint, List<Constraint> production)
+	{
+		final Grammar grammar = this.getGrammar(grammarType);
+
+		grammar.addProduction(summaryConstraint, production);
 	}
 }

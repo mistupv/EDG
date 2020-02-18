@@ -67,4 +67,5 @@ public class BinConstraint extends AccessConstraint
 			return true;
 		return false;
 	}
+
 }

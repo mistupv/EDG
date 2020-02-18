@@ -15,11 +15,14 @@ import eknife.edg.Edge; // ADDED BY SERGIO
 import eknife.edg.EdgeInfo;
 import eknife.edg.Node;
 import eknife.edg.NodeInfo;
+import eknife.edg.EDG.GrammarType;
 import eknife.edg.constraint.AccessConstraint.Operation;
 import eknife.edg.constraint.AccessConstraint;
 import eknife.edg.constraint.BinComprehensionConstraint;
 import eknife.edg.constraint.Constraint;
 import eknife.edg.constraint.Constraints;
+import eknife.edg.constraint.Constraints.SummaryType;
+import eknife.edg.constraint.EmptyConstraint;
 import eknife.edg.constraint.ExceptionArgumentConstraint;
 import eknife.edg.constraint.ExceptionConstraint;
 import eknife.edg.constraint.ListComprehensionConstraint;
@@ -30,6 +33,7 @@ import eknife.edg.constraint.SummaryConstraint;
 import eknife.edg.constraint.UnresolvableConstraint;
 //import eknife.edg.constraint.RecordConstraint.Operation;
 import eknife.edg.slicingAlgorithm.SlicingAlgorithm2;
+import eknife.edg.traverser.EdgeTraverser.Phase;
 import eknife.edg.traverser.GraphTraverser;
 import eknife.edg.util.Work;
 import eknife.edg.util.WorkList;
@@ -39,7 +43,6 @@ import eknife.sergio.ClauseRelation;
 
 public class DependenceGenerator
 {
-
 	private EDG graph;
 
 	private Comparator<NodeInfo> getTypeComparator()
@@ -238,7 +241,7 @@ public class DependenceGenerator
 			{
 				final String declaredVariableName = declaredVariableInScope.getData().getName();
 				if (declaredVariableName.equals(usedVariableName))
-					this.graph.addEdge(declaredVariableInScope, usedVariable, 0, new EdgeInfo(EdgeInfo.Type.FlowDependence));
+					this.graph.addEdge(declaredVariableInScope, usedVariable, 0, new EdgeInfo(EdgeInfo.Type.FlowDependence, new EmptyConstraint()));
 			}
 		}
 	}
@@ -267,7 +270,7 @@ public class DependenceGenerator
 				final List<Node[]> matches = this.getMatches(pattern, expression);
 
 				for (Node[] match : matches)
-					this.graph.addEdge(match[0], match[1], 0, new EdgeInfo(EdgeInfo.Type.FlowDependence));
+					this.graph.addEdge(match[0], match[1], 0, new EdgeInfo(EdgeInfo.Type.FlowDependence, new EmptyConstraint()));
 			}
 		}
 	}
@@ -285,7 +288,7 @@ public class DependenceGenerator
 			final List<Node[]> matches = this.getMatches(pattern, expression);
 
 			for (Node[] match : matches)
-				this.graph.addEdge(match[0], match[1], 0, new EdgeInfo(EdgeInfo.Type.FlowDependence));
+				this.graph.addEdge(match[0], match[1], 0, new EdgeInfo(EdgeInfo.Type.FlowDependence, new EmptyConstraint()));
 		}
 	}
 	private List<Node[]> getMatches(Node pattern, Node expression)
@@ -446,7 +449,7 @@ public class DependenceGenerator
 				final NodeInfo.Type nodeType = parameterConstraint.getData().getType();
 
 				if (nodeType != NodeInfo.Type.TuplePattern && nodeType != NodeInfo.Type.ListPattern)
-					this.graph.addEdge(parameterConstraint, guard, 0, new EdgeInfo(EdgeInfo.Type.GuardRestriction));
+					this.graph.addEdge(parameterConstraint, guard, 0, new EdgeInfo(EdgeInfo.Type.GuardRestriction, new EmptyConstraint()));
 				else
 				{
 					final UnresolvableConstraint constraint = new UnresolvableConstraint();
@@ -459,12 +462,12 @@ public class DependenceGenerator
 //			final List<Node> declaredVariablesInScope = Misc.intersect(declaredVariables, scope);
 //			final List<Node> variablesInGuards = this.getVariablesInGuards(guard, declaredVariablesInScope);
 //			for (Node variableInGuards : variablesInGuards)
-//				this.graph.addEdge(variableInGuards, guard, 0, new EdgeInfo(EdgeInfo.Type.FlowDependence));
+//				this.graph.addEdge(variableInGuards, guard, 0, new EdgeInfo(EdgeInfo.Type.FlowDependence, new EmptyConstraint()));
 
 			// TODO Delete
 //			final List<Node> restrictions = Misc.union(constraints, variablesInGuards);
 //			for (Node restriction : restrictions)
-//				this.graph.addEdge(restriction, guard, 0, new EdgeInfo(EdgeInfo.Type.FlowDependence));
+//				this.graph.addEdge(restriction, guard, 0, new EdgeInfo(EdgeInfo.Type.FlowDependence, new EmptyConstraint()));
 		}
 	}
 
@@ -745,8 +748,8 @@ public class DependenceGenerator
 			final Node returnNode = children.get(children.size() - 1);
 //final Node exceptionReturnNode = children.get(children.size() - 2); // ADDED BY SERGIO (ExceptionReturn)
 
-			this.graph.addEdge(functionName, returnNode, 0, new EdgeInfo(EdgeInfo.Type.FlowDependence));
-//this.graph.addEdge(functionName, exceptionReturnNode, 0, new EdgeInfo(EdgeInfo.Type.FlowDependence)); // ADDED BY SERGIO (ExceptionReturn)
+			this.graph.addEdge(functionName, returnNode, 0, new EdgeInfo(EdgeInfo.Type.FlowDependence, new StarConstraint()));
+//this.graph.addEdge(functionName, exceptionReturnNode, 0, new EdgeInfo(EdgeInfo.Type.FlowDependence, new EmptyConstraint())); // ADDED BY SERGIO (ExceptionReturn)
 		}
 	}
 
@@ -762,7 +765,7 @@ public class DependenceGenerator
 			final List<Node> valueNodes = GraphTraverser.getValueNodes(node);
 
 			for (Node valueNode : valueNodes)
-				this.graph.addEdge(valueNode, node, 0, new EdgeInfo(EdgeInfo.Type.ValueDependence));
+				this.graph.addEdge(valueNode, node, 0, new EdgeInfo(EdgeInfo.Type.ValueDependence, new EmptyConstraint()));
 		}
 	}
 
@@ -783,7 +786,7 @@ public class DependenceGenerator
 				if (exceptionPattern.getData().getType() == NodeInfo.Type.ExceptionPattern)
 				{
 					final Node guard = children.get(1);
-					this.graph.addEdge(exceptionPattern, guard, 0, new EdgeInfo(EdgeInfo.Type.GuardRestriction));
+					this.graph.addEdge(exceptionPattern, guard, 0, new EdgeInfo(EdgeInfo.Type.GuardRestriction, new EmptyConstraint()));
 				}	
 			}
 		}
@@ -808,7 +811,7 @@ public class DependenceGenerator
 			{
 				final List<Node> children = GraphTraverser.getChildren(clause, EdgeInfo.Type.NormalControl);
 				final Node pattern = children.get(0);
-				this.graph.addEdge(_try, pattern, 0, new EdgeInfo(EdgeInfo.Type.FlowDependence));	
+				this.graph.addEdge(_try, pattern, 0, new EdgeInfo(EdgeInfo.Type.FlowDependence, new EmptyConstraint()));	
 			}
 		}
 		
@@ -868,8 +871,8 @@ public class DependenceGenerator
 			final Node guards = parameters.remove(parameters.size() - 2); // MODIFIED BY SERGIO parameters.size() - 1 => parameters.size() - 2 
 			final Node body = parameters.remove(parameters.size() - 1);
 			
-			this.graph.addEdge(guards, body, 0, new EdgeInfo(EdgeInfo.Type.FlowDependence)); // Edge guards -> body 
-			this.graph.addEdge(guards, clause, 0, new EdgeInfo(EdgeInfo.Type.FlowDependence)); // Edge guards -> clause
+			this.graph.addEdge(guards, body, 0, new EdgeInfo(EdgeInfo.Type.FlowDependence, new EmptyConstraint())); // Edge guards -> body 
+			this.graph.addEdge(guards, clause, 0, new EdgeInfo(EdgeInfo.Type.FlowDependence, new EmptyConstraint())); // Edge guards -> clause
 			
 // ADDED BY SERGIO
 /*final Node clauseParent = GraphTraverser.getParent(clause, EdgeInfo.Type.NormalControl);
@@ -964,7 +967,7 @@ if (clauseParent.getData().getType() != NodeInfo.Type.Function)
 							clauseRelations[comparePatternIndex][previousPatternIndex] = cr;
 							final Node compareBody= GraphTraverser.getChild(GraphTraverser.getParent(comparePattern,EdgeInfo.Type.Control), 2);
 							final Node previousGuard = GraphTraverser.getChild(GraphTraverser.getParent(previousPattern,EdgeInfo.Type.Control), 1);
-							this.graph.addEdge(previousGuard, compareBody, 0, new EdgeInfo(EdgeInfo.Type.FlowDependence));
+							this.graph.addEdge(previousGuard, compareBody, 0, new EdgeInfo(EdgeInfo.Type.FlowDependence, new EmptyConstraint()));
 							this.copyExistentRelations(clauseRelations, comparePatternIndex, previousPatternIndex);
 						}
 					}
@@ -982,7 +985,6 @@ if (clauseParent.getData().getType() != NodeInfo.Type.Function)
 			previous = this.resolveCompoundPattern(previous);
 			if (previous == null)
 				return new ClauseRelation(false,false);
-			this.removeNodeAndDescendants(previous);
 		}
 		switch(compare.getData().getType())
 		{
@@ -1016,7 +1018,6 @@ if (clauseParent.getData().getType() != NodeInfo.Type.Function)
 				return this.isRelatedList(compare,previous);
 			case CompoundPattern:
 				final Node resultNode = this.resolveCompoundPattern(compare);
-				removeNodeAndDescendants(resultNode);
 				if (resultNode == null)
 					return new ClauseRelation(false,false);
 				return this.isRelated(resultNode, previous);
@@ -1173,40 +1174,33 @@ if (clauseParent.getData().getType() != NodeInfo.Type.Function)
 		Node rightChild = GraphTraverser.getChild(compoundPattern, 1);
 		return this.resolvePattern(leftChild,rightChild);
 	}
-			
+
 	private Node resolvePattern(Node leftChild, Node rightChild)
 	{
+		if (leftChild.getData().getType() == NodeInfo.Type.CompoundPattern)
+			leftChild = this.resolveCompoundPattern(leftChild);
+		if (rightChild.getData().getType() == NodeInfo.Type.CompoundPattern)
+			rightChild = this.resolveCompoundPattern(rightChild);
+
 		NodeInfo.Type leftChildType = leftChild.getData().getType();
 		NodeInfo.Type rightChildType = rightChild.getData().getType();
-		
-		if (leftChildType == NodeInfo.Type.CompoundPattern)
-		{
-			leftChild = this.resolveCompoundPattern(leftChild);
-			leftChildType = leftChild.getData().getType();
-		}
-		if (rightChildType == NodeInfo.Type.CompoundPattern)
-		{
-			rightChild = this.resolveCompoundPattern(rightChild);
-			rightChildType = rightChild.getData().getType();
-		}
 		if (leftChildType == NodeInfo.Type.Variable) //&& this.isFreshVariable(leftChild))
 			return rightChild;
 		if (rightChildType == NodeInfo.Type.Variable) //&& this.isFreshVariable(rightChild))
 			return leftChild;
+		if (leftChildType != rightChildType)
+			return null;
 		
-		switch(leftChildType)
+		switch (leftChildType)
 		{
 			case Atom:
 			case String:
 			case Integer:
 			case Char:
-				if (leftChildType == rightChildType && leftChild.getData().getName().equals(rightChild.getData().getName()))
+				if (leftChild.getData().getName().equals(rightChild.getData().getName()))
 					return leftChild;
 				return null;
 			case TuplePattern:
-				if (rightChildType != NodeInfo.Type.TuplePattern)
-					return null;
-				
 				final int leftChildNumElems =GraphTraverser.getChildCount(leftChild);
 				final int rightChildNumElems =GraphTraverser.getChildCount(rightChild);
 				if (leftChildNumElems != rightChildNumElems)
@@ -1216,7 +1210,6 @@ if (clauseParent.getData().getType() != NodeInfo.Type.Function)
 				final String tupleName = "{}";
 				final NodeInfo tupleInfo = new NodeInfo(0, NodeInfo.Type.TuplePattern);
 				final Node tupleNode = new Node(tupleName, tupleInfo);
-				this.graph.addNode(tupleNode);
 				
 				final List<Node> leftChildChildren = GraphTraverser.getChildren(leftChild, EdgeInfo.Type.Control);
 				final List<Node> rightChildChildren = GraphTraverser.getChildren(rightChild, EdgeInfo.Type.Control);
@@ -1226,96 +1219,49 @@ if (clauseParent.getData().getType() != NodeInfo.Type.Function)
 					final Node childLeft = leftChildChildren.get(index);
 					final Node childRight = rightChildChildren.get(index);
 					final Node result = this.resolvePattern(childLeft,childRight);
-					if (result == null)
-					{	
-						this.removeNodeAndDescendants(tupleNode);
-						return null;
-					}
-					
-					final String nodeName = result.getData().getName();
-					final NodeInfo nodeInfo = new NodeInfo(0, result.getData().getType(),nodeName);
-					final Node node = new Node(result.getName(),nodeInfo);
-					this.graph.addNode(node);
-					
-					final EdgeInfo edgeInfo = new EdgeInfo(EdgeInfo.Type.StructuralControl,null);
-					this.graph.addEdge(tupleNode, node, 0, edgeInfo);
+					this.linkNodes(tupleNode,result);
 				}
 				
 				return tupleNode;
 			case ListPattern:
-				if (rightChildType != NodeInfo.Type.ListPattern)
-					return null;
 				final String listName = "[]";
 				final NodeInfo listInfo = new NodeInfo(0, NodeInfo.Type.ListPattern);
 				final Node listNode = new Node(listName, listInfo);
-				this.graph.addNode(listNode);
 				
-				if (this.hasMoreElements(leftChild) && this.hasMoreElements(rightChild))
-				{
-					final Node leftHead = GraphTraverser.getChild(leftChild, 0);
-					final Node leftTail = GraphTraverser.getChild(leftChild, 1);
-					final Node rightHead = GraphTraverser.getChild(rightChild, 0);
-					final Node rightTail = GraphTraverser.getChild(rightChild, 1);
-					
-					final Node resultHead = this.resolvePattern(leftHead, rightHead);
-					if (resultHead == null)
-					{	
-						this.removeNodeAndDescendants(listNode);
-						return null;
-					}
-					
-					final String nodeName = resultHead.getData().getName();
-					final NodeInfo nodeInfo = new NodeInfo(0, resultHead.getData().getType(),nodeName);
-					final Node node = new Node(resultHead.getName(),nodeInfo);
-					this.graph.addNode(node);
-					
-					final EdgeInfo edgeInfo = new EdgeInfo(EdgeInfo.Type.StructuralControl,null);
-					this.graph.addEdge(listNode, node, 0, edgeInfo);
-					
-					final Node resultTail = this.resolvePattern(leftTail, rightTail);
-					if (resultTail == null)
-					{	
-						this.removeNodeAndDescendants(listNode);
-						return null;
-					}
-					
-					final EdgeInfo edgeInfoTail = new EdgeInfo(EdgeInfo.Type.StructuralControl,null);
-					this.graph.addEdge(listNode, resultTail, 0, edgeInfoTail);
-					
+				if (!this.hasMoreElements(leftChild) && !this.hasMoreElements(rightChild))
 					return listNode;
-				}				
-				else if (!this.hasMoreElements(leftChild) && this.hasMoreElements(rightChild))
-				{
-					if (leftChild.getData().getType() == NodeInfo.Type.Variable && this.isFreshVariable(leftChild))
-						return rightChild;
-					this.removeNodeAndDescendants(listNode);
+				if (!this.hasMoreElements(leftChild) || !this.hasMoreElements(rightChild))
 					return null;
-				}
-				else if (!this.hasMoreElements(rightChild) && this.hasMoreElements(leftChild))
-				{
-					if (rightChild.getData().getType() == NodeInfo.Type.Variable && this.isFreshVariable(rightChild))
-						return leftChild;
-					this.removeNodeAndDescendants(listNode);
+
+				final Node leftHead = GraphTraverser.getChild(leftChild, 0);
+				final Node rightHead = GraphTraverser.getChild(rightChild, 0);
+				final Node resultHead = this.resolvePattern(leftHead, rightHead);
+				if (resultHead == null)
 					return null;
-				}
-				else
-				{
-					if (leftChildType == NodeInfo.Type.ListPattern && rightChildType == NodeInfo.Type.ListPattern)
-						return listNode;
-					return this.resolvePattern(leftChild, rightChild);
-				}
+				this.linkNodes(listNode, resultHead);
+
+				final Node leftTail = GraphTraverser.getChild(leftChild, 1);
+				final Node rightTail = GraphTraverser.getChild(rightChild, 1);
+				final Node resultTail = this.resolvePattern(leftTail, rightTail);
+				if (resultTail == null)
+					return null;
+				this.linkNodes(listNode, resultTail);
+				
+				return listNode;
 			default:
 				return null;
 		}
 	}
-	private void removeNodeAndDescendants(Node node)
+
+	private void linkNodes(Node parent, Node child)
 	{
-		final List<Node> children = GraphTraverser.getChildren(node, EdgeInfo.Type.Control);
-		for (Node child : children)
-		{
-			this.removeNodeAndDescendants(child);
-		}
-		this.graph.removeVertex(node);
+		final String nodeName = child.getData().getName();
+		final NodeInfo nodeInfo = new NodeInfo(0, child.getData().getType(),nodeName);
+		child.setData(nodeInfo);
+		
+		final EdgeInfo edgeInfo = new EdgeInfo(EdgeInfo.Type.StructuralControl,null);
+		final Edge e = new Edge(parent, child, 0, edgeInfo);
+		parent.addEdge(e);
 	}
 /*******************************	
 generateGuardGuardEdges v1.0 sin tener en cuenta la eliminación de cláusulas contenidas en otras
@@ -1339,7 +1285,7 @@ private void generateGuardGuardEdges(List<Node> expressionPatterns)
 					// DRAW EDGE
 					final Node compareBody= GraphTraverser.getChild(GraphTraverser.getParent(comparePattern,EdgeInfo.Type.Control), 2);
 					final Node previousGuard = GraphTraverser.getChild(GraphTraverser.getParent(previousPattern,EdgeInfo.Type.Control), 1);
-					this.graph.addEdge(previousGuard, compareBody, 0, new EdgeInfo(EdgeInfo.Type.FlowDependence));
+					this.graph.addEdge(previousGuard, compareBody, 0, new EdgeInfo(EdgeInfo.Type.FlowDependence, new EmptyConstraint()));
 					this.copyExistentRelations(clauseRelations, comparePatternIndex, previousPatternIndex);
 				}
 			}
@@ -1783,9 +1729,10 @@ iteraciones++;
 			final Constraints constraints = work.getConstraints();
 //Cronometro.terminar("1.1 - Empieza");
 
-int id = currentNode.getData().getId();
-if (id == 33)
-System.out.println("Alto, la guardia civil");
+int iid = initialNode.getData().getId();
+int cid = currentNode.getData().getId();
+if (cid == 63 && constraints.getSummaryType() == SummaryType.Exception)
+System.out.println(constraints.getSummaryType());
 //Cronometro.empezar("1.2 - IsFormalIn");
 			if (this.isFormalIn(currentNode, initialNode))
 			{
@@ -1875,13 +1822,17 @@ System.out.println("Alto, la guardia civil");
 		final List<Node> outputs = GraphTraverser.getOutputs(formalOut, GraphTraverser.Direction.Forwards);
 		final List<Node> exceptions = GraphTraverser.getExceptions(formalOut, GraphTraverser.Direction.Forwards);
 
-		final SummaryConstraint summaryConstraint = this.getSummaryConstraint(formalIn);
+		final SummaryType summaryType = constraints.getSummaryType();
+		final GrammarType grammarType = (summaryType == SummaryType.Return) ? GrammarType.Value : GrammarType.Exception;
+				
+		final SummaryConstraint summaryConstraint = this.getSummaryConstraint(grammarType, formalIn);
 		final List<Object> production0 = Arrays.asList(constraints.toArray());
 		final List<Constraint> production = new LinkedList<Constraint>();
 
 		for (Object element : production0)					// Se generan 2 arcos del return y exception return con la misma producción
 			production.add((Constraint) element);
-		this.graph.addProduction(summaryConstraint, production);
+
+		this.graph.addProduction(grammarType, summaryConstraint, production);
 
 		for (Node functionCaller : functionCallers)
 		{
@@ -1889,7 +1840,7 @@ System.out.println("Alto, la guardia civil");
 			final List<Node> argumentNodes = this.getDescendantsNode(caller, inputs);
 			final Node valueReturnNode = this.getDescendantsNode(caller, outputs).get(0);
 			final Node exceptionReturnNode = exceptions.isEmpty() ? null : this.getDescendantsNode(caller, exceptions).get(0);
-			final Node returnNode = this.isFromValue(constraints) ? valueReturnNode : exceptionReturnNode;
+			final Node returnNode = (summaryType == SummaryType.Return) ? valueReturnNode : exceptionReturnNode;
 
 			for (Node argumentNode : argumentNodes)
 				this.graph.addEdge(argumentNode, returnNode, 0, new EdgeInfo(EdgeInfo.Type.Summary, summaryConstraint));
@@ -1898,7 +1849,8 @@ System.out.println("Alto, la guardia civil");
 
 		return nodesToContinue;
 	}
-	private boolean isFromValue(Constraints constraints)
+/* TODO delete me	
+  	private boolean isFromValue(Constraints constraints)
 	{
 		if (constraints.getExceptionSummary())
 			return false;
@@ -1906,6 +1858,7 @@ System.out.println("Alto, la guardia civil");
 			return true;
 		return true;
 	}
+*/
 	private List<Node> getDescendantsNode(Node node, List<Node> list)
 	{
 		final List<Node> descendants = new LinkedList<Node>();
@@ -1921,10 +1874,10 @@ System.out.println("Alto, la guardia civil");
 
 		return descendants;
 	}
-	private SummaryConstraint getSummaryConstraint(Node clause)
+	private SummaryConstraint getSummaryConstraint(GrammarType grammarType, Node clause)
 	{
 		// TODO Get/Create the correct SummaryConstraint
-		return new SummaryConstraint(clause);
+		return new SummaryConstraint(this.graph.getGrammar(grammarType), clause);
 	}
 	private List<Work> getWorksToContinue(WorkList workList, List<Node> nodesToContinue)
 	{
@@ -1944,7 +1897,7 @@ System.out.println("Alto, la guardia civil");
 	{
 Cronometro.empezar("1.4 - getNewWorks");
 Cronometro.empezar("1.4.1 - slicingAlgorithm");
-		final SlicingAlgorithm2 slicingAlgorithm = new SlicingAlgorithm2(this.graph, false);
+		final SlicingAlgorithm2 slicingAlgorithm = new SlicingAlgorithm2(this.graph, Phase.Summary);
 Cronometro.terminar("1.4.1 - slicingAlgorithm");
 Cronometro.empezar("1.4.2 - processWork");
 		final List<Work> works = slicingAlgorithm.processWork(work, EdgeInfo.Type.Input, EdgeInfo.Type.Output);
@@ -2034,7 +1987,13 @@ Cronometro.terminar("1.4 - getNewWorks");
 	{
 		final Node pattern = GraphTraverser.getChild(catchClause, 0);
 		if (pattern.getData().getType() == NodeInfo.Type.ExceptionPattern)
-			this.generateExceptionClauseEdges(pattern);
+		{
+			final Node exceptionClass = GraphTraverser.getChild(pattern, 0);
+			final NodeInfo.Type exceptionClassType = exceptionClass.getData().getType();
+			if ((exceptionClassType == NodeInfo.Type.Variable) || // && this.isFreshVariable(exceptionClass)) || -> Without dataflow we must assume that any variable can be the error atom 
+				(exceptionClassType == NodeInfo.Type.Atom && exceptionClass.getData().getName().equals("error")))
+					this.generateExceptionClauseEdges(pattern);
+		}
 		else 
 		{
 			final String patternName = this.getExpressionName(pattern);
@@ -2046,6 +2005,29 @@ Cronometro.terminar("1.4 - getNewWorks");
 	/******* User exception edges *******/
 	/************************************/
 	private void generateThrowCatchEdges(Node _throw,Node _try, Node exceptionExpression)
+	{
+		final List<Node> catchClauses = this.getCatchClauses(_try);
+		boolean unCatchedThrow = true;
+		
+		for (Node catchClause : catchClauses)
+		{
+			final Node catchExpression = GraphTraverser.getChild(catchClause, 0);
+			if (unCatchedThrow && !this.isUnreachableThrow(_throw, _try) && !this.isThrownExpression(_throw, _try, catchExpression) )
+			{
+				final Node throwExpression = (exceptionExpression == null) ? GraphTraverser.getChild(_throw, 0) : exceptionExpression;
+				
+				if (this.isThrowCatch(catchClause)) 				// CLAUSES OF TYPE _ or throw:_ ->
+					unCatchedThrow = this.generateUserExceptionEdges(_throw, catchClause, throwExpression, catchExpression);
+				else 												// CLAUSES OF TYPE _:_ ->
+					unCatchedThrow = this.generateErlangExceptionEdges(throwExpression, catchExpression);
+			}
+		}
+		if (unCatchedThrow)
+			this.generateThrowClauseEdges(_throw, (exceptionExpression == null) ? GraphTraverser.getChild(_throw, 0) : exceptionExpression);
+	}
+	
+/*** DEPRECATED METHOD ***	
+	private void generateThrowCatchEdges0(Node _throw,Node _try, Node exceptionExpression) // OLD VERSION
 	{
 		final List<Node> catchClauses = this.getCatchClauses(_try);
 		boolean unCatchedThrow = true;
@@ -2071,7 +2053,7 @@ Cronometro.terminar("1.4 - getNewWorks");
 							{
 								// Add edge throw -> catch clause (ENSURE CAPTURE)
 								if (_throw.getData().getType() == NodeInfo.Type.Throw)
-									this.graph.addEdge(_throw, catchClause, 0, new EdgeInfo(EdgeInfo.Type.Exception));
+									this.graph.addEdge(_throw, catchClause, 0, new EdgeInfo(EdgeInfo.Type.Exception, new ExceptionConstraint(null,null)));
 								else
 								{
 									//No se captura una call que tiene un throw(X) despues de una expression throw(X) previa a la call
@@ -2097,7 +2079,7 @@ Cronometro.terminar("1.4 - getNewWorks");
 							{
 								// Add edge throw -> catch clause (ENSURE CAPTURE)
 								if (_throw.getData().getType() == NodeInfo.Type.Throw)
-									this.graph.addEdge(_throw, catchClause, 0, new EdgeInfo(EdgeInfo.Type.Exception));
+									this.graph.addEdge(_throw, catchClause, 0, new EdgeInfo(EdgeInfo.Type.Exception, new ExceptionConstraint(null,null)));
 								else
 								{
 									final String throwExpressionName = "*";
@@ -2111,7 +2093,7 @@ Cronometro.terminar("1.4 - getNewWorks");
 								if (_throw.getData().getType() == NodeInfo.Type.Throw)
 								{
 									//if (!this.isThrownExpression(_throw, _try, catchExpression))
-									this.graph.addEdge(_throw, catchClause, 0, new EdgeInfo(EdgeInfo.Type.Exception));
+									this.graph.addEdge(_throw, catchClause, 0, new EdgeInfo(EdgeInfo.Type.Exception, new ExceptionConstraint(null,null)));
 								}
 								else
 								{
@@ -2131,7 +2113,7 @@ Cronometro.terminar("1.4 - getNewWorks");
 							{
 								if (_throw.getData().getType() == NodeInfo.Type.Throw)
 								{
-									this.graph.addEdge(_throw, catchClause, 0, new EdgeInfo(EdgeInfo.Type.Exception));
+									this.graph.addEdge(_throw, catchClause, 0, new EdgeInfo(EdgeInfo.Type.Exception, new ExceptionConstraint(null,null)));
 								}
 								else{
 									final String throwExpressionName = matchResult[1] ? this.getExpressionName(catchExpression) : "*";
@@ -2186,6 +2168,152 @@ Cronometro.terminar("1.4 - getNewWorks");
 			this.generateThrowClauseEdges(_throw, (exceptionExpression == null) ? GraphTraverser.getChild(_throw, 0) : exceptionExpression);
 		}
 	}
+***/
+	
+	private boolean generateUserExceptionEdges(Node _throw, Node catchClause, Node throwExpression, Node catchExpression)
+	{
+		boolean unCatchedThrow = true;
+		switch (throwExpression.getData().getType())
+		{
+			case Integer:
+			case Atom:
+			case Char:
+			case String:
+				if (isSameExpression(throwExpression, catchExpression))  
+				{
+					// Add edge throw -> catch clause (ENSURE CAPTURE)
+					if (_throw.getData().getType() == NodeInfo.Type.Throw)
+						this.graph.addEdge(_throw, catchClause, 0, new EdgeInfo(EdgeInfo.Type.Exception, new ExceptionConstraint(null,null)));
+					else // Es una call
+					{
+						// Add edge throw -> catch clause (with constraint)
+						final String throwExpressionName = throwExpression.getData().getName();
+						this.graph.addEdge(_throw, catchClause, 0, new EdgeInfo(EdgeInfo.Type.Exception, new ExceptionConstraint(ExceptionConstraint.Operation.Add, throwExpressionName) ));
+					}
+					unCatchedThrow = false; 
+				}
+				if (catchExpression.getData().getType() == NodeInfo.Type.Variable && !this.isFreshVariable(catchExpression))
+					unCatchedThrow = true;
+				
+				break;
+			// TODO complete with the rest of expressions
+			case Variable:
+			case FunctionCall:
+			case Operation:
+				final String ConstraintName;
+				if (catchExpression.getData().getType() == NodeInfo.Type.Variable && this.isFreshVariable(catchExpression))
+				{
+					ConstraintName = "*";
+					unCatchedThrow = false;
+				}
+				else
+					ConstraintName = this.getExpressionName(catchExpression);
+				
+				if (_throw.getData().getType() == NodeInfo.Type.Throw)
+					this.graph.addEdge(_throw, catchClause, 0, new EdgeInfo(EdgeInfo.Type.Exception, new ExceptionConstraint(null,null)));
+				else
+					this.graph.addEdge(_throw, catchClause, 0, new EdgeInfo(EdgeInfo.Type.Exception, new ExceptionConstraint(ExceptionConstraint.Operation.Add, ConstraintName)));
+				
+				break;
+
+
+
+/*****
+				if (catchExpression.getData().getType() == NodeInfo.Type.Variable && this.isFreshVariable(catchExpression))
+				{
+					// Add edge throw -> catch clause (ENSURE CAPTURE)
+					
+					{
+						// Add edge throw -> catch clause (with constraint *)
+						final String throwExpressionName = "*";
+						this.graph.addEdge(_throw, catchClause, 0, new EdgeInfo(EdgeInfo.Type.Exception, new ExceptionConstraint(ExceptionConstraint.Operation.Add, throwExpressionName) ));
+					}
+					unCatchedThrow = false;
+				}
+				else 
+					// Add edge throw -> catch clause
+					if (_throw.getData().getType() == NodeInfo.Type.Throw)
+						this.graph.addEdge(_throw, catchClause, 0, new EdgeInfo(EdgeInfo.Type.Exception, new ExceptionConstraint(null,null)));
+					else
+					{
+						// Si el patron es una variable instanciada uso ex*
+						// Si el patron es un literal conocido uso exLITERAL
+						
+						// Add edge throw -> catch clause (with constraint)						
+						final String catchExpressionName = this.getExpressionName(catchExpression);
+						this.graph.addEdge(_throw, catchClause, 0, new EdgeInfo(EdgeInfo.Type.Exception, new ExceptionConstraint(ExceptionConstraint.Operation.Add, catchExpressionName)));
+					}
+*****/
+				
+		// TODO LISTS & TUPLES
+			case TupleExpression:
+			case ListExpression:
+				final boolean[] matchResult = this.isMatching(throwExpression,catchExpression);
+				if (matchResult[0])
+				{
+					if (_throw.getData().getType() == NodeInfo.Type.Throw)
+					{
+						this.graph.addEdge(_throw, catchClause, 0, new EdgeInfo(EdgeInfo.Type.Exception, new ExceptionConstraint(null,null)));
+					}
+					else{
+						final String throwExpressionName = matchResult[1] ? this.getExpressionName(catchExpression) : "*";
+						// Add edge throw -> catch clause (with constraint)
+						this.graph.addEdge(_throw, catchClause, 0, new EdgeInfo(EdgeInfo.Type.Exception, new ExceptionConstraint(ExceptionConstraint.Operation.Add, throwExpressionName) ));
+					}
+				}
+				if (matchResult[1])
+					unCatchedThrow = false;
+				break;
+			default:  
+				break;
+		}
+		return unCatchedThrow;
+	}
+	
+	private boolean generateErlangExceptionEdges(Node throwExpression, Node catchExpression)
+	{
+		boolean unCatchedThrow = true; 
+		final List <Node> exceptionPatternExpressions = GraphTraverser.getChildren(catchExpression, EdgeInfo.Type.Control);
+		final Node errorExpression = exceptionPatternExpressions.remove(0);
+		final Node reasonExpression = exceptionPatternExpressions.remove(0);
+		
+		final NodeInfo.Type errorExpressionType =  errorExpression.getData().getType();
+		final NodeInfo.Type reasonExpressionType =  reasonExpression.getData().getType();
+		
+		switch (throwExpression.getData().getType())
+		{
+			case Integer:
+			case Atom:
+			case Char:
+			case String:	
+				if ((errorExpressionType == NodeInfo.Type.Variable && isFreshVariable(errorExpression)))
+					if ((reasonExpressionType == NodeInfo.Type.Variable && isFreshVariable(reasonExpression))||
+						(reasonExpressionType == throwExpression.getData().getType() && 
+						reasonExpression.getData().getName().equals(throwExpression.getData().getName())))
+							unCatchedThrow = false;
+					
+				break;
+			case Variable:
+			case FunctionCall:
+			case Operation:
+// TODO complete with the rest of expressions
+				if (errorExpressionType == NodeInfo.Type.Variable && isFreshVariable(errorExpression))
+					if (reasonExpressionType == NodeInfo.Type.Variable && isFreshVariable(reasonExpression))
+						unCatchedThrow = false;
+				break;
+// TODO LISTS & TUPLES
+			case ListExpression:
+			case TupleExpression:
+			default:
+				break;
+		}
+		return unCatchedThrow;
+	}
+	private boolean isSameExpression(Node throwExpression, Node catchExpression)
+	{
+		return isMatching(throwExpression,catchExpression)[1];	
+	}
+	
 	private void generateThrowClauseEdges(Node node, Node exceptionExpression)
 	{
 		
@@ -2210,7 +2338,7 @@ Cronometro.terminar("1.4 - getNewWorks");
 					if (node.getData().getType() == NodeInfo.Type.Throw)
 					{					
 						// Add edge throw -> catch (without constraint)
-						this.graph.addEdge(node, catch0, 0, new EdgeInfo(EdgeInfo.Type.Exception));
+						this.graph.addEdge(node, catch0, 0, new EdgeInfo(EdgeInfo.Type.Exception, new ExceptionConstraint(null,null)));
 					}
 					else 
 					{
@@ -2313,7 +2441,7 @@ Cronometro.terminar("1.4 - getNewWorks");
 				this.graph.addEdge(previousThrow, throwNode, 0, new EdgeInfo(EdgeInfo.Type.Exception, new ExceptionConstraint(ExceptionConstraint.Operation.Add, "*")));
 			}
 			else
-				this.graph.addEdge(previousThrow, throwNode, 0, new EdgeInfo(EdgeInfo.Type.Exception));
+				this.graph.addEdge(previousThrow, throwNode, 0, new EdgeInfo(EdgeInfo.Type.Exception, new ExceptionConstraint(null,null)));
 		}
 	}
 	
@@ -2412,7 +2540,7 @@ Cronometro.terminar("1.4 - getNewWorks");
 	{
 		final Node parent = GraphTraverser.getParent(exceptionReturn, EdgeInfo.Type.Control);
 		final Node funcName = GraphTraverser.getChild(parent, 0);
-		this.graph.addEdge(funcName, exceptionReturn, 0, new EdgeInfo(EdgeInfo.Type.FlowDependence));
+		this.graph.addEdge(funcName, exceptionReturn, 0, new EdgeInfo(EdgeInfo.Type.FlowDependence, new StarConstraint()));
 	}
 	
 	private boolean isThrownExpression(Node throwNode, Node _try, Node exceptionExpressionNode) // Is a throw expression previously thrown?
@@ -2453,7 +2581,7 @@ Cronometro.terminar("1.4 - getNewWorks");
 		
 		return false;
 	}
-	private boolean isPreviousThrow(Node exceptionExpression, Node expression) // Is a throw always executed inside a block or body context? Going inside the whole block or body 
+	private boolean isPreviousThrow(Node exceptionExpression, Node expression) // Is a throw always executed inside a block or body context? Going down into the body 
 	{
 		final int throwExpressionIndex = GraphTraverser.getChildIndex(expression, EdgeInfo.Type.NormalControl);
 		final Node expressionParent = GraphTraverser.getParent(expression, EdgeInfo.Type.NormalControl);
@@ -2498,7 +2626,7 @@ Cronometro.terminar("1.4 - getNewWorks");
 			return true;
 		
 		if (throwExpression.getData().getType() == exceptionExpression.getData().getType() && 
-				throwExpression.getData().getName().equals(exceptionExpression.getData().getName()))
+				this.getExpressionName(throwExpression).equals(this.getExpressionName(exceptionExpression)))
 			return true;
 		return false;
 	}
@@ -2595,14 +2723,17 @@ Cronometro.terminar("1.4 - getNewWorks");
 	private boolean[] isMatching(Node throwExpression, Node catchPattern)
 	{
 		final boolean[] result = new boolean[2];  // result[0] matching: true/false. result[1] fullyCaptured: true/false.
-		switch(throwExpression.getData().getType()){
+		final NodeInfo.Type throwType = throwExpression.getData().getType(); 
+		final NodeInfo.Type catchType = catchPattern.getData().getType();
+		
+		switch(throwType){
 			case Integer:
 			case Atom:
 			case Char:
 			case String:
-				if ((throwExpression.getData().getType() == catchPattern.getData().getType() &&
+				if ((throwType == catchType &&
 				throwExpression.getData().getName().equals(catchPattern.getData().getName())) 
-				|| (catchPattern.getData().getType() == NodeInfo.Type.Variable)) 
+				|| (catchType == NodeInfo.Type.Variable)) 
 				{ 
 					result[0] = true;
 					result[1] = true;
@@ -2610,13 +2741,13 @@ Cronometro.terminar("1.4 - getNewWorks");
 				break;
 			case Variable:
 				result[0] = true;
-				if (catchPattern.getData().getType() == NodeInfo.Type.Variable && this.isFreshVariable(catchPattern))
+				if (catchType == NodeInfo.Type.Variable && this.isFreshVariable(catchPattern))
 					result[1] = true;
 				else
 					result[1] = false;
 				break;
 			case TupleExpression:
-				if (catchPattern.getData().getType() == NodeInfo.Type.TuplePattern)
+				if (catchType == NodeInfo.Type.TuplePattern)
 				{
 					final boolean[] tupleResult = this.isMatchingTuple(throwExpression,catchPattern);
 					result[0] = tupleResult[0];
@@ -2624,7 +2755,7 @@ Cronometro.terminar("1.4 - getNewWorks");
 				}
 				break;
 			case ListExpression:
-				if (catchPattern.getData().getType() == NodeInfo.Type.ListPattern)
+				if (catchType == NodeInfo.Type.ListPattern)
 				{
 					final boolean[] listResult = this.isMatchingList(throwExpression, catchPattern);
 					result[0] = listResult[0];
@@ -2852,20 +2983,19 @@ Cronometro.terminar("1.4 - getNewWorks");
 				return "*";
 			name += elementValueName;
 			listElement = GraphTraverser.getChild(listElement, 1);
-			if (!hasMoreElements(listElement))
-			{
-				if (!listElement.getName().equals("[]"))
-				{
-					elementValueName = getExpressionName(listElement);
-					if (elementValueName.equals("*"))
-						return "*";
-					name += "|"+elementValueName;
-				}
-				name += "]";
-			}
-			else
+			if (hasMoreElements(listElement))
 				name+=",";
+				
 		}	
+		if (!listElement.getName().equals("[]"))
+		{
+			String elementValueName = getExpressionName(listElement);
+			elementValueName = getExpressionName(listElement);
+			if (elementValueName.equals("*"))
+				return "*";
+			name += "|"+elementValueName;
+		}
+		name += "]";
 		return name;
 	}
 	private boolean hasMoreElements(Node list)
@@ -2943,7 +3073,7 @@ Cronometro.terminar("1.4 - getNewWorks");
 			final Node tryCatchNode = GraphTraverser.getParent((GraphTraverser.getParent(catchClause, EdgeInfo.Type.Control)), EdgeInfo.Type.Control);
 			final Node tryNode = GraphTraverser.getChild(tryCatchNode, 0);
 			
-			this.graph.addEdge(tryNode, catchClause, 0, new EdgeInfo(EdgeInfo.Type.Exception));
+			this.graph.addEdge(tryNode, catchClause, 0, new EdgeInfo(EdgeInfo.Type.Exception, new ExceptionConstraint(null,null)));
 			generateExceptionGetAllEdges(tryNode);
 		}
 	}

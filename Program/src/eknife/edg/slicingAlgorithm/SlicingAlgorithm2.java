@@ -9,10 +9,12 @@ import eknife.edg.EdgeInfo;
 import eknife.edg.Node;
 import eknife.edg.NodeInfo;
 import eknife.edg.constraint.AccessConstraint;
+import eknife.edg.constraint.SeekingConstraint;
 import eknife.edg.constraint.Constraints;
 import eknife.edg.constraint.ExceptionArgumentConstraint;
 import eknife.edg.constraint.ExceptionConstraint;
 import eknife.edg.traverser.EdgeTraverser;
+import eknife.edg.traverser.EdgeTraverser.Phase;
 import eknife.edg.util.Work;
 import eknife.edg.util.WorkList;
 
@@ -21,10 +23,10 @@ public class SlicingAlgorithm2 implements SlicingAlgorithm
 	private final EDG graph;
 	private final EdgeTraverser edgeTraverser;
 
-	public SlicingAlgorithm2(EDG graph, boolean resolveSummary)
+	public SlicingAlgorithm2(EDG graph, Phase phase)
 	{
 		this.graph = graph;
-		this.edgeTraverser = new EdgeTraverser(this.graph, resolveSummary);
+		this.edgeTraverser = new EdgeTraverser(this.graph, phase);
 	}
 
 	public List<Node> slice(Node node)
@@ -141,7 +143,9 @@ ids.add(id0);
 if (ids.contains(id))
 return newWorks;
 
-
+final int currentId = currentNode.getData().getId();
+if (currentId == 8)
+System.out.println("Ahi va la liebre");
 		// Incoming edges
 		final List<Edge> incomingEdges = currentNode.getIncomingEdges();
 
@@ -149,9 +153,12 @@ return newWorks;
 		for (Edge incomingEdge : incomingEdges)
 		{
 final Node nodeFrom0 = incomingEdge.getFrom();
-final int id0 = nodeFrom0.getData().getId();
-if (id == 33 && id0 == 27)
+final Node nodeTo0 = incomingEdge.getTo();
+final int idFrom0 = nodeFrom0.getData().getId();
+final int idTo0 = nodeTo0.getData().getId();
+if (idFrom0 == 17 && idTo0 == 33)
 System.out.println("Aqui");
+
 
 			final EdgeInfo.Type edgeType = incomingEdge.getData().getType();
 			// Do not go up after going down in a composite data
@@ -160,8 +167,11 @@ System.out.println("Aqui");
 			// Do not traverse value edges after going up
 			if (edgeType == EdgeInfo.Type.ValueDependence && ignoreDown)
 				continue;
-			if (edgeType == EdgeInfo.Type.ExceptionGetAll)
-				continue;
+
+if (edgeType == EdgeInfo.Type.ExceptionGetAll && constraints.getExceptionGetAll())
+	continue;
+
+
 			// Ignore edges of the current phase
 			for (EdgeInfo.Type ignoreEdgeType : ignoreEdgeTypes)
 				if (ignoreEdgeType == edgeType)
@@ -185,7 +195,7 @@ System.out.println("Aqui");
 
 			processOutgoings:
 			for (Edge outgoingEdge : outgoingEdges)
-			{	
+			{
 				final EdgeInfo.Type edgeType = outgoingEdge.getData().getType();
 
 				// Only consider composite data
@@ -215,7 +225,7 @@ System.out.println("Aqui");
 		{
 			final Constraints stack = new Constraints();
 			final ExceptionArgumentConstraint argument = new ExceptionArgumentConstraint(AccessConstraint.Operation.Add, "*");
-			final ExceptionConstraint exception = new ExceptionConstraint(AccessConstraint.Operation.Add, "*");
+			final ExceptionConstraint exception = new ExceptionConstraint(SeekingConstraint.Operation.Add, "*");
 			stack.push(argument);
 			stack.push(exception);
 			return new Work(node, stack, false, true);

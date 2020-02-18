@@ -10,6 +10,7 @@ import eknife.edg.EdgeInfo;
 import eknife.edg.Node;
 import eknife.edg.NodeInfo;
 import eknife.edg.constraint.Constraint;
+import eknife.edg.constraint.UnresolvableConstraint;
 import eknife.misc.Misc;
 
 public class DotGenerator
@@ -127,7 +128,13 @@ System.out.println("STOP");
 
 		text += edge.getFrom().getData().getId() + " -> " + edge.getTo().getData().getId() + " ";
 		text += "[";
-		if (constraint != null)
+		if (constraint != null && 
+				!(edgeType == EdgeInfo.Type.NormalControl || edgeType == EdgeInfo.Type.ValueDependence || 
+				edgeType == EdgeInfo.Type.GuardRestriction || edgeType == EdgeInfo.Type.FlowDependence))
+			text += "label=\"" + constraint + "\", ";
+		if (constraint != null && 
+				(edgeType == EdgeInfo.Type.GuardRestriction || edgeType == EdgeInfo.Type.FlowDependence) && 
+				(constraint instanceof UnresolvableConstraint))
 			text += "label=\"" + constraint + "\", ";
 		switch (edgeType)
 		{

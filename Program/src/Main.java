@@ -9,6 +9,7 @@ import com.ericsson.otp.erlang.OtpErlangTuple;
 
 import eknife.edg.EdgeInfo;
 import eknife.edg.traverser.GraphTraverser;
+import eknife.edg.traverser.EdgeTraverser.Phase;
 import eknife.sergio.ErlPermaConnect;
 import test.Test;
 import eknife.edg.slicingAlgorithm.SlicingORBS;
@@ -453,7 +454,7 @@ if (!saveFile)
 			case 1:
 				return new SlicingAlgorithm1();
 			case 2:
-				return new SlicingAlgorithm2(EDG, true);
+				return new SlicingAlgorithm2(EDG, Phase.Slicing);
 			default:
 				throw new RuntimeException("Slicing algorithm not contempled: " + Main.slicingAlgorithm);
 		}

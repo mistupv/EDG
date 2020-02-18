@@ -21,6 +21,8 @@ public final class Config
 	private static String testsPath;
 
 	public static boolean constraintsActivated = true;
+	public static final int maxProductionDepth = 5;
+	public static final int maxStackSize = 9;
 	public static String erlangConnectionFileName = "erl.sh";
 
 	/****************************************************************/

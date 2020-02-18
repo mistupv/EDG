@@ -788,7 +788,7 @@ public class ErlangGenerator
 			case CompoundPattern:
 				return this.parseCompoundPattern(pattern);
 			case Operation:
-				return this.parseUnaryOperationPattern(pattern);
+				return this.parseOperationPattern(pattern);
 //ADDED BY SERGIO
 			case Char:
 				return this.parseChar(pattern);
@@ -871,6 +871,21 @@ public class ErlangGenerator
 
 		return new OtpErlangTuple(operationElements);
 	}
+	private OtpErlangTuple parseOperationPattern(Node operation)
+	{
+		final List<Node> operationExpressions = GraphTraverser.getChildren(operation, EdgeInfo.Type.NormalControl);
+
+		switch (operationExpressions.size())
+		{
+			case 1:
+				return this.parseUnaryOperationPattern(operation);
+			case 2:
+				return this.parseBinaryOperationPattern(operation);
+			default:
+				throw new RuntimeException("Operation size not contempled: " + operationExpressions.size());
+		}
+
+	}
 	private OtpErlangTuple parseUnaryOperationPattern(Node operation)
 	{
 		final List<Node> operationValuePattern = GraphTraverser.getChildren(operation, EdgeInfo.Type.NormalControl);
@@ -882,6 +897,22 @@ public class ErlangGenerator
 		operationElements[1] = new OtpErlangLong(1);
 		operationElements[2] = new OtpErlangAtom(operationSignValue);
 		operationElements[3] = this.parsePattern(operationValue);
+
+		return new OtpErlangTuple(operationElements);
+	}
+	private OtpErlangTuple parseBinaryOperationPattern(Node operation)
+	{
+		final String nodeLabel = operation.getData().getName();
+		final List<Node> operationExpressions = GraphTraverser.getChildren(operation, EdgeInfo.Type.NormalControl);
+		final Node operationPattern1 = operationExpressions.remove(0);
+		final Node operationPattern2 = operationExpressions.remove(0);
+		final OtpErlangObject[] operationElements = new OtpErlangObject[5];
+
+		operationElements[0] = new OtpErlangAtom("op");
+		operationElements[1] = new OtpErlangLong(1);
+		operationElements[2] = new OtpErlangAtom(nodeLabel);
+		operationElements[3] = this.parsePattern(operationPattern1);
+		operationElements[4] = this.parsePattern(operationPattern2);
 
 		return new OtpErlangTuple(operationElements);
 	}
