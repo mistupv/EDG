@@ -1,8 +1,8 @@
 package misc.math;
 
-public class PermutatorWithoutRepetition extends Permutator
+public class PermutatorWithoutRepetitions extends Permutator
 {
-	public PermutatorWithoutRepetition(int size, int limit)
+	public PermutatorWithoutRepetitions(int size, int limit)
 	{
 		super(size, limit);
 	}

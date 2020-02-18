@@ -16,6 +16,8 @@ import java.io.PrintStream;
 import java.net.URL;
 import java.nio.charset.Charset;
 import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.text.SimpleDateFormat;
 import java.util.Arrays;
 import java.util.Collection;
@@ -43,10 +45,13 @@ public final class Misc
 	{
 		final String OSName = Misc.getOSName();
 
+//		if (Utils.isWindows())
 		if (OSName.startsWith("Win"))
 			return "file:///";
+//		if (Utils.isMac())
 		if (OSName.startsWith("Mac"))
 			return "file://";
+//		if (Utils.isUnix())
 		if (OSName.startsWith("Linux"))
 			return "file://";
 		throw new RuntimeException(OSName + " is not handled");
@@ -514,7 +519,7 @@ public final class Misc
 
 		elements2.add(element);
 
-		return Misc.union(elements, elements2);
+		return Misc.intersect(elements, elements2);
 	}
 	public static <E> List<E> intersect(List<E> elements1, List<E> elements2)
 	{
@@ -1135,26 +1140,35 @@ public final class Misc
 	}
 	public static void write(File file, InputStream inputStream, boolean background, boolean append)
 	{
-		Misc.write(file, inputStream, background, append, null);
-	}
-	public static void write(File file, InputStream inputStream, boolean background, boolean append, String charsetName)
-	{
 		if (background)
 			new Thread()
 			{
 				public void run()
 				{
-					Misc.write(file, inputStream, append, charsetName);
+					Misc.write(file, inputStream, append);
 				}
 			}.start();
 		else
-			Misc.write(file, inputStream, append, charsetName);
+			Misc.write(file, inputStream, append);
 	}
 	public static void write(File file, InputStream inputStream, boolean append)
 	{
-		Misc.write(file, inputStream, append, null);
+		final Path path = file.toPath();
+
+		try
+		{
+			Files.createDirectories(path);
+			if (append)
+				Files.copy(inputStream, path);
+			else
+				Files.copy(inputStream, path, StandardCopyOption.REPLACE_EXISTING);
+		}
+		catch (IOException e)
+		{
+			e.printStackTrace();
+		}
 	}
-	public static void write(File file, InputStream inputStream, boolean append, String charsetName)
+	private static void write2(File file, InputStream inputStream, boolean append, String charsetName)
 	{
 		final InputStreamReader isr = new InputStreamReader(inputStream);
 		final BufferedReader br = new BufferedReader(isr);
