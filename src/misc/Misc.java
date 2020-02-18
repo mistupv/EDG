@@ -1,29 +1,15 @@
 package misc;
 
-import java.awt.Point;
-import java.io.BufferedReader;
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
-import java.io.FilenameFilter;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.io.OutputStream;
-import java.io.OutputStreamWriter;
-import java.io.PrintStream;
+import java.awt.*;
+import java.io.*;
 import java.net.URL;
+import java.nio.charset.Charset;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.text.SimpleDateFormat;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.Date;
-import java.util.LinkedList;
 import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Set;
-import java.util.StringTokenizer;
+import java.util.*;
 
 public final class Misc
 {
@@ -41,10 +27,13 @@ public final class Misc
 	{
 		final String OSName = Misc.getOSName();
 
+//		if (Utils.isWindows())
 		if (OSName.startsWith("Win"))
 			return "file:///";
+//		if (Utils.isMac())
 		if (OSName.startsWith("Mac"))
 			return "file://";
+//		if (Utils.isUnix())
 		if (OSName.startsWith("Linux"))
 			return "file://";
 		throw new RuntimeException(OSName + " is not handled");
@@ -512,7 +501,7 @@ public final class Misc
 
 		elements2.add(element);
 
-		return Misc.union(elements, elements2);
+		return Misc.intersect(elements, elements2);
 	}
 	public static <E> List<E> intersect(List<E> elements1, List<E> elements2)
 	{
@@ -1080,6 +1069,20 @@ public final class Misc
 
 		return text;
 	}
+	public static String read2(File file, Charset charset)
+	{
+		try
+		{
+			final byte[] encoded = Files.readAllBytes(file.toPath());
+			return new String(encoded, charset);
+		}
+		catch (Exception e)
+		{
+			e.printStackTrace();
+		}
+
+		return "";
+	}
 
 	/****************************************************************/
 	/**************************** Write *****************************/
@@ -1117,46 +1120,56 @@ public final class Misc
 			e.printStackTrace();
 		}
 	}
-	public static void write(String path, InputStream inputStream, boolean append)
+	public static void write(File file, InputStream inputStream, boolean background, boolean append)
 	{
-		final File file = new File(path);
+		if (background)
+			new Thread() {
+				public void run()
+				{
+					Misc.write(file, inputStream, append);
+				}
+			}.start();
+		else
+			Misc.write(file, inputStream, append);
+	}
 
-		Misc.write(file, inputStream, append, null);
-	}
-	public static void write(String path, InputStream inputStream, boolean append, String charsetName)
+	public static void write(File file, InputStream inputStream, boolean append)
 	{
-		final File file = new File(path);
+		final Path path = file.toPath();
 
-		Misc.write(file, inputStream, append, charsetName);
-	}
-	public static void write(final File file, final InputStream inputStream, final boolean append)
-	{
-		Misc.write(file, inputStream, append, null);
-	}
-	public static void write(final File file, final InputStream inputStream, final boolean append, String charsetName)
-	{
-		new Thread()
+		try
 		{
-			public void run()
-			{
-				final InputStreamReader isr = new InputStreamReader(inputStream);
-				final BufferedReader br = new BufferedReader(isr);
-				final String lineSeparator = System.lineSeparator();
+			Files.createDirectories(path);
+			if (append)
+				Files.copy(inputStream, path);
+			else
+				Files.copy(inputStream, path, StandardCopyOption.REPLACE_EXISTING);
+		} catch (IOException e)
+		{
+			e.printStackTrace();
+		}
+	}
 
-				try
-				{
-					String line;
-					while ((line = br.readLine()) != null)
-						Misc.write(file, line + lineSeparator, append, charsetName);
-					br.close();
-					isr.close();
-				}
-				catch (IOException e)
-				{
-					e.printStackTrace();
-				}
-			}
-		}.start();
+	private static void write2(File file, InputStream inputStream, boolean append, String charsetName)
+	{
+		final InputStreamReader isr = new InputStreamReader(inputStream);
+		final BufferedReader br = new BufferedReader(isr);
+		final String lineSeparator = System.lineSeparator();
+
+		try
+		{
+			String line;
+			if (!append)
+				Misc.delete(file);
+			while ((line = br.readLine()) != null)
+				Misc.write(file, line + lineSeparator, true, charsetName);
+			br.close();
+			isr.close();
+		}
+		catch (IOException e)
+		{
+			e.printStackTrace();
+		}
 	}
 
 	/********************************************************************************************************************************/

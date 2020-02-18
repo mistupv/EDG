@@ -2,17 +2,18 @@ package misc.util;
 
 import java.util.ArrayList;
 import java.util.Hashtable;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 import misc.Misc;
-
-import java.util.Enumeration;
 
 public final class Chronometer
 {
 	/********************************************************************************************************************************/
 	/************************************************************ STATIC ************************************************************/
 	/********************************************************************************************************************************/
-	private static Hashtable<String, Chronometer> chronometers = new Hashtable<String, Chronometer>();
+	private static final Map<String, Chronometer> chronometers = new Hashtable<String, Chronometer>();
 
 	/****************************************************************/
 	/************************ Main functions ************************/
@@ -27,20 +28,20 @@ public final class Chronometer
 	{
 		Chronometer.getChronometer(key).start();
 	}
-	public static void finish(String key)
+	public static void stop(String key)
 	{
-		Chronometer.getChronometer(key).finish();
+		Chronometer.getChronometer(key).stop();
 	}
-	public static long getCounter(String key)
+	public static long getCount(String key)
 	{
-		return Chronometer.getChronometer(key).getCounter();
+		return Chronometer.getChronometer(key).getCount();
 	}
 	public static long getTime(String key)
 	{
 		return Chronometer.getChronometer(key).getMilliseconds();
 	}
 
-	public static void showTimes()
+	public static void show()
 	{
 		System.out.println(Chronometer.getTimes());
 	}
@@ -53,36 +54,41 @@ public final class Chronometer
 		text += "------------ Times ------------" + lineSeparator;
 		text += "-------------------------------" + lineSeparator;
 
-		final Enumeration<String> keys = Chronometer.chronometers.keys();
-		final ArrayList<String> keys0 = new ArrayList<String>();
-		final ArrayList<Chronometer> chronometers = new ArrayList<Chronometer>();
+		final Set<String> chronometerKeys = Chronometer.chronometers.keySet();
+		final List<String> keys = new ArrayList<String>();
+		final List<Chronometer> chronometers = new ArrayList<Chronometer>();
 
-		for (int chronometerIndex = 0; chronometerIndex < Chronometer.chronometers.size(); chronometerIndex++)
+		for (String chronometerKey : chronometerKeys)
 		{
-			final String key = keys.nextElement();
-			final Chronometer chronometer = Chronometer.chronometers.get(key);
+			final Chronometer chronometer = Chronometer.chronometers.get(chronometerKey);
+			final long chronometerMilliseconds = chronometer.getMilliseconds();
 
-			int chronometerIndex2 = 0;
-			for (; chronometerIndex2 < chronometers.size(); chronometerIndex2++)
-				if (chronometers.get(chronometerIndex2).getMilliseconds() < chronometer.getMilliseconds())
+			int chronometerIndex = 0;
+			for (; chronometerIndex < chronometers.size(); chronometerIndex++)
+				if (chronometers.get(chronometerIndex).getMilliseconds() < chronometerMilliseconds)
 					break;
 
-			keys0.add(chronometerIndex2, key);
-			chronometers.add(chronometerIndex2, chronometer);
+			keys.add(chronometerIndex, chronometerKey);
+			chronometers.add(chronometerIndex, chronometer);
 		}
 
-		for (int i = 0; i < chronometers.size(); i++)
+		for (int chronometerIndex = 0; chronometerIndex < chronometers.size(); chronometerIndex++)
 		{
-			final Chronometer chronometer = chronometers.get(i);
-			final long counter = chronometer.getCounter();
+			final String key = keys.get(chronometerIndex);
+			final Chronometer chronometer = chronometers.get(chronometerIndex);
+			final long count = chronometer.getCount();
 			final long milliseconds = chronometer.getMilliseconds();
+			final double microseconds = Misc.round(1000.0 * milliseconds / count, 2);
+			final String timesStr = count == 1 ? "time" : "times";
+			final String millisecondsStr = milliseconds == 1 ? "millisecond" : "milliseconds";
+			final String microsecondsStr = microseconds == 1.0 ? "microsecond" : "microseconds";
 
-			text += keys0.get(i) + " was executed " + counter + " times in " + milliseconds + " milliseconds, which is " + Misc.round(1000.0 * milliseconds / counter, 2) + " microseconds each time" + lineSeparator;
+			text += key + " was executed " + count + " " + timesStr + " in " + milliseconds + " " + millisecondsStr + ", which is " + microseconds + " " + microsecondsStr + " each time" + lineSeparator;
 		}
 
 		return text;
 	}
-	public static void clearAll()
+	public static void clear()
 	{
 		Chronometer.chronometers.clear();
 	}
@@ -92,8 +98,8 @@ public final class Chronometer
 	/********************************************************************************************************************************/
 	private long milliseconds = 0;
 	private long millisecondStart = 0;
-	private long counter = 0;
-	private long recursiveCounter = 0;
+	private long count = 0;
+	private long recursiveCount = 0;
 
 	/****************************************************************/
 	/************************** Constructor *************************/
@@ -108,22 +114,22 @@ public final class Chronometer
 	/****************************************************************/
 	private void start()
 	{
-		if (this.recursiveCounter == 0)
+		if (this.recursiveCount == 0)
 			this.millisecondStart = System.currentTimeMillis();
-		this.recursiveCounter++;
-		this.counter++;
+		this.recursiveCount++;
+		this.count++;
 	}
-	private void finish()
+	private void stop()
 	{
-		if (this.recursiveCounter == 0)
+		if (this.recursiveCount == 0)
 			throw new RuntimeException("The chronometer is not running");
-		this.recursiveCounter--;
-		if (this.recursiveCounter == 0)
+		this.recursiveCount--;
+		if (this.recursiveCount == 0)
 			this.milliseconds += System.currentTimeMillis() - this.millisecondStart;
 	}
-	private long getCounter()
+	private long getCount()
 	{
-		return this.counter;
+		return this.count;
 	}
 	private long getMilliseconds()
 	{

@@ -3,9 +3,8 @@ package misc.util;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 
-public class Flusher
-{
-	public static enum Output { Standard, Error }
+public class Flusher {
+	public enum Output {Standard, Error}
 
 	private final Process process;
 	private final boolean collectStandardOutput;
@@ -63,18 +62,16 @@ public class Flusher
 	}
 	private void flush(Output output, InputStream inputStream)
 	{
-		try
+		try (final InputStreamReader isr = new InputStreamReader(inputStream))
 		{
-			final InputStreamReader isr = new InputStreamReader(inputStream);
 			int character;
 
 			while ((character = isr.read()) != -1)
 				this.addOutput(output, (char) character);
-			inputStream.close();
 		}
 		catch (Exception e)
 		{
-			e.printStackTrace();
+			
 		}
 	}
 

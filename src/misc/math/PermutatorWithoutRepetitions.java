@@ -1,8 +1,7 @@
 package misc.math;
 
-public class PermutatorWithoutRepetition extends Permutator
-{
-	public PermutatorWithoutRepetition(int size, int limit)
+public class PermutatorWithoutRepetitions extends Permutator {
+	public PermutatorWithoutRepetitions(int size, int limit)
 	{
 		super(size, limit);
 	}
@@ -28,6 +27,7 @@ public class PermutatorWithoutRepetition extends Permutator
 	{
 		if (true)
 			throw new RuntimeException("No implementado, pedirselo a David");
+		@SuppressWarnings("unused")
 		int position = super.size - 1;
 
 		super.numbers[position]--;

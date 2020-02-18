@@ -14,8 +14,12 @@ public abstract class Config
 	protected final String rootPath;
 	protected final String librariesPath;
 	protected final String configurationPath;
-	protected final String miscelaneaPath;
+	protected final String miscellaneaPath;
 	protected final String temporaryPath;
+	//ADDED
+	protected final String testPath;
+	protected final String testPathBenchmarks;
+	protected final String testPathSuite;
 
 	/****************************************************************/
 	/************************* Constructor **************************/
@@ -27,11 +31,16 @@ public abstract class Config
 		this.binariesPath = this.programPath + "bin" + File.separator;
 		this.sourcesPath = this.programPath + "src" + File.separator;
 
+		//ADDED TESTPATH
+		this.testPath = "/Users/serperu/Desktop/Benchmarks/GVTests/"; // MODIFY WHEN CHANGING THE SOURCE DIRECTORY
+		this.testPathBenchmarks = "/Users/serperu/Desktop/Benchmarks/"; // MODIFY WHEN CHANGING THE SOURCE DIRECTORY
+		this.testPathSuite = "/Users/serperu/Desktop/Benchmarks/Benchmark_Suites/Suite20/"; // MODIFY WHEN CHANGING THE SOURCE DIRECTORY
+
 		final boolean isJar = projectPath.endsWith(".jar!" + File.separator);
 		this.rootPath = isJar ? this.programPath + "Resources" + File.separator : this.programPath;
 		this.librariesPath = this.rootPath + "lib" + File.separator;
 		this.configurationPath = this.rootPath + "cfg" + File.separator;
-		this.miscelaneaPath = this.rootPath + "misc" + File.separator;
+		this.miscellaneaPath = this.rootPath + "misc" + File.separator;
 		this.temporaryPath = this.rootPath + "tmp" + File.separator;
 	}
 	private String calculateProgramPath(String projectPath)
@@ -86,13 +95,31 @@ public abstract class Config
 	{
 		return this.configurationPath;
 	}
-	public String getMiscelaneaPath()
+
+	public String getMiscellaneaPath()
 	{
-		return this.miscelaneaPath;
+		return this.miscellaneaPath;
 	}
+
 	public String getTemporaryPath()
 	{
 		return this.temporaryPath;
+	}
+
+	//ADDED getTestPath()
+	public String getTestPath()
+	{
+		return this.testPath;
+	}
+
+	public String getTestPathBenchmarks()
+	{
+		return this.testPathBenchmarks;
+	}
+
+	public String getTestPathSuite()
+	{
+		return this.testPathSuite;
 	}
 
 	/****************************************************************/
@@ -102,6 +129,7 @@ public abstract class Config
 	{
 		return new File(this.getProgramPath());
 	}
+
 	public File getBinariesFile()
 	{
 		return new File(this.getBinariesPath());
@@ -118,9 +146,9 @@ public abstract class Config
 	{
 		return new File(this.getConfigurationPath());
 	}
-	public File getMiscelaneaFile()
+	public File getMiscellaneaFile()
 	{
-		return new File(this.getMiscelaneaPath());
+		return new File(this.getMiscellaneaPath());
 	}
 	public File getTemporaryFile()
 	{

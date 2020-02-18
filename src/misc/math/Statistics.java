@@ -206,7 +206,7 @@ public final class Statistics
 	/************************************************************************************************/
 	/****************************************** Auxiliary *******************************************/
 	/************************************************************************************************/
-	private static double[] getArray(List<Double> values)
+	public static double[] getArray(List<Double> values)
 	{
 		final double[] array = new double[values.size()];
 		int listIndex = 0;

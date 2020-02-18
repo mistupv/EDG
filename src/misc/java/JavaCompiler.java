@@ -26,16 +26,17 @@ public final class JavaCompiler
 			throw new RuntimeException("The args parameter must be a project path");
 
 		final String projectPath = args[0];
+		final File project = new File(projectPath);
 
-		JavaCompiler.compileProject(projectPath);
+		JavaCompiler.compileProject(project);
 	}
 
 	/****************************************************************/
 	/************************ Main functions ************************/
 	/****************************************************************/
-	public static boolean compileProject(String projectPath)
+	public static boolean compileProject(File project)
 	{
-		return JavaCompiler.compileProject(null, projectPath, null);
+		return JavaCompiler.compileProject(null, project, null);
 	}
 	public static boolean compileFiles(List<File> files)
 	{
@@ -46,9 +47,9 @@ public final class JavaCompiler
 		return JavaCompiler.compileFile(null, file, null);
 	}
 
-	public static boolean compileProject(String classpath, String projectPath)
+	public static boolean compileProject(String classpath, File project)
 	{
-		return JavaCompiler.compileProject(classpath, projectPath, null);
+		return JavaCompiler.compileProject(classpath, project, null);
 	}
 	public static boolean compileFiles(String classpath, List<File> files)
 	{
@@ -59,9 +60,9 @@ public final class JavaCompiler
 		return JavaCompiler.compileFile(classpath, file, null);
 	}
 
-	public static boolean compileProject(String projectPath, Writer errorsWriter)
+	public static boolean compileProject(File project, Writer errorsWriter)
 	{
-		return JavaCompiler.compileProject(null, projectPath, errorsWriter);
+		return JavaCompiler.compileProject(null, project, errorsWriter);
 	}
 	public static boolean compileFiles(List<File> files, Writer errorsWriter)
 	{
@@ -72,11 +73,10 @@ public final class JavaCompiler
 		return JavaCompiler.compileFile(null, file, errorsWriter);
 	}
 
-	public static boolean compileProject(String classpath, String projectPath, Writer errorsWriter)
+	public static boolean compileProject(String classpath, File project, Writer errorsWriter)
 	{
-		final File root = new File(projectPath);
 		final String[] extensions = { ".java" };
-		final List<File> files = Misc.getFiles(root, extensions, true);
+		final List<File> files = Misc.getFiles(project, extensions, true);
 
 		return JavaCompiler.compileFiles(classpath, files, errorsWriter);
 	}
