@@ -106,7 +106,7 @@ public class JavaLASTFactory extends LASTFactory {
 		else if (element instanceof ArrayCreationExpr)
 			this.process((ArrayCreationExpr) element);
 		else if (element instanceof ArrayAccessExpr)
-			this.process((ArrayAccessExpr) element);
+			this.process((ArrayAccessExpr) element, info);
 		else if (element instanceof ArrayInitializerExpr)
 			this.process((ArrayInitializerExpr) element);
 		else if (element instanceof ArrayType)
@@ -373,11 +373,12 @@ public class JavaLASTFactory extends LASTFactory {
 		super.addDataConstructor(values, ldNodeInfo);
 	}
 
-	private void process(ArrayAccessExpr arrayAccess)
+	private void process(ArrayAccessExpr arrayAccess, Map<String, Object> info)
 	{
 		final long line = arrayAccess.getRange().get().begin.line;
-		final Object name = this.treatExpression(arrayAccess.getName(), false, false, true,
-												 line); // ESTO ESTA MAL, un DATA ACCESS no siempre es un uso
+		boolean isPattern = (boolean) info.get("patternZone");
+		final Object name = this.treatExpression(arrayAccess.getName(), false, isPattern, !isPattern,
+												 line);
 		final Object index = this.treatExpression(arrayAccess.getIndex(), false, false, true, line);
 		final LDASTNodeInfo ldNodeInfo = new LDASTNodeInfo(line, true, "array access");
 
