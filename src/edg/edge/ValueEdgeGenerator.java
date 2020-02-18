@@ -322,10 +322,20 @@ public class ValueEdgeGenerator extends EdgeGenerator
 			if (!scopeChildren.isEmpty())
 			{
 				final Node scope = EDGTraverser.getChild(scopeNode, 0);
-				final Node scopeName = EDGTraverser.getChild(scope,0);
+				final Node scopeName = EDGTraverser.getChild(scope, 0);
+				final Node scopeResult = EDGTraverser.getChild(scope, 1);
 				final NodeConstraint nodeConstraint = new IgnoreEdgeConstraint(EdgeInfo.Type.Value);
 				final EdgeConstraint ignoreConstraint = new AddNodeConstraint(nodeConstraint); // Constraint usada para las declaraciones
-				this.edg.addEdge(scopeName, calleeResult, 0, new EdgeInfo(EdgeInfo.Type.Value, ignoreConstraint));
+				if (scopeName.getData().getType() == NodeInfo.Type.TypeTransformation)
+					this.edg.addEdge(scopeResult, calleeResult, 0, new EdgeInfo(EdgeInfo.Type.Value));
+				else
+				{
+					final boolean isDefinedClass = EDGTraverser.isDefinedClass(this.edg, scopeName); 
+					if (isDefinedClass)  
+						this.edg.addEdge(scopeName, calleeResult, 0, new EdgeInfo(EdgeInfo.Type.Value, ignoreConstraint));
+					else
+						this.edg.addEdge(scopeResult, calleeResult, 0, new EdgeInfo(EdgeInfo.Type.Value));
+				}
 				final List<Node> inputs = EDGTraverser.getInputs(calleeResult, EDGTraverser.Direction.Forwards);
 				if (inputs.isEmpty())
 					this.edg.addEdge(callResult, scopeName, 0, new EdgeInfo(EdgeInfo.Type.Value));

@@ -1,5 +1,6 @@
 package edg.edge;
 
+import java.text.DecimalFormat;
 import java.util.LinkedList;
 import java.util.List;
 
@@ -11,90 +12,68 @@ import edg.traverser.EDGTraverser;
 
 public abstract class EdgeGenerator
 {
-final static boolean timeMeassure = true;
+//	public static void generateEdges(EDG edg)
+//	{
+//		new ControlFlowEdgeGenerator(edg).generate();
+//		new ControlEdgeGenerator(edg).generate();
+//		new InterproceduralEdgeGenerator(edg).generate();
+//		new FlowEdgeGenerator(edg).generate();
+//		new ValueEdgeGenerator(edg).generateJava();
+//		new SummaryEdgeGenerator(edg).generate();
+//		// EXCEPTIONS
+//		new ExceptionEdgeGenerator(edg).generate();
+//	}
+
 	public static void generateEdges(EDG edg)
 	{
-
-long start;
-if(timeMeassure)
-{
-start = System.currentTimeMillis();
-new ControlFlowEdgeGenerator(edg).generate();
-long cfedges = System.currentTimeMillis();
-System.out.println("ControlFlow Arcs: "+(cfedges-start)/1000.0+" seconds");
-}
-else
-	
+		long start;
+		start = System.nanoTime();
 		new ControlFlowEdgeGenerator(edg).generate();
-
-if(timeMeassure)
-{
-start = System.currentTimeMillis();
-new ControlEdgeGenerator(edg).generate();
-long controledges = System.currentTimeMillis();
-System.out.println("Control Arcs: "+(controledges-start)/1000.0+" seconds");
-}
-else
-	
+		long cfedges = System.nanoTime();
+		//System.out.println("ControlFlow Arcs: "+(cfedges-start)/1000.0+" miliseconds");
+		edg.setControlFlowTime((cfedges-start)/1000000.0);
+		
+		start = System.nanoTime();
 		new ControlEdgeGenerator(edg).generate();
+		long controledges = System.nanoTime();
+		//System.out.println("Control Arcs: "+(controledges-start)/1000.0+" miliseconds");
+		edg.setControlTime((controledges-start)/1000000.0);
 
-if(timeMeassure)
-{
-start = System.currentTimeMillis();
-new InterproceduralEdgeGenerator(edg).generate();
-long ipedges = System.currentTimeMillis();
-System.out.println("Interprocedural Arcs: "+(ipedges-start)/1000.0+" seconds");
-}
-else
-	
+		start = System.nanoTime();
 		new InterproceduralEdgeGenerator(edg).generate();
-
-if(timeMeassure)
-{
-start = System.currentTimeMillis();
-new FlowEdgeGenerator(edg).generate();
-long flowedges = System.currentTimeMillis();
-System.out.println("Flow Arcs: "+(flowedges-start)/1000.0+" seconds");
-}
-else
-	
+		long ipedges = System.nanoTime();
+		//System.out.println("Interprocedural Arcs: "+(ipedges-start)/1000.0+" miliseconds");
+		edg.setInterproceduralTime((ipedges-start)/1000000.0);
+		
+		start = System.nanoTime();
 		new FlowEdgeGenerator(edg).generate();
-
-if(timeMeassure)
-{
-start = System.currentTimeMillis();
-new ValueEdgeGenerator(edg).generateJava();
-long valedges = System.currentTimeMillis();
-System.out.println("Value Arcs: "+(valedges-start)/1000.0+" seconds");
-}
-else
-	
+		long flowedges = System.nanoTime();
+		//System.out.println("Flow Arcs: "+(flowedges-start)/1000.0+" miliseconds");
+		edg.setFlowTime((flowedges-start)/1000000.0);
+		
+		start = System.nanoTime();
 		new ValueEdgeGenerator(edg).generateJava();
-
-if(timeMeassure)
-{
-start = System.currentTimeMillis();
-new SummaryEdgeGenerator(edg).generate();
-long sumedges = System.currentTimeMillis();
-System.out.println("Summary Arcs: "+(sumedges-start)/1000.0+" seconds");
-}
-else
-	
+		long valedges = System.nanoTime();
+		//System.out.println("Value Arcs: "+(valedges-start)/1000.0+" miliseconds");
+		edg.setValueTime((valedges-start)/1000000.0);
+		
+		start = System.nanoTime();
 		new SummaryEdgeGenerator(edg).generate();
-
-if(timeMeassure)
-{
-start = System.currentTimeMillis();
-
-new ExceptionEdgeGenerator(edg).generate();
-long exedges = System.currentTimeMillis();
-System.out.println("Exception Arcs: "+(exedges-start)/1000.0+" seconds");
-}
-else
-		// EXCEPTIONS
+		long sumedges = System.nanoTime();
+		//System.out.println("Summary Arcs: "+(sumedges-start)/1000.0+" miliseconds");
+		edg.setSummaryTime((sumedges-start)/1000000.0);
+		
+		start = System.nanoTime();
 		new ExceptionEdgeGenerator(edg).generate();
-
+		long exedges = System.nanoTime();
+		//System.out.println("Exception Arcs: "+(exedges-start)/1000.0+" miliseconds");
+		edg.setExceptionTime((exedges-start)/1000000.0);
+		
+//		DecimalFormat df = new DecimalFormat("#.###");  
+//		System.out.println("EDG Generation Time: "+df.format(ggt.getGenerationEDGTime()));
+//		System.out.println("SDG Generation Time: "+df.format(ggt.getGenerationSDGTime(edg)));
 	}
+	
 
 	protected final EDG edg;
 

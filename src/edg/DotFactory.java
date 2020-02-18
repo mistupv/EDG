@@ -70,6 +70,7 @@ public class DotFactory
 	private static String parseNode(Node node, boolean sliceCriterion, boolean sliceNode)
 	{
 		final String id = node.getData().getId() + "";
+		final String SDGid = node.getData().getSDGId() + "";
 		final String name = node.getName().replace("\n", "\\n");
 		String text = "";
 
@@ -79,7 +80,7 @@ public class DotFactory
 		text += "penwidth=" + (sliceCriterion ? "4" : "1") + " ";
 		text += "style=filled ";
 		text += "color=\"" + (sliceCriterion ? "blue" : "gray") + "\" ";
-		text += "label=\"" + "Id = " + id + "\\n" + name + "\" ";
+		text += "label=\"" + "Id = " + id + "\\n" + "SDGId = " + SDGid + "\\n" + name + "\" ";
 		text += "fontcolor=\"" + (sliceNode ? "blue" : "black") + "\" ";
 		text += "fillcolor=\"" + (sliceNode ? "green" : "gray") + "\" ";
 		text = text.trim();
@@ -98,8 +99,8 @@ public class DotFactory
 // TODO Borrame
 			
 if (edgeType != EdgeInfo.Type.Structural) {
-final List<EdgeInfo.Type> ignoreEdgeTypes = Arrays.asList();
-final List<EdgeInfo.Type> edgeTypes = Arrays.asList(EdgeInfo.Type.Flow, EdgeInfo.Type.Control,EdgeInfo.Type.ControlFlow,EdgeInfo.Type.Call); // Introducir aqui el tipo de arcos que quieres mostrar
+final List<EdgeInfo.Type> ignoreEdgeTypes = Arrays.asList(EdgeInfo.Type.ControlFlow);
+final List<EdgeInfo.Type> edgeTypes = Arrays.asList();//, EdgeInfo.Type.Value, EdgeInfo.Type.Input, EdgeInfo.Type.Output, EdgeInfo.Type.Call); // Introducir aqui el tipo de arcos que quieres mostrar
 final int[] boundNodeIds = {}; // Introducir aqui los extremos del intervalo en el que se quieren ver los arcos
 final List<Integer> nodesIds = Arrays.asList(); // Introducir aqui los nodos de los que se quieren ver los arcos
 

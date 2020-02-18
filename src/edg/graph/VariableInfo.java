@@ -14,6 +14,10 @@ public class VariableInfo extends NodeInfo
 	{
 		super(id, type, name, ldASTNodeInfo);
 	}
+	public VariableInfo(int id, int SDGId, Type type, String name, LDASTNodeInfo ldASTNodeInfo)
+	{
+		super(id, SDGId, type, name, ldASTNodeInfo);
+	}
 
 	public boolean isDeclaration()
 	{

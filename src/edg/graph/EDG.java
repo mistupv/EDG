@@ -19,7 +19,8 @@ public class EDG
 	/***** Nodes *****/
 	/*****************/
 	private final Graph<NodeInfo, EdgeInfo> graph = new Graph<NodeInfo, EdgeInfo>();
-
+	private final GraphGeneratorTimer ggt = new GraphGeneratorTimer();
+	
 	public Node getRootNode()
 	{
 		return (Node) this.graph.getRootVertex();
@@ -122,5 +123,79 @@ public class EDG
 	public void addProduction(GrammarConstraint grammarConstraint, Constraints production)
 	{
 		this.grammar.addProduction(grammarConstraint, production);
+	}
+	
+	/**********************/
+	/**** Time Measure ****/
+	/**********************/
+
+	public void setStructureTime(double time) {	this.ggt.setStructureTime(time); }
+	public void setControlFlowTime(double time) {	this.ggt.setControlFlowTime(time); }
+	public void setControlTime(double time) {	this.ggt.setControlTime(time);	}
+	public void setInterproceduralTime(double time) {	this.ggt.setInterproceduralTime(time); }
+	public void setFlowTime(double time) {	this.ggt.setFlowTime(time); }
+	public void setValueTime(double time) {	this.ggt.setValueTime(time); }
+	public void setSummaryTime(double time) {	this.ggt.setSummaryTime(time); }
+	public void setExceptionTime(double time) {	this.ggt.setExceptionTime(time); }
+	
+	public GraphGeneratorTimer getGenerationTime()
+	{
+		return this.ggt;
+	}
+	
+	public static class GraphGeneratorTimer
+	{	
+		private double structureTime;
+		private double controlFlowTime;
+		private double controlTime;
+		private double interproceduralTime;
+		private double flowTime;
+		private double valueTime;
+		private double summaryTime;
+		private double exceptionTime;
+		
+		public GraphGeneratorTimer()
+		{
+			
+		}
+		
+		public void setStructureTime(double time) {	this.structureTime = time;	}
+		public void setControlFlowTime(double time) {	this.controlFlowTime = time;	}
+		public void setControlTime(double time) {	this.controlTime = time;	}
+		public void setInterproceduralTime(double time) {	this.interproceduralTime = time;	}
+		public void setFlowTime(double time) {	this.flowTime = time;	}
+		public void setValueTime(double time) {	this.valueTime = time;	}
+		public void setSummaryTime(double time) {	this.summaryTime = time;	}
+		public void setExceptionTime(double time) {	this.exceptionTime = time;	}
+		
+		public double getGenerationEDGTime()
+		{
+			return structureTime + controlFlowTime + controlTime + interproceduralTime + flowTime + 
+					 valueTime + summaryTime + exceptionTime;
+		}
+		public double getGenerationSDGTime(EDG edg)
+		{
+			final int SDGNodeCount = countSDGNodes(edg);
+			final int EDGNodeCount = edg.getNodes().size();
+			final double structureSDGTime = structureTime / EDGNodeCount * SDGNodeCount;
+			final double controlFlowSDGTime = controlFlowTime / EDGNodeCount * SDGNodeCount;
+			final double flowSDGTime = flowTime - ((SDGNodeCount * flowTime)/(2 * EDGNodeCount));
+			
+			return structureSDGTime + controlFlowSDGTime + controlTime + 
+					interproceduralTime + flowSDGTime + summaryTime;
+		}
+		
+		private int countSDGNodes(EDG edg)
+		{
+			final List<Integer> sdgNodeNumbers = new LinkedList<Integer>();
+			final List<Node> edgNodes = edg.getNodes();
+			for (Node node : edgNodes)
+			{
+				final int sdgId = node.getData().getSDGId();
+				if (!sdgNodeNumbers.contains(sdgId))
+					sdgNodeNumbers.add(sdgId);
+			}
+			return sdgNodeNumbers.size();
+		}
 	}
 }

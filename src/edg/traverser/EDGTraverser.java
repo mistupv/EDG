@@ -118,6 +118,7 @@ public class EDGTraverser
 
 		return children.get(childIndex);
 	}
+
 //SEARCH BY NODETYPE
 	public static Node getChild(Node node, NodeInfo.Type type)
 	{
@@ -251,7 +252,7 @@ public class EDGTraverser
 				throw new RuntimeException("Type not contemplated: " + info.getType());
 		}
 	}
-
+	
 	private static Node getVarResult(Node node, List<Node> siblings) {
 		
 		final Node grandParentUseNode = EDGTraverser.getParent(EDGTraverser.getParent(node));
@@ -297,5 +298,86 @@ public class EDGTraverser
 		}
 
 		return false;
+	}
+
+	// SDG Algorithm
+	public static List<Node> getNodesSameSDGId(Node node)
+	{
+		final int SDGId = node.getData().getSDGId();
+		final List<Node> sameIdNodes = new LinkedList<Node>();
+		
+		
+		if (node.getData().getId() != 0)
+			sameIdNodes.addAll(getAncestorsSameId(node, SDGId));
+		sameIdNodes.addAll(getChildrenSameId(node, SDGId));
+		
+//		final Node parent = getParent(node);
+//		final List<Node> siblings = getSiblings(node);
+//		final List<Node> children = getChildren(node);
+//		
+//		siblings.removeIf(sibling -> sibling == node || sibling.getData().getSDGId() != SDGId);
+//		children.removeIf(child -> child.getData().getSDGId() != SDGId);
+//		
+//		if (parent.getData().getSDGId() == SDGId)
+//			sameIdNodes.addAll(getAncestorsSameId(parent, SDGId));
+//		
+//		for (Node sibling : siblings)
+//			sameIdNodes.addAll(getChildrenSameId(sibling, SDGId));
+//		for (Node child : children)
+//			sameIdNodes.addAll(getChildrenSameId(child, SDGId));
+		
+		return sameIdNodes;
+	}
+	public static List<Node> getAncestorsSameId(Node node, int SDGId)
+	{
+		final List<Node> sameIdNodes = new LinkedList<Node>();
+		sameIdNodes.add(node);
+		
+		if (node.getData().getId() != 0)
+		{
+			final Node parent = getParent(node);
+		
+			if (parent.getData().getSDGId() == SDGId)
+				sameIdNodes.addAll(getAncestorsSameId(parent, SDGId));
+		}
+		
+		final List<Node> siblings = getSiblings(node);
+		siblings.removeIf(sibling -> sibling == node || sibling.getData().getSDGId() != SDGId);
+		
+		for (Node sibling : siblings)
+		{
+			sameIdNodes.add(sibling);
+			sameIdNodes.addAll(getChildrenSameId(sibling, SDGId));
+		}
+		
+		return sameIdNodes;
+	}
+	public static List<Node> getChildrenSameId(Node node, int SDGId)
+	{
+		final List<Node> sameIdNodes = new LinkedList<Node>();
+		
+		final List<Node> children = getChildren(node);
+		children.removeIf(child -> child.getData().getSDGId() != SDGId);
+		
+		for (Node child : children)
+		{
+			sameIdNodes.add(child);
+			sameIdNodes.addAll(getChildrenSameId(child, SDGId));
+		}
+		
+		return sameIdNodes;
+	}
+
+	public static boolean isDefinedClass(EDG edg, Node node)
+	{
+		if (node.getData().getType() != NodeInfo.Type.Variable)
+			return true;
+		final List<Node> modules = EDGTraverser.getNodes(edg, NodeInfo.Type.Module);
+		final String nodeType =  node.getData().getInfo().getInfo()[1].toString();
+		for (Node module : modules)
+			if (module.getData().getName().equals(nodeType))
+				return true;
+		return false;
+			
 	}
 }

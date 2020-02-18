@@ -18,6 +18,8 @@ import edg.traverser.EDGTraverser;
 public class ASTBuilder
 {
 	public static int nextId = 0;
+	public static int SDGId = 0;
+	
 	public static enum Where { Parameters, Arguments, Guard, Scope, Name, Body, Condition, Then, Else, Selector, Cases, Selectable, Restrictions, Value,
 		Init, Update, Try, Catch, Finally, Throw, Reference, Iterator // ADDED BY SERGIO
 		}
@@ -26,9 +28,10 @@ public class ASTBuilder
 	public static EDG createEDG(LDASTNodeInfo info)
 	{
 		ASTBuilder.nextId = 0;
+		ASTBuilder.SDGId = 0;
 
 		final EDG edg = new EDG();
-		final NodeInfo rootNodeInfo = new NodeInfo(ASTBuilder.nextId++, NodeInfo.Type.Root, "EDG", info);
+		final NodeInfo rootNodeInfo = new NodeInfo(ASTBuilder.nextId++, ASTBuilder.SDGId, NodeInfo.Type.Root, "EDG", info);
 		final Node rootNode = new Node("EDG", rootNodeInfo);
 
 		edg.setRootNode(rootNode);
@@ -427,10 +430,15 @@ public class ASTBuilder
 		if (info != null && info.getClassName() == null)
 			info.setClassName(ASTBuilder.getClassName(parent));
 
-		final NodeInfo nodeInfo = ASTBuilder.getNodeInfo(type, isVariable, name, info);
+		
+//final NodeInfo nodeInfo0 = ASTBuilder.getNodeInfo(type, isVariable, name, info);
+// ADDED SDG NODE ID
+		//final NodeInfo.Type parentType = parent.getData().getType();
+		final NodeInfo nodeInfo = ASTBuilder.getNodeInfo(type, parent, isVariable, name, info);
+		
 		final EdgeInfo edgeInfo = new EdgeInfo(EdgeInfo.Type.Structural);
 		final Node node = new Node(text, nodeInfo);
-
+		
 		edg.addNode(node);
 		edg.addEdge(parent, node, 0, edgeInfo);
 
@@ -979,6 +987,77 @@ public class ASTBuilder
 		if (isVariable)
 			return new VariableInfo(ASTBuilder.nextId++, type, name, info);
 		return new NodeInfo(ASTBuilder.nextId++, type, name, info);
+	}
+	private static NodeInfo getNodeInfo(NodeInfo.Type type, Node parent, boolean isVariable, String name, LDASTNodeInfo info)
+	{
+		NodeInfo.Type parentType = parent.getData().getType();
+		switch(type)
+		{
+			case Routine:
+			case Clause:
+			case Module:
+			case Return:
+			case Continue:
+			case Break:
+			case Case:
+			case CatchClause:
+			case Callee:
+			case ArgumentIn:
+			case ArgumentOut:
+				return new NodeInfo(ASTBuilder.nextId++, ++ASTBuilder.SDGId, type, name, info);
+			case Result:
+				final Node firstSibling = EDGTraverser.getChild(parent, 0);
+				final NodeInfo.Type siblingType = firstSibling.getData().getType();
+				switch(siblingType)
+				{
+					case Variable:
+					case Literal:
+					case DataConstructorAccess:
+					case DataConstructor:
+					case Operation:
+						if (isVariable)
+							return new VariableInfo(ASTBuilder.nextId++, parent.getData().getSDGId(), type, name, info);
+						return new NodeInfo(ASTBuilder.nextId++, parent.getData().getSDGId(), type, name, info);
+					default:	
+						return new NodeInfo(ASTBuilder.nextId++, ++ASTBuilder.SDGId, type, name, info);
+				}
+			case DefaultCase:
+				
+				final List<Node> children = EDGTraverser.getChildren(parent);
+				if (children.size() == 1)
+					return new NodeInfo(ASTBuilder.nextId++, parent.getData().getSDGId(), type, name, info);
+				
+				final Node lastChild = children.get(children.size() - 1);
+				if (lastChild.getData().getType() != NodeInfo.Type.DefaultCase)
+					return new NodeInfo(ASTBuilder.nextId++, lastChild.getData().getSDGId(), type, name, info);
+				
+				final Node penultimateChild = children.get(children.size() - 2);
+				return new NodeInfo(ASTBuilder.nextId++, penultimateChild.getData().getSDGId(), type, name, info);
+				
+			case Expression:
+				switch(parentType)
+				{
+					case Parameters:
+						final Node grandParent = EDGTraverser.getParent(parent);
+						if (grandParent.getData().getType() == NodeInfo.Type.CatchClause)
+							return new NodeInfo(ASTBuilder.nextId++, parent.getData().getSDGId(), type, name, info);
+					case Arguments:
+					case Body:
+					case Block:
+					case Module:
+					case Init:
+					case Update:
+					case Try:
+					case Finally:
+						return new NodeInfo(ASTBuilder.nextId++, ++ASTBuilder.SDGId, type, name, info);
+					default: 
+						break;
+				}
+			default:	
+				if (isVariable)
+					return new VariableInfo(ASTBuilder.nextId++, parent.getData().getSDGId(), type, name, info);
+				return new NodeInfo(ASTBuilder.nextId++, parent.getData().getSDGId(), type, name, info);
+		}
 	}
 
 	// Dependencies

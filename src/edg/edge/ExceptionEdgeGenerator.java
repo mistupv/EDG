@@ -128,6 +128,7 @@ public class ExceptionEdgeGenerator extends EdgeGenerator{
 			case Selector:
 			case Selectable:
 			case DataConstructorAccess:
+			case FieldAccess:
 			case List:
 			case DataConstructor:
 			case Block:

@@ -64,15 +64,19 @@ public abstract class EDGFactory
 	protected <R> EDG createEDG(boolean generateArcs, R[] classes, LDASTNodeInfo info)
 	{
 		this.branches.clear();
-long start = System.currentTimeMillis();
+long start = System.nanoTime();
 		this.edg = ASTBuilder.createEDG(info);
 		this.processElements(classes);
 		ASTBuilder.completeEDG(this.edg);
-long structure = System.currentTimeMillis();
-//System.out.println("Conversion AST - EDG (Structure Arcs): "+(structure-start)/1000.0+" seconds");
+long structure = System.nanoTime();
+
+this.edg.setStructureTime((structure-start)/1000000.0);
+
+//System.out.println("Structure Arcs: "+(structure-start)/1000.0+" seconds");
 		// Añadir en el EDG la info de metodos y fields
 		ASTBuilder.addInheritanceInfomation(this.edg);
 		if (generateArcs)
+			//ASTBuilder.generateDependencies(this.edg);
 			ASTBuilder.generateDependencies(this.edg);
 
 		return this.edg;

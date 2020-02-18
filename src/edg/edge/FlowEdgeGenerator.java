@@ -376,6 +376,8 @@ public class FlowEdgeGenerator extends EdgeGenerator
 			final String className0 = isDefinitionCall ? this.getScopeClass(EDGTraverser.getParent(definitionResultNode)) : definitionNode.getData().getInfo().getClassName();
 			final String className = className0.equals("super") ? definitionNode.getData().getInfo().getClassName() : className0;
 			final Node declarationNode = this.getDeclaration(variableId, className, definitionNode);
+if (declarationNode == null) // Do not link variables not explicitly defined, they must be class names or class attributes
+	continue;
 			final boolean isGlobalVariable = declarationNode != null && declarationNode.getData() instanceof VariableInfo && ((VariableInfo) declarationNode.getData()).isGlobal();
 			
 			// Declaration edges
@@ -482,8 +484,16 @@ if (declarationNode != null && declarationNode != definitionNode)
 						else
 							this.edg.addEdge(definitionResultNode, useNode1, 0, new EdgeInfo(EdgeInfo.Type.Flow, letThroughConstraint));
 					}
-					else if (isDefinitionParameters && isUseVariable) 
+					else if (isDefinitionParameters && isUseVariable)
+					{
+						final List<Edge> calleeResults = EDGTraverser.getEdges(EDGTraverser.getParent(definitionNode), Direction.Backwards, EdgeInfo.Type.Input);
+						for (Edge calleeResult : calleeResults)
+						{
+							final Node clauseArgsOutNode = EDGTraverser.getSibling(EDGTraverser.getParent(calleeResult.getFrom()),3);
+							this.edg.addEdge(clauseArgsOutNode, definitionResultNode, 0, new EdgeInfo(EdgeInfo.Type.Output, letThroughConstraint));
+						}
 						this.edg.addEdge(definitionNode, useNode1, 0, new EdgeInfo(EdgeInfo.Type.Flow, addConstraint));
+					}
 					else if (isDefinitionCall && isUseVariable) 
 						this.edg.addEdge(definitionResultNode, useNode1, 0, new EdgeInfo(EdgeInfo.Type.Flow, addConstraint));
 					else if (isDefinitionVariable && isUseLastNode)
@@ -503,15 +513,7 @@ if (declarationNode != null && declarationNode != definitionNode)
 					
 					// ARCOS ESPECIALES PARA COMUNICAR FUNCIONES Y COGER DEFINICION DE LA DECLARACION SI PROCEDE
 					if (isDefinitionCall)
-					{
-						final List<Edge> clauseResults = EDGTraverser.getEdges(definitionNode, Direction.Backwards, EdgeInfo.Type.Output);
-						for (Edge clauseResult : clauseResults)
-						{
-							final Node clauseParametersNode = EDGTraverser.getSibling(clauseResult.getFrom(),0);
-							this.edg.addEdge(clauseParametersNode, definitionResultNode, 0, new EdgeInfo(EdgeInfo.Type.Output, letThroughConstraint));
-							this.edg.addEdge(EDGTraverser.getResult(EDGTraverser.getSibling(definitionResultNode, 0)), definitionResultNode, 0, new EdgeInfo(EdgeInfo.Type.Flow, removeConstraint));
-						}
-					}
+						this.edg.addEdge(EDGTraverser.getResult(EDGTraverser.getSibling(definitionResultNode, 0)), definitionResultNode, 0, new EdgeInfo(EdgeInfo.Type.Flow, removeConstraint));
 					
 					// Arcos para coger la definicion en la declaracion de la funcion si la hubiera 
 // TODO Discutir si habria que coger esta definición cuando haya llamadas a esta funcion
@@ -572,7 +574,7 @@ if (declarationNode != null && declarationNode != definitionNode)
 				return false;
 			}
 		};
-		final ControlFlowTraverser.Configuration configuration = new ControlFlowTraverser.Configuration(ControlFlowTraverser.Direction.Backwards, true, false, true, false, true);
+		final ControlFlowTraverser.Configuration configuration = new ControlFlowTraverser.Configuration(ControlFlowTraverser.Direction.Backwards, false, false, true, false, true);
 		final Set<Node> declaration = ControlFlowTraverser.traverse(definitionNode, configuration, collectAndStop);
 		if (!declaration.isEmpty())
 			return declaration.iterator().next();
@@ -764,14 +766,16 @@ if (declarationNode != null && declarationNode != definitionNode)
 		else
 		{
 			final Node moduleRef0 = scopeChildren.get(0);
-			final Node moduleRef = moduleRef0.getData().getType() != NodeInfo.Type.Expression ? moduleRef0 : EDGTraverser.getChild(moduleRef0, 0);
+			final Node moduleRef1 = moduleRef0.getData().getType() != NodeInfo.Type.Expression ? moduleRef0 : EDGTraverser.getChild(moduleRef0, 0);
+			final Node moduleRef = moduleRef1.getData().getType() == NodeInfo.Type.TypeTransformation ? EDGTraverser.getChild(EDGTraverser.getChild(moduleRef1, 0),0) :
+				moduleRef1;
 			final NodeInfo.Type moduleRefType = moduleRef.getData().getType();
 			
 			final String moduleName0 = moduleRefType == NodeInfo.Type.Variable ? moduleRef.getData().getInfo().getInfo()[1].toString() : null;
-			final String moduleName1 = moduleRefType == NodeInfo.Type.Literal ? moduleRef.getData().getName() : moduleName0;
+			final String moduleName1 = moduleRefType == NodeInfo.Type.Literal || moduleRefType == NodeInfo.Type.Type ? moduleRef.getData().getName() : moduleName0;
 			// Esto solo es cierto cuando la call es a un constructor. Habria que analizar el tipo que devuelve el método para asegurarse que es el indicado
-			final String moduleName = moduleRefType == NodeInfo.Type.Call ? getScopeClass(moduleRef) : moduleName1; 
-			
+			final String moduleName = moduleRefType == NodeInfo.Type.Call ? getScopeClass(moduleRef) : moduleName1;
+			 
 			return moduleName;
 		}
 	}

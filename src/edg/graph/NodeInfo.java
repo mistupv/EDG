@@ -1,6 +1,8 @@
 package edg.graph;
 
 import edg.LDASTNodeInfo;
+import edg.graph.VariableInfo.Context;
+import edg.traverser.EDGTraverser;
 
 public class NodeInfo
 {
@@ -45,18 +47,29 @@ public class NodeInfo
 	private final Type type;
 	private final String name;
 	private final LDASTNodeInfo ldASTNodeInfo;
+	private final int SDGId;
 
 	public NodeInfo(int id, Type type, String name, LDASTNodeInfo ldASTNodeInfo)
 	{
+		this(id, -1, type,name,ldASTNodeInfo);
+	}
+
+	public NodeInfo(int id, int SDGId, Type type, String name, LDASTNodeInfo ldASTNodeInfo)
+	{
 		this.id = id;
+		this.SDGId = SDGId;
 		this.type = type;
 		this.name = name;
 		this.ldASTNodeInfo = ldASTNodeInfo;
 	}
-
+	
 	public int getId()
 	{
 		return this.id;
+	}
+	public int getSDGId()
+	{
+		return this.SDGId;
 	}
 	public Type getType()
 	{
@@ -84,10 +97,43 @@ public class NodeInfo
 			case Selectable:
 			case Callee:
 			case Arguments:
+			case ArgumentIn:
+			case ArgumentOut:
 			case Expression:
-			case Result:
+			case Scope:
+			case Name:
+//			case Result:
 			case Restrictions:
 			case Value:
+			
+				return true;
+			default:
+				return false;
+		}
+	}
+	public boolean isSliceable(Node node)
+	{
+		switch (this.type)
+		{
+//			case Variable:
+//			case Literal:
+			case Result: // Eliminar Literales y Definiciones de variables
+//				final Node sibling = EDGTraverser.getSibling(node, 0);
+//				switch(sibling.getData().getType())
+//				{
+//					case Literal:
+//						return false;
+//					case Variable:
+//						if (((VariableInfo) sibling.getData()).getContext() == Context.Definition)
+//							return false;
+//						return true;
+//					default:
+//						return true;
+//				}
+			case Return:
+			case Break:
+			case Continue:
+			case Type:
 				return true;
 			default:
 				return false;
