@@ -19,6 +19,10 @@ import eknife.edg.Node;
 import eknife.edg.NodeInfo;
 import eknife.edg.traverser.GraphTraverser;
 
+// ADDED BY SERGIO BECAUSE OF THE parseAttribute FUNCTION
+import eknife.edg.constraint.RecordConstraint;
+import eknife.edg.Edge; 
+
 public class ErlangGenerator
 {
 	private List<Node> slice;
@@ -258,10 +262,10 @@ public class ErlangGenerator
 		final OtpErlangObject[] clausesElements = this.toArray(clausesList);
 		return new OtpErlangList(clausesElements);
 	}
-	private OtpErlangTuple parseClause(Node clause)
+	private OtpErlangTuple parseClauseOLD(Node clause) // DEPRECATED
 	{
 		final List<Node> parameters = GraphTraverser.getChildren(clause, EdgeInfo.Type.NormalControl);
-		final Node guards = parameters.remove(parameters.size() - 1);
+		final Node guards = parameters.remove(parameters.size() - 1); 
 		final List<Node> bodies = GraphTraverser.getChildren(guards, EdgeInfo.Type.NormalControl);
 		final Node body = bodies.get(0);
 		final List<Node> expressions = GraphTraverser.getChildren(body, EdgeInfo.Type.NormalControl);
@@ -275,7 +279,473 @@ public class ErlangGenerator
 
 		return new OtpErlangTuple(clauseElements);
 	}
+	private OtpErlangTuple parseClause(Node clause) // ADDED BY SERGIO
+	{
+		final List<Node> parameters = GraphTraverser.getChildren(clause, EdgeInfo.Type.NormalControl);
+		final Node guards = parameters.remove(parameters.size() - 2);
+		final Node body = parameters.remove(parameters.size() - 1);
+		final List<Node> expressions = GraphTraverser.getChildren(body, EdgeInfo.Type.NormalControl);
+		final OtpErlangObject[] clauseElements = new OtpErlangObject[5];
 
+		clauseElements[0] = new OtpErlangAtom("clause");
+		clauseElements[1] = new OtpErlangLong(1);
+		clauseElements[2] = this.parsePatterns(parameters);
+		clauseElements[3] = this.parseGuards(guards);
+		clauseElements[4] = this.parseExpressions(expressions, false);
+
+		return new OtpErlangTuple(clauseElements);
+	}
+	
+	private OtpErlangTuple parseEmptyClause()
+	{
+		final OtpErlangObject[] clauseElements = new OtpErlangObject[5];
+
+		clauseElements[0] = new OtpErlangAtom("clause");
+		clauseElements[1] = new OtpErlangLong(1);
+		clauseElements[2] = new OtpErlangList(this.parseEmptyVar());
+		clauseElements[3] = new OtpErlangList(new OtpErlangObject[0]);
+		clauseElements[4] = new OtpErlangList(this.parseEmptyLiteral());
+		
+		return new OtpErlangTuple(clauseElements);
+	}
+// ADDED BY SERGIO
+	// Guards
+	private OtpErlangList parseGuards(Node guards)
+	{
+		final List<Node> ors = GraphTraverser.getChildren(guards, EdgeInfo.Type.NormalControl);
+		if (ors.size() == 0)
+			return new OtpErlangList(new OtpErlangObject[0]);
+		final Node or = ors.get(0);
+				
+		final List<Node> ands = GraphTraverser.getChildren(or, EdgeInfo.Type.NormalControl);
+		final int andsNumber = ands.size();
+		final OtpErlangObject[] guardElements = new OtpErlangObject[andsNumber];
+		
+		for (int and = 0; and < andsNumber; and++)
+		{
+			guardElements[and] = this.parseAnd(ands.get(and));
+		}
+		
+		return new OtpErlangList(guardElements);
+	}
+	private OtpErlangList parseAnd(Node and)
+	{
+		final List<Node> andExpressions = GraphTraverser.getChildren(and, EdgeInfo.Type.NormalControl);
+		return this.parseExpressions(andExpressions, false);
+	}
+	
+	// Throw,Catch,Receive
+	private OtpErlangTuple parseThrow(Node _throw)
+	{
+		final List<Node> throwArguments = GraphTraverser.getChildren(_throw, EdgeInfo.Type.NormalControl);
+		
+		final OtpErlangObject[] throwAtom = new OtpErlangObject[3];  
+		throwAtom[0] = new OtpErlangAtom("atom");
+		throwAtom[1] = new OtpErlangLong(1);
+		throwAtom[2] = new OtpErlangAtom("throw");
+		
+		final OtpErlangObject[] throwElements = new OtpErlangObject[4];
+		throwElements[0] = new OtpErlangAtom("call");
+		throwElements[1] = new OtpErlangLong(1);
+		throwElements[2] = new OtpErlangTuple(throwAtom);
+		throwElements[3] = this.parseExpressions(throwArguments, true);
+
+		return new OtpErlangTuple(throwElements);
+	}
+	private OtpErlangTuple parseCatch(Node _catch)
+	{
+		final List<Node> catchExpressions = GraphTraverser.getChildren(_catch, EdgeInfo.Type.NormalControl);
+		final Node catch0 = catchExpressions.get(0);
+		final Node expression = GraphTraverser.getChild(catch0, 0);
+		
+		final OtpErlangObject[] catchElements = new OtpErlangObject[3];
+		catchElements[0] = new OtpErlangAtom("catch");
+		catchElements[1] = new OtpErlangLong(1);
+		catchElements[2] = this.parseExpression(expression);
+		
+		return new OtpErlangTuple(catchElements);
+	}
+	private OtpErlangTuple parseReceive(Node receive)
+	{
+		final List<Node> receiveClauses = GraphTraverser.getChildren(receive, EdgeInfo.Type.NormalControl);
+		final Node last = receiveClauses.get(receiveClauses.size() - 1);
+		final OtpErlangObject[] receiveElements;
+		
+		if (last.getData().getType() == NodeInfo.Type.AfterReceive)
+		{
+			receiveElements = new OtpErlangObject[5];
+			receiveElements[0] = new OtpErlangAtom("receive");
+			receiveElements[1] = new OtpErlangLong(1);
+			receiveElements[2] = this.parseClauses(receiveClauses);
+			
+			final List<Node> afterChildren = GraphTraverser.getChildren(last, EdgeInfo.Type.NormalControl);
+			final Node Timeout =  afterChildren.remove(0);
+			final List<Node> afterExpressions = GraphTraverser.getChildren(afterChildren.get(0), EdgeInfo.Type.NormalControl);
+			receiveElements[3] = this.parseExpression(Timeout);
+			receiveElements[4] = this.parseExpressions(afterExpressions, false);
+		}
+		else
+		{
+			receiveElements = new OtpErlangObject[3];
+			receiveElements[0] = new OtpErlangAtom("receive");
+			receiveElements[1] = new OtpErlangLong(1);
+			receiveElements[2] = this.parseClauses(receiveClauses);
+		}
+		return new OtpErlangTuple(receiveElements);
+	}
+	
+	// Try Catch
+	private OtpErlangTuple parseTry(Node _try)
+	{
+		final List<Node> tryClauses = GraphTraverser.getChildren(_try, EdgeInfo.Type.NormalControl);
+		final Node last = tryClauses.get(tryClauses.size()-1);
+		final OtpErlangObject[] tryElements = new OtpErlangObject[6];
+
+		// Parse after Part
+		if (last.getData().getType() == NodeInfo.Type.AfterTry) 
+		{
+			tryClauses.remove(last);
+			final List<Node> body = GraphTraverser.getChildren(last, EdgeInfo.Type.NormalControl);
+			final List<Node> afterExpressions = GraphTraverser.getChildren(body.get(0), EdgeInfo.Type.NormalControl);
+			tryElements[5] = this.parseAfterExpressions(afterExpressions, false); 
+		}
+		else
+		{
+			tryElements[5] = new OtpErlangList(new OtpErlangObject[0]);
+		}
+		
+		tryElements[0] = new OtpErlangAtom("try"); 
+		tryElements[1] = new OtpErlangLong(1);
+		
+		// Parse try part
+		final Node tryPart = tryClauses.remove(0);
+		final List<Node> tryExpressions = GraphTraverser.getChildren(tryPart, EdgeInfo.Type.NormalControl);
+		tryElements[2] = this.parseExpressions(tryExpressions, false);
+		
+		// Parse catch part
+		final Node catchPart = tryClauses.remove(tryClauses.size() - 1);
+		final List<Node> catchClauses = GraphTraverser.getChildren(catchPart, EdgeInfo.Type.NormalControl);
+		tryElements[4] = this.parseCatchClauses(catchClauses);
+		
+		// Parse try_of clauses
+		tryElements[3] = this.parseClauses(tryClauses);
+		if (_try.getData().getType() == NodeInfo.Type.TryOf && tryElements[3].equals(new OtpErlangList(new OtpErlangObject[0])))
+			tryElements[3] = new OtpErlangList(this.parseEmptyClause());
+		return new OtpErlangTuple(tryElements);
+	}
+	private OtpErlangList parseAfterExpressions(List<Node> expressions, boolean transformUnused)
+	{
+		final List<OtpErlangObject> expressionsList = new LinkedList<OtpErlangObject>();
+		
+		for (Node expression : expressions)
+		{
+			if (!transformUnused && !this.slice.contains(expression))
+				continue;
+
+			final OtpErlangTuple expressionTuple = this.parseExpression(expression);
+			expressionsList.add(expressionTuple);
+		}
+		
+		final OtpErlangObject[] expressionsElements = this.toArray(expressionsList);
+		return new OtpErlangList(expressionsElements);
+	}
+	private OtpErlangList parseCatchClauses(List<Node> clauses)
+	{
+		final List<OtpErlangObject> clausesList = new LinkedList<OtpErlangObject>();
+
+		for (Node clause : clauses)
+		{
+			if (!this.slice.contains(clause))
+				continue;
+
+			final OtpErlangTuple clauseTuple = this.parseCatchClause(clause);
+			clausesList.add(clauseTuple);
+		}
+		
+		if(clausesList.isEmpty())
+			clausesList.add(this.parseEmptyCatch());
+		
+		final OtpErlangObject[] clausesElements = this.toArray(clausesList);
+		return new OtpErlangList(clausesElements);
+	}
+	private OtpErlangTuple parseEmptyCatch()
+	{
+		final OtpErlangObject[] emptyCatch = new OtpErlangObject[5];
+		emptyCatch[0] = new OtpErlangAtom("clause");
+		emptyCatch[1] = new OtpErlangLong(1);
+		emptyCatch[2] = new OtpErlangList(this.parseCatchEmptyPattern());
+		emptyCatch[3] = new OtpErlangList(new OtpErlangObject[0]);
+		emptyCatch[4] = new OtpErlangList(this.parseEmptyLiteral());
+		
+		return new OtpErlangTuple(emptyCatch);
+		
+	}
+	private OtpErlangTuple parseCatchEmptyPattern()
+	{
+		final OtpErlangObject[] patternElements = new OtpErlangObject[3];
+				
+		patternElements[0] = new OtpErlangAtom("tuple");
+		patternElements[1] = new OtpErlangLong(1);
+		
+		final OtpErlangObject[] throwPattern = new OtpErlangObject[3];
+		throwPattern[0] = this.parseThrowLiteral();
+		throwPattern[1] = this.parseEmptyCatchLiteral();
+		throwPattern[2] = this.parseEmptyVar();
+		
+		patternElements[2] = new OtpErlangList(throwPattern);
+		
+		return new OtpErlangTuple(patternElements);
+		
+	}
+	private OtpErlangTuple parseCatchClause(Node clause) 
+	{
+		final List<Node> parameters = GraphTraverser.getChildren(clause, EdgeInfo.Type.NormalControl);
+		final Node guards = parameters.remove(parameters.size() - 2);
+		final Node body = parameters.remove(parameters.size() - 1);
+		final List<Node> expressions = GraphTraverser.getChildren(body, EdgeInfo.Type.NormalControl);
+		final OtpErlangObject[] clauseElements = new OtpErlangObject[5];
+
+		clauseElements[0] = new OtpErlangAtom("clause");
+		clauseElements[1] = new OtpErlangLong(1);
+		clauseElements[2] = this.parseCatchPatterns(parameters.get(0));
+		clauseElements[3] = this.parseGuards(guards);
+		clauseElements[4] = this.parseExpressions(expressions, false);
+		
+		return new OtpErlangTuple(clauseElements);
+	}
+	private OtpErlangList parseCatchPatterns(Node pattern)
+	{
+		return new OtpErlangList(this.parseCatchPattern(pattern));
+	}
+	private OtpErlangTuple parseCatchPattern(Node pattern)
+	{
+		final OtpErlangObject[] patternElements = new OtpErlangObject[3];
+		
+		patternElements[0] = new OtpErlangAtom("tuple");
+		patternElements[1] = new OtpErlangLong(1);
+		
+		if(pattern.getData().getType() == NodeInfo.Type.ExceptionPattern)
+		{
+			final List<Node> exceptionPatternElements = GraphTraverser.getChildren(pattern, EdgeInfo.Type.NormalControl);
+			patternElements[2] = this.parseExceptionPattern(exceptionPatternElements);
+		}
+		else
+		{
+			final OtpErlangObject[] throwPattern = new OtpErlangObject[3];
+			throwPattern[0] = this.parseThrowLiteral();
+			throwPattern[1] = this.parsePattern(pattern);
+			throwPattern[2] = this.parseEmptyVar(); // Still don't know the use of this part of the pattern
+			
+			patternElements[2] = new OtpErlangList(throwPattern);
+		}
+		return new OtpErlangTuple(patternElements);
+	}
+	
+	private OtpErlangList parseExceptionPattern(List<Node> patternElements)
+	{
+		final Node error = patternElements.get(0);
+		final Node reason = patternElements.get(1);
+		final OtpErlangObject[] exceptionExpression = new OtpErlangObject[3];
+		
+		exceptionExpression[0] = this.parsePattern(error);
+		exceptionExpression[1] = this.parsePattern(reason);
+		exceptionExpression[2] = this.parseEmptyVar();
+		
+		return new OtpErlangList(exceptionExpression);
+	}
+	private OtpErlangTuple parseThrowLiteral()
+	{
+		final OtpErlangObject[] throwElements = new OtpErlangObject[3];
+
+		throwElements[0] = new OtpErlangAtom("atom");
+		throwElements[1] = new OtpErlangLong(1);
+		throwElements[2] = new OtpErlangAtom("throw");
+
+		return new OtpErlangTuple(throwElements);
+	}
+
+	// Record
+	private OtpErlangTuple parseRecord(Node record)
+	{
+		final OtpErlangObject[] recordElements = new OtpErlangObject[4];
+		recordElements[0] = new OtpErlangAtom("record");
+		recordElements[1] = new OtpErlangLong(1);
+		recordElements[2] = new OtpErlangAtom(record.getData().getName());
+		
+		final List<Node> recordFields = GraphTraverser.getChildren(record, EdgeInfo.Type.StructuralControl); 
+		recordElements[3] = this.parseRecordFields(recordFields);
+		
+		return new OtpErlangTuple(recordElements);
+	}
+	private OtpErlangList parseRecordFields(List<Node> fields)
+	{
+		final List<OtpErlangObject> fieldsList = new LinkedList<OtpErlangObject>();
+
+		for (Node field : fields)
+		{
+			if (!this.slice.contains(field))
+				continue;
+
+			final OtpErlangTuple fieldTuple = this.parseRecordField(field);
+			fieldsList.add(fieldTuple);
+		}
+
+		final OtpErlangObject[] fieldsElements = this.toArray(fieldsList);
+		return new OtpErlangList(fieldsElements);
+	}
+	private OtpErlangTuple parseRecordField(Node field)
+	{
+		final OtpErlangObject[] fieldElements = new OtpErlangObject[4];
+		fieldElements[0] = new OtpErlangAtom("record_field");
+		fieldElements[1] = new OtpErlangLong(1);
+		
+		// Name of the attribute in the constraint
+		fieldElements[2] = this.parseAttribute(field);
+		fieldElements[3] = this.parseField(field);
+		return new OtpErlangTuple(fieldElements);
+	}
+	private OtpErlangTuple parseAttribute(Node node)
+	{
+		final List<Edge> incomingEdges = node.getIncomingEdges();
+		String attrName = "";
+		for(Edge edge : incomingEdges)
+		{
+			if(edge.getData().getType() == EdgeInfo.Type.StructuralControl)
+			{
+				attrName = ((RecordConstraint) edge.getData().getConstraint()).getField();
+			}
+		}
+		final OtpErlangObject[] attributeElements = new OtpErlangObject[3];
+		attributeElements[0] = new OtpErlangAtom("atom");
+		attributeElements[1] = new OtpErlangLong(1);
+		attributeElements[2] = new OtpErlangAtom(attrName);
+		
+		return new OtpErlangTuple(attributeElements);
+	}
+	private OtpErlangTuple parseField(Node field)
+	{
+		final List<Node> expressionElements = GraphTraverser.getChildren(field, EdgeInfo.Type.Control);
+		final Node expression = expressionElements.get(0);
+		return this.parseExpression(expression);
+	}
+	
+	// Record Field
+	private OtpErlangTuple parseRecordAccess(Node recordField)
+	{
+		final List<Node> recordFieldChildren = GraphTraverser.getChildren(recordField, EdgeInfo.Type.StructuralControl);
+		final Node expression = recordFieldChildren.get(0);
+		final Node attribute = recordFieldChildren.get(1);
+
+		final OtpErlangObject[] recordFieldElements = new OtpErlangObject[5];
+		recordFieldElements[0] = new OtpErlangAtom("record_field");
+		recordFieldElements[1] = new OtpErlangLong(1);
+		recordFieldElements[2] = this.parseExpression(expression);
+		recordFieldElements[3] = new OtpErlangAtom(recordField.getData().getName());
+		recordFieldElements[4] = this.parseFieldName(attribute);
+		
+		return new OtpErlangTuple(recordFieldElements);
+	}
+	private OtpErlangTuple parseFieldName(Node field)
+	{
+		final String attrName = field.getData().getName();
+		final OtpErlangObject[] attributeElements = new OtpErlangObject[3];
+		attributeElements[0] = new OtpErlangAtom("atom");
+		attributeElements[1] = new OtpErlangLong(1);
+		attributeElements[2] = new OtpErlangAtom(attrName);
+		return new OtpErlangTuple(attributeElements);
+	}
+
+	// Map
+	private OtpErlangTuple parseMap(Node map)
+	{
+		final List<Node> mapFields = GraphTraverser.getChildren(map, EdgeInfo.Type.StructuralControl);
+		final OtpErlangObject[] mapElements = new OtpErlangObject[3];
+		mapElements[0] = new OtpErlangAtom("map");
+		mapElements[1] = new OtpErlangLong(1);
+		mapElements[2] = this.parseMapFields(mapFields);
+		
+		return new OtpErlangTuple(mapElements);
+	}
+	private OtpErlangList parseMapFields(List<Node> fields)
+	{
+		final List<OtpErlangObject> fieldsList = new LinkedList<OtpErlangObject>();
+
+		for (Node field : fields)
+		{
+			if (!this.slice.contains(field))
+				continue;
+
+			final OtpErlangTuple fieldTuple = this.parseMapField(field);
+			fieldsList.add(fieldTuple);
+		}
+
+		final OtpErlangObject[] fieldsElements = this.toArray(fieldsList);
+		return new OtpErlangList(fieldsElements);
+	}
+	private OtpErlangTuple parseMapField(Node field)
+	{
+		final List<Node> fieldExpressions = GraphTraverser.getChildren(field, EdgeInfo.Type.NormalControl);
+		final Node key = fieldExpressions.get(0);
+		final Node value = fieldExpressions.get(1);
+		
+		final OtpErlangObject[] fieldElements = new OtpErlangObject[4];
+		if (field.getData().getType() == NodeInfo.Type.MapFieldAssoc)
+		{
+			fieldElements[0] = new OtpErlangAtom("map_field_assoc");
+		}
+		else
+		{
+			fieldElements[0] = new OtpErlangAtom("map_field_exact");
+		}
+		fieldElements[1] = new OtpErlangLong(1);
+		fieldElements[2] = this.parseExpression(key);
+		fieldElements[3] = this.parseExpression(value);
+		
+		return new OtpErlangTuple(fieldElements);
+	}
+	private OtpErlangTuple parseMapUpdate(Node map)
+	{
+		final List<Node> mapFields = GraphTraverser.getChildren(map, EdgeInfo.Type.StructuralControl);
+		final Node expression = mapFields.remove(0);
+		
+		final OtpErlangObject[] mapElements = new OtpErlangObject[4];
+		mapElements[0] = new OtpErlangAtom("map");
+		mapElements[1] = new OtpErlangLong(1);
+		
+		if(!this.slice.contains(expression))
+			mapElements[2] = this.parseEmptyMap();
+		else
+			mapElements[2] = this.parseExpression(expression);
+		
+		mapElements[3] = this.parseMapFields(mapFields);
+		
+		return new OtpErlangTuple(mapElements);
+	}
+	private OtpErlangTuple parseMapMatching(Node map_m)
+	{
+		final List<Node> mapMatchingElements = GraphTraverser.getChildren(map_m, EdgeInfo.Type.NormalControl);
+		final Node mapPattern = mapMatchingElements.remove(0);
+		final Node mapExpression = mapMatchingElements.remove(0);
+		
+		final OtpErlangObject[] patternMatchingElements = new OtpErlangObject[4];
+		patternMatchingElements[0] = new OtpErlangAtom("match");
+		patternMatchingElements[1] = new OtpErlangLong(1);
+		patternMatchingElements[2] = this.parsePattern(mapPattern);
+		patternMatchingElements[3] = this.parseExpression(mapExpression);
+		
+		return new OtpErlangTuple(patternMatchingElements);
+	}
+	private OtpErlangTuple parseEmptyMap()
+	{
+		final OtpErlangObject[] emptyMapElements = new OtpErlangObject[3];
+		emptyMapElements[0] = new OtpErlangAtom("map");
+		emptyMapElements[1] = new OtpErlangLong(1);
+		emptyMapElements[2] = new OtpErlangList(new OtpErlangObject[0]);
+		
+		return new OtpErlangTuple(emptyMapElements);
+	}
+//----------------
+		
 	// Patterns
 	private OtpErlangObject parsePatterns(List<Node> patterns)
 	{
@@ -319,6 +789,11 @@ public class ErlangGenerator
 				return this.parseCompoundPattern(pattern);
 			case Operation:
 				return this.parseUnaryOperationPattern(pattern);
+//ADDED BY SERGIO
+			case Char:
+				return this.parseChar(pattern);
+			case Map:
+				return this.parseMap(pattern);
 			default:
 				throw new RuntimeException("Pattern type not contempled: " + patternType);
 		}
@@ -415,7 +890,7 @@ public class ErlangGenerator
 	private OtpErlangList parseExpressions(List<Node> expressions, boolean transformUnused)
 	{
 		final List<OtpErlangObject> expressionsList = new LinkedList<OtpErlangObject>();
-
+		
 		for (Node expression : expressions)
 		{
 			if (!transformUnused && !this.slice.contains(expression))
@@ -424,7 +899,10 @@ public class ErlangGenerator
 			final OtpErlangTuple expressionTuple = this.parseExpression(expression);
 			expressionsList.add(expressionTuple);
 		}
-
+		
+		if (expressionsList.isEmpty() && expressions.size() != 0) // ADDED SECOND CONDITION BY SERGIO
+			expressionsList.add(this.parseEmptyLiteral());
+		
 		final OtpErlangObject[] expressionsElements = this.toArray(expressionsList);
 		return new OtpErlangList(expressionsElements);
 	}
@@ -480,6 +958,29 @@ public class ErlangGenerator
 				return this.parseGenerator(expression);
 			case BinGenerator:
 				return this.parseBinGenerator(expression);
+				
+// ADDED BY SERGIO
+			case Throw:
+				return this.parseThrow(expression);
+			case Catch:
+				return this.parseCatch(expression);
+			case Receive:
+				return this.parseReceive(expression);
+			case TryCatch:
+			case TryOf:
+				return this.parseTry(expression);
+			case Record:
+				return this.parseRecord(expression);
+			case Field:
+				return this.parseField(expression);
+			case RecordField:
+				return this.parseRecordAccess(expression);
+			case Map:
+				return this.parseMap(expression);
+			case MapUpdate:
+				return this.parseMapUpdate(expression);
+			case MapMatching:
+				return this.parseMapMatching(expression);
 			default:
 				throw new RuntimeException("Instruction type not contempled: " + expressionType);
 		}
@@ -491,7 +992,7 @@ public class ErlangGenerator
 
 		blockElements[0] = new OtpErlangAtom("block");
 		blockElements[1] = new OtpErlangLong(1);
-		blockElements[2] = this.parseExpressions(blockExpressions, true);
+		blockElements[2] = this.parseExpressions(blockExpressions, false);
 
 		return new OtpErlangTuple(blockElements);
 	}
@@ -512,13 +1013,16 @@ public class ErlangGenerator
 	{
 		final List<Node> callArguments = GraphTraverser.getChildren(call, EdgeInfo.Type.NormalControl);
 		final Node callFunction = callArguments.remove(0);
-		callArguments.remove(callArguments.size() - 1);
+		final Node returnNode = callArguments.remove(callArguments.size() - 1);
+		if (returnNode.getData().getType() == NodeInfo.Type.ExceptionReturn)
+			callArguments.remove(callArguments.size() - 1);
+		
 		final OtpErlangObject[] callElements = new OtpErlangObject[4];
 
 		callElements[0] = new OtpErlangAtom("call");
 		callElements[1] = new OtpErlangLong(1);
 		callElements[2] = this.parseExpression(callFunction);
-		callElements[3] = this.parseExpressions(callArguments, true);
+		callElements[3] = this.parseExpressions(callArguments, true);//this.parsePossibleEmptyExpressions(callArguments, true);
 
 		// Replace undef with funundef
 		final OtpErlangObject[] funName = ((OtpErlangTuple) callElements[2]).elements();
@@ -690,7 +1194,7 @@ public class ErlangGenerator
 		listComprehensionElements[0] = new OtpErlangAtom("lc");
 		listComprehensionElements[1] = new OtpErlangLong(1);
 		listComprehensionElements[2] = this.parseExpression(listComprehensionValue);
-		listComprehensionElements[3] = this.parseExpressions(listComprehensionExpressions, true);
+		listComprehensionElements[3] = this.parseExpressions(listComprehensionExpressions, false);
 
 		return new OtpErlangTuple(listComprehensionElements);
 	}
@@ -841,6 +1345,17 @@ public class ErlangGenerator
 
 		return new OtpErlangTuple(varElements);
 	}
+	private OtpErlangTuple parseEmptyCatchLiteral()
+	{
+		final OtpErlangObject[] varElements = new OtpErlangObject[3];
+
+		varElements[0] = new OtpErlangAtom("atom");
+		varElements[1] = new OtpErlangLong(1);
+		varElements[2] = new OtpErlangAtom("undefPattern");
+
+		return new OtpErlangTuple(varElements);
+	}
+
 	private OtpErlangTuple parseEmptyNumber(long number)
 	{
 		final OtpErlangObject[] numberElements = new OtpErlangObject[3];

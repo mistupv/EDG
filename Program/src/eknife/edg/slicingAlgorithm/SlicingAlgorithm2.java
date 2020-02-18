@@ -7,7 +7,11 @@ import eknife.edg.EDG;
 import eknife.edg.Edge;
 import eknife.edg.EdgeInfo;
 import eknife.edg.Node;
+import eknife.edg.NodeInfo;
+import eknife.edg.constraint.AccessConstraint;
 import eknife.edg.constraint.Constraints;
+import eknife.edg.constraint.ExceptionArgumentConstraint;
+import eknife.edg.constraint.ExceptionConstraint;
 import eknife.edg.traverser.EdgeTraverser;
 import eknife.edg.util.Work;
 import eknife.edg.util.WorkList;
@@ -30,8 +34,9 @@ public class SlicingAlgorithm2 implements SlicingAlgorithm
 			return slice;
 
 		final WorkList workList = new WorkList();
-		workList.add(new Work(node, false, true));
-		this.traverse(workList, EdgeInfo.Type.Output);
+		final Work initialWork = this.getInitialWork(node);
+		workList.add(initialWork);
+		this.traverse(workList, EdgeInfo.Type.Output, EdgeInfo.Type.Exception);
 		this.traverse(workList, EdgeInfo.Type.Input);
 
 		final List<Work> works = workList.toList();
@@ -39,14 +44,14 @@ public class SlicingAlgorithm2 implements SlicingAlgorithm
 			slice.add(work.getCurrentNode());
 		return slice;
 	}
-	private void traverse(WorkList workList, EdgeInfo.Type ignoreEdgeType)
+	private void traverse(WorkList workList, EdgeInfo.Type... ignoreEdgeTypes)
 	{
 		final List<Work> pendingWorks = workList.toList();
 
 		while (!pendingWorks.isEmpty())
 		{
 			final Work pendingWork = pendingWorks.remove(0);
-			final List<Work> newWorks = this.processWork(pendingWork, ignoreEdgeType);
+			final List<Work> newWorks = this.processWork(pendingWork, ignoreEdgeTypes);
 
 			for (Work newWork : newWorks)
 			{
@@ -136,18 +141,26 @@ ids.add(id0);
 if (ids.contains(id))
 return newWorks;
 
+
 		// Incoming edges
 		final List<Edge> incomingEdges = currentNode.getIncomingEdges();
 
 		processIncommings:
 		for (Edge incomingEdge : incomingEdges)
 		{
+final Node nodeFrom0 = incomingEdge.getFrom();
+final int id0 = nodeFrom0.getData().getId();
+if (id == 33 && id0 == 27)
+System.out.println("Aqui");
+
 			final EdgeInfo.Type edgeType = incomingEdge.getData().getType();
 			// Do not go up after going down in a composite data
 			if (edgeType == EdgeInfo.Type.StructuralControl && ignoreUp)
 				continue;
 			// Do not traverse value edges after going up
 			if (edgeType == EdgeInfo.Type.ValueDependence && ignoreDown)
+				continue;
+			if (edgeType == EdgeInfo.Type.ExceptionGetAll)
 				continue;
 			// Ignore edges of the current phase
 			for (EdgeInfo.Type ignoreEdgeType : ignoreEdgeTypes)
@@ -157,6 +170,7 @@ return newWorks;
 			// All restrictions passed, add this node to the slice if it does not exist yet
 			final Node nodeFrom = incomingEdge.getFrom();
 			final boolean newIgnoreDown = edgeType == EdgeInfo.Type.StructuralControl || edgeType == EdgeInfo.Type.NormalControl;
+
 			// Resolve the constraints, when cannot traverse it an empty list is returned
 			final List<Constraints> newConstraintsStacks = this.edgeTraverser.traverseIncomingEdge(incomingEdge, constraints);
 
@@ -171,7 +185,7 @@ return newWorks;
 
 			processOutgoings:
 			for (Edge outgoingEdge : outgoingEdges)
-			{
+			{	
 				final EdgeInfo.Type edgeType = outgoingEdge.getData().getType();
 
 				// Only consider composite data
@@ -193,5 +207,19 @@ return newWorks;
 		}
 
 		return newWorks;
+	}
+	
+	private Work getInitialWork(Node node)
+	{
+		if (node.getData().getType() == NodeInfo.Type.ExceptionReturn)
+		{
+			final Constraints stack = new Constraints();
+			final ExceptionArgumentConstraint argument = new ExceptionArgumentConstraint(AccessConstraint.Operation.Add, "*");
+			final ExceptionConstraint exception = new ExceptionConstraint(AccessConstraint.Operation.Add, "*");
+			stack.push(argument);
+			stack.push(exception);
+			return new Work(node, stack, false, true);
+		}
+		return new Work(node, false, true);
 	}
 }

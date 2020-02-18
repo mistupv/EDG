@@ -14,13 +14,13 @@ import eknife.misc.Misc;
 
 public class DotGenerator
 {
-	public void generate(EDG graph, Node slicingCriterium, List<Node> slice, File tempFile, File file)
+	public void generate(EDG graph, Node slicingCriterium, List<Node> slice, File tempFile, File dotFile, File pdfFile)
 	{
 // TODO Delete
 int ignore = -1;
 int minNode = ignore;
 int maxNode = ignore;
-int[] showEdgesIds = { 94, 69, 73, 70 };
+int[] showEdgesIds = { ignore };
 
 		final Node root = graph.getRootNode();
 		final List<Node> nodes = graph.getNodes();
@@ -81,7 +81,16 @@ if (!showEdges.contains(ignore))
 		text += "}";
 
 		Misc.write(tempFile, text, true);
-		Misc.moveFile(tempFile, file);
+		Misc.moveFile(tempFile, dotFile);
+		try {
+//			String command = "dot -Tpdf "+dotFile.getAbsolutePath()+" > "+ pdfFile.getAbsolutePath();
+//			String[] cmd = {"/bin/sh","-c",command};
+			String[] cmd = { "../Launcher/pdf.sh", dotFile.getAbsolutePath(), pdfFile.getAbsolutePath() };
+			Runtime.getRuntime().exec(cmd);
+		} catch (Exception e) {
+			System.out.println(e.getMessage());
+		}
+		
 	}
 
 	private String parseNode(Node node, boolean sliceCriterium, boolean sliceNode)
@@ -92,7 +101,8 @@ if (!showEdges.contains(ignore))
 		final boolean fictitious = nodeType == NodeInfo.Type.Body || nodeType == NodeInfo.Type.Return;
 
 		String text = "";
-
+if (id.equals("0"))
+System.out.println("STOP");
 		text += id + " ";
 		text += "[";
 		text += "shape=ellipse ";
@@ -155,8 +165,20 @@ if (!showEdges.contains(ignore))
 				break;
 			case Summary:
 				text += "color=brown, ";
-				text += "penwidth=7, ";
+				text += "penwidth=3, ";
 				text += "constraint=false";
+				break;
+			case Exception: // ADDED BY SERGIO
+			case ExceptionFlag:
+				text += "color=orange, ";
+				text += "penwidth=3, ";
+				text += "constraint=false, ";
+				text += "style=\"dashed\"";
+				break;
+			case ExceptionGetAll:
+				text += "color=deepskyblue1, ";
+				text += "penwidth=2, ";
+				text += "constraint=false ";
 				break;
 			default:
 				throw new RuntimeException("Edge type not contempled: " + edgeType);

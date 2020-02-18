@@ -6,6 +6,7 @@ import java.util.List;
 
 import eknife.edg.constraint.Constraint;
 import eknife.edg.constraint.SummaryConstraint;
+import eknife.edg.traverser.GraphTraverser;
 import eknife.lib.graph.Arrow;
 import eknife.lib.graph.Graph;
 import eknife.lib.graph.Vertex;
@@ -62,7 +63,7 @@ public class EDG extends Graph<NodeInfo, EdgeInfo>
 		Edge e = new Edge(from, to, cost, data);
 		List<Edge> es2 = from.findEdges(to);
 
-		for (Edge e2 : es2)
+ 		for (Edge e2 : es2)
 			if (e2 != null && cost == e2.getCost() &&
 				((data == null && e2.getData() == null) ||
 				(data != null && data.equals(e2.getData()))))
@@ -91,5 +92,18 @@ public class EDG extends Graph<NodeInfo, EdgeInfo>
 			nodes.add((Node) vertex);
 
 		return nodes;
+	}
+	public int getSC()
+	{
+		final List<Node> nodes = this.getNodes();
+		Node sliceAtomNode = null;
+		for (Node node : nodes)
+		{
+			if (node.getData().getType() == NodeInfo.Type.Atom && node.getData().getName().equals("slice"))
+				sliceAtomNode = node;
+		}
+		final Node tuple = GraphTraverser.getParent(sliceAtomNode, EdgeInfo.Type.Control);
+		final Node sliceNode = GraphTraverser.getChild(tuple, 1);
+		return sliceNode.getData().getId();
 	}
 }

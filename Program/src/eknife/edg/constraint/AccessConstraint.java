@@ -3,7 +3,7 @@ package eknife.edg.constraint;
 public abstract class AccessConstraint extends Constraint
 {
 	public enum Operation { Add, Remove }
-	public enum CompositeType { Tuple, List, Bin, BinElement }
+	public enum CompositeType { Tuple, List, Bin, BinElement, Record, Exception, Map, ExceptionArgument }
 
 	protected final Operation operation;
 	protected final CompositeType compositeType;
@@ -28,6 +28,14 @@ public abstract class AccessConstraint extends Constraint
 	{
 		return this.equals(constraint.opposite());
 	}
+	public boolean letThrough(AccessConstraint constraint)
+	{
+		return false;
+	}
+	public boolean letThroughWithEmptyStack(boolean resolveSummary)
+	{
+		return true;
+	}
 
 	public boolean equals(Object object)
 	{
@@ -46,13 +54,17 @@ public abstract class AccessConstraint extends Constraint
 	{
 		String toString = "";
 
-		toString += this.operation == Operation.Add ? "+" : "-";
+		toString += this.operation == Operation.Add ? "+" : 
+					this.operation == Operation.Remove ? "-" : "";
 		toString += this.compositeType == CompositeType.Tuple ? "{}" :
 					this.compositeType == CompositeType.List ? "[]" :
 					this.compositeType == CompositeType.Bin ? "<<>>" :
 					this.compositeType == CompositeType.BinElement ? ":" :
+					this.compositeType == CompositeType.Record ? "Re" : // ADDED LINE (BY SERGIO)
+					this.compositeType == CompositeType.Exception ? "Ex" : // ADDED LINE (BY SERGIO)
+					this.compositeType == CompositeType.ExceptionArgument ? "ExArg" : // ADDED LINE (BY SERGIO)
+					this.compositeType == CompositeType.Map ? "Map": // ADDED LINE (BY SERGIO)
 					"";
-		toString += "\\n";
 
 		return toString;
 	}

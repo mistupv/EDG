@@ -12,6 +12,7 @@ import eknife.edg.constraint.AccessConstraint;
 import eknife.edg.constraint.BinConstraint;
 import eknife.edg.constraint.BinElementConstraint;
 import eknife.edg.constraint.ListConstraint;
+import eknife.edg.constraint.RecordConstraint;
 import eknife.edg.constraint.TupleConstraint;
 import eknife.edg.traverser.GraphTraverser;
 
@@ -169,7 +170,7 @@ public class GraphGenerator
 			this.parseClause(parent, clause);
 		}
 	}
-	private void parseClause(Node parent, OtpErlangTuple clause)
+	private void parseClause(Node parent, OtpErlangTuple clause) // MODIFIED
 	{
 		// Add clause
 		final String clauseNodeName = "clause";
@@ -183,7 +184,7 @@ public class GraphGenerator
 		final OtpErlangList clauseParameters = (OtpErlangList) clause.elementAt(2);
 		this.parsePatterns(clauseNode, clauseParameters);
 
-		// Add guards
+/* Add guards (OLD VERSION)
 		final OtpErlangList clauseGuards = (OtpErlangList) clause.elementAt(3);
 		final String guardsText = "(guards)" + "\\n" + this.getGuardsValue(clauseGuards);
 		final NodeInfo info2 = new NodeInfo(this.nodeId++, NodeInfo.Type.Guard, clauseGuards);
@@ -191,20 +192,37 @@ public class GraphGenerator
 		final EdgeInfo edgeInfo2 = this.getEdgeInfo(parent);
 		this.graph.addNode(guardsNode);
 		this.graph.addEdge(clauseNode, guardsNode, 0, edgeInfo2);
-
+-------------------------- */
+		
+// New Guards version (by Sergio)
+		// Add guard 
+		final OtpErlangList clauseGuards = (OtpErlangList) clause.elementAt(3);
+		final String guardsNodeName = "(guards)";
+		final NodeInfo info2 = new NodeInfo(this.nodeId++, NodeInfo.Type.Guard);
+		final Node guardNode = new Node(guardsNodeName, info2);
+		final EdgeInfo edgeInfo2 = this.getEdgeInfo(parent);
+		this.graph.addNode(guardNode);
+		this.graph.addEdge(clauseNode, guardNode, 0, edgeInfo2);
+		
+		// Parse guards
+		this.parseGuards(guardNode, clauseGuards);
+		
+// -------------------------------
+		
 		// Add body
 		final String bodyNodeName = "body";
 		final NodeInfo info3 = new NodeInfo(this.nodeId++, NodeInfo.Type.Body);
 		final Node bodyNode = new Node(bodyNodeName, info3);
 		final EdgeInfo edgeInfo3 = this.getEdgeInfo(parent);
 		this.graph.addNode(bodyNode);
-		this.graph.addEdge(guardsNode, bodyNode, 0, edgeInfo3);
+//this.graph.addEdge(guardsNode, bodyNode, 0, edgeInfo3);
+this.graph.addEdge(clauseNode, bodyNode, 0, edgeInfo3);
 
 		// Parse expressions
 		final OtpErlangList clauseExpressions = (OtpErlangList) clause.elementAt(4);
 		this.parseExpressions(bodyNode, clauseExpressions);
 	}
-
+	
 	// Patterns
 	private void parsePatterns(Node parent, OtpErlangList patterns)
 	{
@@ -256,6 +274,12 @@ public class GraphGenerator
 				break;
 			case "bin_element":
 				this.parseBinElementPattern(parent, pattern);;
+				break;
+			case "map":
+				this.parseMap(parent, pattern);
+				break;
+			case "record":
+				this.parseRecord(parent, pattern);
 				break;
 			default:
 				throw new RuntimeException("Pattern type not contempled: " + patternType.atomValue());
@@ -454,6 +478,26 @@ public class GraphGenerator
 			case "b_generate":
 				this.parseBinGenerationExpression(parent, expression);
 				break;
+				
+//ADDED (by Sergio)
+			case "catch":
+				this.parseCatch(parent, expression);
+				break;
+			case "receive":
+				this.parseReceive(parent, expression);
+				break;
+			case "try":
+				this.parseTry(parent, expression);
+				break;
+			case "record":
+				this.parseRecord(parent, expression);
+				break;
+			case "record_field":
+				this.parseRecordAccess(parent, expression);
+				break;
+			case "map":
+				this.parseMap(parent, expression);
+				break;
 			default:
 				throw new RuntimeException("Expression type not contempled: " + expressionType.atomValue());
 		}
@@ -490,8 +534,36 @@ public class GraphGenerator
 		final OtpErlangList caseClauses = (OtpErlangList) _case.elementAt(3);
 		this.parseClauses(caseNode, caseClauses);
 	}
+	
+// ADDED different kind of calls (Special function calls such as throw/1 or spawn) (by Sergio)
 	private void parseCall(Node parent, OtpErlangTuple call)
 	{
+		final OtpErlangTuple function = (OtpErlangTuple) call.elementAt(2);
+		final OtpErlangAtom callType = (OtpErlangAtom) function.elementAt(0);
+		if (callType.atomValue().equals("fun")) // TODO I DON'T LIKE THIS REVIEW LATER :( 
+			this.parseCall2(parent, call);
+		else if (callType.atomValue().equals("remote"))
+			this.parseExpression(parent, function);
+		else
+		{
+			
+			final OtpErlangAtom funcName = (OtpErlangAtom) function.elementAt(2);
+			final String funcName0 = funcName.atomValue();
+			
+			switch(funcName0)
+			{
+				case "throw":
+					this.parseThrow(parent,call);
+					break;
+				default:
+					this.parseCall2(parent, call);
+					break;
+			} 	
+		}
+	}
+
+	private void parseCall2(Node parent, OtpErlangTuple call) //Modified Name parseCall -> parseCall2
+	{	
 		// Add call
 		final String callNodeName = "call";
 		final NodeInfo info = new NodeInfo(this.nodeId++, NodeInfo.Type.FunctionCall);
@@ -508,6 +580,14 @@ public class GraphGenerator
 		final OtpErlangList callArguments = (OtpErlangList) call.elementAt(3);
 		this.parseExpressions(callNode, callArguments);
 
+// Add exception return (SERGIO)
+//final String exceptionReturnNodeName = "exceptionReturn";
+//final NodeInfo info3 = new NodeInfo(this.nodeId++, NodeInfo.Type.ExceptionReturn);
+//final Node exceptionReturnNode = new Node(exceptionReturnNodeName, info3);
+//final EdgeInfo edgeInfo3 = this.getEdgeInfo(callNode);
+//this.graph.addNode(exceptionReturnNode);
+//this.graph.addEdge(callNode, exceptionReturnNode, 0, edgeInfo3);
+		
 		// Add return
 		final String returnNodeName = "return";
 		final NodeInfo info2 = new NodeInfo(this.nodeId++, NodeInfo.Type.Return);
@@ -530,7 +610,20 @@ public class GraphGenerator
 		this.graph.addNode(remoteNode);
 		this.graph.addEdge(parent, remoteNode, 0, edgeInfo);
 	}
+
+// ADDED two different matchings, map matching or pattern matching (by Sergio)
 	private void parsePatternMatching(Node parent, OtpErlangTuple patternMatching)
+	{
+		final OtpErlangTuple leftSide = (OtpErlangTuple) patternMatching.elementAt(2);
+		final OtpErlangAtom leftExpression = (OtpErlangAtom) leftSide.elementAt(0);
+		final String leftExpression0 = leftExpression.atomValue();
+		
+		if(leftExpression0.equals("map"))
+			this.parseMapMatching(parent, patternMatching);
+		else
+			this.parsePatternMatching2(parent, patternMatching);
+	}
+	private void parsePatternMatching2(Node parent, OtpErlangTuple patternMatching)	// Modified Name parsePatternMatching -> parsePatternMatching2
 	{
 		// Add pattern matching
 		final String patternMatchingNodeName = "pm";
@@ -548,6 +641,7 @@ public class GraphGenerator
 		final OtpErlangTuple patternMatchingValue = (OtpErlangTuple) patternMatching.elementAt(3);
 		this.parseExpression(patternMatchingNode, patternMatchingValue);
 	}
+
 	private void parseIf(Node parent, OtpErlangTuple _if)
 	{
 		// Add if
@@ -779,7 +873,454 @@ public class GraphGenerator
 		this.parseExpression(operationNode, operationExpression2);
 	}
 
+// NEW expressions (by Sergio)
+	private void parseCatch(Node parent, OtpErlangTuple _catch)
+	{
+		// Add catch
+		final String catchNodeName = "catch";
+		final NodeInfo info = new NodeInfo(this.nodeId++, NodeInfo.Type.Catch);
+		final Node catchNode = new Node(catchNodeName, info);
+		final EdgeInfo edgeInfo = this.getEdgeInfo(parent);
+		this.graph.addNode(catchNode);
+		this.graph.addEdge(parent, catchNode, 0, edgeInfo);
+
+// Add catch0  
+//Este nodo se genera para poder apilar el ExceptionArgument en la pila, ya que un arco solo puede contener una constraint
+final String catch0NodeName = "catch0";
+final NodeInfo info0 = new NodeInfo(this.nodeId++, NodeInfo.Type.Catch0);
+final Node catch0Node = new Node(catch0NodeName, info0);
+final EdgeInfo edgeInfo0 = this.getEdgeInfo(catchNode);
+this.graph.addNode(catch0Node);
+this.graph.addEdge(catchNode, catch0Node, 0, edgeInfo0);
+		
+		
+		// Parse expression
+		final OtpErlangTuple catchExpression = (OtpErlangTuple) _catch.elementAt(2);
+		this.parseExpression(catch0Node, catchExpression);
+	}
+	private void parseThrow(Node parent, OtpErlangTuple _throw)
+	{
+		// Add throw
+		final String throwNodeName = "throw";
+		final NodeInfo info = new NodeInfo(this.nodeId++, NodeInfo.Type.Throw);
+		final Node throwNode = new Node(throwNodeName, info);
+		final EdgeInfo edgeInfo = this.getEdgeInfo(parent);
+		this.graph.addNode(throwNode);
+		this.graph.addEdge(parent, throwNode, 0, edgeInfo);
+
+		// Parse elements
+		final OtpErlangList throwElements = (OtpErlangList) _throw.elementAt(3);
+		this.parseExpressions(throwNode, throwElements);
+
+	}
+	private void parseReceive(Node parent, OtpErlangTuple receive)
+	{
+		// Add receive
+		final String receiveNodeName = "receive";
+		final NodeInfo info = new NodeInfo(this.nodeId++, NodeInfo.Type.Receive);
+		final Node receiveNode = new Node(receiveNodeName, info);
+		final EdgeInfo edgeInfo = this.getEdgeInfo(parent);
+		this.graph.addNode(receiveNode);
+		this.graph.addEdge(parent, receiveNode, 0, edgeInfo);
+
+		// Parse clauses
+		final OtpErlangList receiveClauses = (OtpErlangList) receive.elementAt(2);
+		this.parseClauses(receiveNode, receiveClauses);
+		
+		if (receive.arity() == 5){
+			
+			// Add after
+			final String afterNodeName = "after";
+			final NodeInfo info2 = new NodeInfo(this.nodeId++, NodeInfo.Type.AfterReceive);
+			final Node afterNode = new Node(afterNodeName, info2);
+			final EdgeInfo edgeInfo2 = this.getEdgeInfo(parent);
+			this.graph.addNode(afterNode);
+			this.graph.addEdge(receiveNode, afterNode, 0, edgeInfo2);
+			
+			// Parse After Condition
+			final OtpErlangTuple afterCondition = (OtpErlangTuple) receive.elementAt(3);
+			this.parseExpression(afterNode,afterCondition);
+	
+			// Add body
+			final String bodyNodeName = "body";
+			final NodeInfo info3 = new NodeInfo(this.nodeId++, NodeInfo.Type.Body);
+			final Node bodyNode = new Node(bodyNodeName, info3);
+			final EdgeInfo edgeInfo3 = this.getEdgeInfo(parent);
+			this.graph.addNode(bodyNode);
+			this.graph.addEdge(afterNode, bodyNode, 0, edgeInfo3);
+	
+			// Parse After Expressions
+			final OtpErlangList afterExpressions = (OtpErlangList) receive.elementAt(4);
+			this.parseExpressions(bodyNode, afterExpressions);	
+		}
+	}
+	
+	private void parseTry(Node parent, OtpErlangTuple _try)
+	{
+		final OtpErlangList tryClauses = (OtpErlangList) _try.elementAt(3);
+		
+		// Add try_catch
+		final String tryCatchNodeName = "try_catch";
+		final NodeInfo info = (tryClauses.arity() == 0) ? new NodeInfo(this.nodeId++, NodeInfo.Type.TryCatch) : new NodeInfo(this.nodeId++, NodeInfo.Type.TryOf); 
+		final Node tryCatchNode = new Node(tryCatchNodeName, info);
+		final EdgeInfo edgeInfo = this.getEdgeInfo(parent);
+		this.graph.addNode(tryCatchNode);
+		this.graph.addEdge(parent, tryCatchNode, 0, edgeInfo);
+		
+		// Add try part
+		final String tryNodeName = "try";
+		final NodeInfo info2 = new NodeInfo(this.nodeId++, NodeInfo.Type.Try);
+		final Node tryNode = new Node(tryNodeName, info2);
+		final EdgeInfo edgeInfo2 = this.getEdgeInfo(parent);
+		this.graph.addNode(tryNode);
+		this.graph.addEdge(tryCatchNode, tryNode, 0, edgeInfo2);
+		
+		// Parse expressions
+		final OtpErlangList tryExpressions = (OtpErlangList) _try.elementAt(2);
+		this.parseExpressions(tryNode, tryExpressions);	
+		
+		// Parse try_of clauses
+		this.parseClauses(tryCatchNode, tryClauses);
+		
+		// Add catch
+		final String catchNodeName = "catch";
+		final NodeInfo info3 = new NodeInfo(this.nodeId++, NodeInfo.Type.CatchClause);
+		final Node catchNode = new Node(catchNodeName, info3);
+		final EdgeInfo edgeInfo3 = this.getEdgeInfo(parent);
+		this.graph.addNode(catchNode);
+		this.graph.addEdge(tryCatchNode, catchNode, 0, edgeInfo3);
+		
+		// Parse catch clauses
+		final OtpErlangList catchClauses = (OtpErlangList) _try.elementAt(4);
+		this.parseCatchClauses(catchNode, catchClauses);
+		
+		// Parse after
+		final OtpErlangList afterExpressions = (OtpErlangList) _try.elementAt(5);
+		if(afterExpressions.arity() != 0)
+		{
+			// Parse expressions
+			this.parseAfter(tryCatchNode, afterExpressions);
+		}
+	}
+	private void parseCatchClauses(Node parent, OtpErlangList clauses)
+	{
+		final int clausesArity = clauses.arity();
+
+		for (int clauseIndex = 0; clauseIndex < clausesArity; clauseIndex++)
+		{
+			final OtpErlangTuple clause = (OtpErlangTuple) clauses.elementAt(clauseIndex);
+
+			this.parseCatchClause(parent, clause);
+		}
+	}
+	private void parseCatchClause(Node parent, OtpErlangTuple clause)
+	{
+		// Add clause
+		final String clauseNodeName = "clause";
+		final NodeInfo info = new NodeInfo(this.nodeId++, NodeInfo.Type.Clause);
+		final Node clauseNode = new Node(clauseNodeName, info);
+		final EdgeInfo edgeInfo = this.getEdgeInfo(parent);
+		this.graph.addNode(clauseNode);
+		this.graph.addEdge(parent, clauseNode, 0, edgeInfo);
+
+		// Parse parameters
+		final OtpErlangList clauseParameters = (OtpErlangList) clause.elementAt(2);
+		this.parseCatchPattern(clauseNode, clauseParameters);
+
+// New Guards version (by Sergio)
+		// Add guard 
+		final OtpErlangList clauseGuards = (OtpErlangList) clause.elementAt(3);
+		final String guardsNodeName = "(guards)";
+		final NodeInfo info2 = new NodeInfo(this.nodeId++, NodeInfo.Type.Guard);
+		final Node guardNode = new Node(guardsNodeName, info2);
+		final EdgeInfo edgeInfo2 = this.getEdgeInfo(parent);
+		this.graph.addNode(guardNode);
+		this.graph.addEdge(clauseNode, guardNode, 0, edgeInfo2);
+		
+		// Parse guards
+		this.parseGuards(guardNode, clauseGuards);
+		
+// -------------------------------
+		
+		// Add body
+		final String bodyNodeName = "body";
+		final NodeInfo info3 = new NodeInfo(this.nodeId++, NodeInfo.Type.Body);
+		final Node bodyNode = new Node(bodyNodeName, info3);
+		final EdgeInfo edgeInfo3 = this.getEdgeInfo(parent);
+		this.graph.addNode(bodyNode);
+		this.graph.addEdge(clauseNode, bodyNode, 0, edgeInfo3);
+		
+		// Parse expressions
+		final OtpErlangList clauseExpressions = (OtpErlangList) clause.elementAt(4);
+		this.parseExpressions(bodyNode, clauseExpressions);
+	}
+	private void parseCatchPattern(Node parent, OtpErlangList patterns)
+	{
+		final OtpErlangTuple pattern = (OtpErlangTuple) patterns.elementAt(0);
+		final OtpErlangList tupleElements = (OtpErlangList) pattern.elementAt(2);
+		final OtpErlangTuple pattern0 = (OtpErlangTuple) tupleElements.elementAt(0);
+		final OtpErlangTuple pattern1 = (OtpErlangTuple) tupleElements.elementAt(1);
+		final OtpErlangAtom kindOfException = (OtpErlangAtom) pattern0.elementAt(2);
+		final String kindOfException0 = kindOfException.atomValue();
+		if(kindOfException0.equals("throw"))
+		{
+			// Parse pattern
+			this.parsePattern(parent, pattern1);
+		}
+		else
+		{
+			// Add exception pattern
+			final String exceptionPatternNodeName = "ex_p";
+			final NodeInfo info = new NodeInfo(this.nodeId++, NodeInfo.Type.ExceptionPattern);
+			final Node exceptionPatternNode = new Node(exceptionPatternNodeName, info);
+			final EdgeInfo edgeInfo = this.getEdgeInfo(parent);
+			this.graph.addNode(exceptionPatternNode);
+			this.graph.addEdge(parent, exceptionPatternNode, 0, edgeInfo);
+			
+			// Parse tuple patterns
+			this.parsePattern(exceptionPatternNode, pattern0);
+			this.parsePattern(exceptionPatternNode, pattern1);
+			
+		}
+	}
+	private void parseAfter(Node parent, OtpErlangList after)
+	{
+		// Add after
+		final String afterNodeName = "after";
+		final NodeInfo info = new NodeInfo(this.nodeId++, NodeInfo.Type.AfterTry);
+		final Node afterNode = new Node(afterNodeName, info);
+		final EdgeInfo edgeInfo = this.getEdgeInfo(parent);
+		this.graph.addNode(afterNode);
+		this.graph.addEdge(parent, afterNode, 0, edgeInfo);
+		
+		// Add body
+		final String bodyNodeName = "body";
+		final NodeInfo info5 = new NodeInfo(this.nodeId++, NodeInfo.Type.Body);
+		final Node bodyNode = new Node(bodyNodeName, info5);
+		final EdgeInfo edgeInfo5 = this.getEdgeInfo(parent);
+		this.graph.addNode(bodyNode);
+		this.graph.addEdge(afterNode, bodyNode, 0, edgeInfo5);
+		
+		// Parse expressions
+		this.parseExpressions(bodyNode, after);
+	}
+	
+	private void parseRecord(Node parent, OtpErlangTuple record)
+	{
+		// Add record
+		final OtpErlangAtom recordName = (OtpErlangAtom) record.elementAt(2);
+		final String recordName0 = recordName.atomValue();
+		final String recordNodeName = "(record)" + "\\n" + recordName0;
+		final NodeInfo info = new NodeInfo(this.nodeId++, NodeInfo.Type.Record, recordName0);
+		final Node recordNode = new Node(recordNodeName, info);
+		final EdgeInfo edgeInfo = this.getEdgeInfo(parent);
+		this.graph.addNode(recordNode);
+		this.graph.addEdge(parent, recordNode, 0, edgeInfo);
+		
+		// Parse record fields
+		final OtpErlangList recordFields = (OtpErlangList) record.elementAt(3);
+		this.parseRecordFields(recordNode,recordFields);
+	}
+	private void parseRecordFields(Node parent, OtpErlangList fields)
+	{
+		final int fieldsArity = fields.arity();
+
+		for (int fieldIndex = 0; fieldIndex < fieldsArity; fieldIndex++)
+		{
+			final OtpErlangTuple field = (OtpErlangTuple) fields.elementAt(fieldIndex);
+
+			this.parseRecordField(parent, field);
+		}
+	}
+	private void parseRecordField(Node parent, OtpErlangTuple field)
+	{
+		// Add field node
+		int position = (field.arity() == 5) ? 4 : 2;
+		
+		final OtpErlangTuple fieldInfo = (OtpErlangTuple) field.elementAt(position);
+		final OtpErlangAtom fieldName = (OtpErlangAtom) fieldInfo.elementAt(2);
+		final String fieldName0 = fieldName.atomValue();
+		final String fieldNodeName = "(field)" + "\\n" + fieldName0;
+		final NodeInfo info = new NodeInfo(this.nodeId++, NodeInfo.Type.Field, fieldName0);
+		final Node fieldNode = new Node(fieldNodeName, info);
+		final EdgeInfo edgeInfo = this.getEdgeInfo(parent, field);
+		this.graph.addNode(fieldNode);
+		this.graph.addEdge(parent, fieldNode, 0, edgeInfo);
+		
+		if(field.arity() != 5)
+		{
+			//Parse expression
+			final OtpErlangTuple expression = (OtpErlangTuple) field.elementAt(3);
+			this.parseExpression(fieldNode, expression);
+		}
+	}
+	private void parseRecordAccess(Node parent, OtpErlangTuple recordField)
+	{
+		//Add record
+		final OtpErlangAtom recordName = (OtpErlangAtom) recordField.elementAt(3);
+		final String recordName0 = recordName.atomValue();
+		final String recordNodeName = "(record)" + "\\n" + recordName0;
+		final NodeInfo info = new NodeInfo(this.nodeId++, NodeInfo.Type.RecordField, recordName0);
+		final Node recordNode = new Node(recordNodeName, info);
+		final EdgeInfo edgeInfo = this.getEdgeInfo(parent);
+		this.graph.addNode(recordNode);
+		this.graph.addEdge(parent, recordNode, 0, edgeInfo);
+		
+		//Parse Expression
+		final OtpErlangTuple recordExpression = (OtpErlangTuple) recordField.elementAt(2);
+		this.parseExpression(recordNode, recordExpression);
+		
+		//Parse Field
+		this.parseRecordField(recordNode, recordField);
+	}
+	
+	private void parseMap(Node parent, OtpErlangTuple map)
+	{
+		if(map.arity() == 3)
+			parseMap3(parent,map);
+		else
+			parseMap4(parent,map);
+	}
+	private void parseMap3(Node parent, OtpErlangTuple map)
+	{
+		// Add map
+		final String mapNodeName = "map";
+		final NodeInfo info = new NodeInfo(this.nodeId++, NodeInfo.Type.Map);
+		final Node mapNode = new Node(mapNodeName, info);
+		final EdgeInfo edgeInfo = this.getEdgeInfo(parent);
+		this.graph.addNode(mapNode);
+		this.graph.addEdge(parent, mapNode, 0, edgeInfo);
+		
+		// Parse fields
+		final OtpErlangList fields = (OtpErlangList) map.elementAt(2);
+		this.parseMapFields(mapNode, fields);
+	}
+	private void parseMap4(Node parent, OtpErlangTuple map)
+	{
+		// Add map
+		final String mapNodeName = "map";
+		final NodeInfo info = new NodeInfo(this.nodeId++, NodeInfo.Type.MapUpdate);
+		final Node mapNode = new Node(mapNodeName, info);
+		final EdgeInfo edgeInfo = this.getEdgeInfo(parent);
+		this.graph.addNode(mapNode);
+		this.graph.addEdge(parent, mapNode, 0, edgeInfo);
+		
+		//Parse expression
+		final OtpErlangTuple expression = (OtpErlangTuple) map.elementAt(2);
+		this.parseExpression(mapNode, expression);
+		
+		// Parse fields
+		final OtpErlangList fields = (OtpErlangList) map.elementAt(3);
+		this.parseMapFields(mapNode, fields);
+	}
+	private void parseMapFields(Node parent, OtpErlangList fields)
+	{
+		final int fieldsArity = fields.arity();
+
+		for (int fieldIndex = 0; fieldIndex < fieldsArity; fieldIndex++)
+		{
+			final OtpErlangTuple field = (OtpErlangTuple) fields.elementAt(fieldIndex);
+
+			this.parseMapField(parent, field);
+		}
+	}
+	private void parseMapField(Node parent, OtpErlangTuple field)
+	{
+		// Add field
+		final OtpErlangAtom fieldType = (OtpErlangAtom) field.elementAt(0);
+		final String fieldType0 = fieldType.atomValue();
+		final String fieldNodeName;
+		final NodeInfo info;
+		if(fieldType0.equals("map_field_assoc"))
+		{
+			fieldNodeName = "(field) \\n =>";
+			info = new NodeInfo(this.nodeId++, NodeInfo.Type.MapFieldAssoc);
+		}
+		else
+		{
+			fieldNodeName = "(field) \\n :=";
+			info = new NodeInfo(this.nodeId++, NodeInfo.Type.MapFieldExact);
+		}
+		final Node fieldNode = new Node(fieldNodeName, info);
+		final EdgeInfo edgeInfo = this.getEdgeInfo(parent);
+		this.graph.addNode(fieldNode);
+		this.graph.addEdge(parent, fieldNode, 0, edgeInfo);
+	
+		//Parse left side expression
+		final OtpErlangTuple leftExpression = (OtpErlangTuple) field.elementAt(2);
+		this.parseExpression(fieldNode, leftExpression);
+		
+		//Parse right side expression
+		final OtpErlangTuple rightExpression = (OtpErlangTuple) field.elementAt(3);
+		this.parseExpression(fieldNode, rightExpression);
+		
+	}
+	private void parseMapMatching(Node parent,OtpErlangTuple map)
+	{
+		// Add map matching
+		final String mapMatchingNodeName = "map_m";
+		final NodeInfo info = new NodeInfo(this.nodeId++, NodeInfo.Type.MapMatching);
+		final Node mapMatchingNode = new Node(mapMatchingNodeName, info);
+		final EdgeInfo edgeInfo = this.getEdgeInfo(parent);
+		this.graph.addNode(mapMatchingNode);
+		this.graph.addEdge(parent, mapMatchingNode, 0, edgeInfo);
+		
+		// Parse map
+		final OtpErlangTuple mapExpression = (OtpErlangTuple) map.elementAt(2);
+		this.parsePattern(mapMatchingNode, mapExpression);
+		
+		// Parse expression
+		final OtpErlangTuple expression = (OtpErlangTuple) map.elementAt(3);
+		this.parseExpression(mapMatchingNode, expression);
+	}
+
+	private void parseGuards(Node parent, OtpErlangList guards)
+	{
+		if (guards.arity() > 0)
+		{
+			//ADD or node
+			final String orNodeName = "or";
+			final NodeInfo info = new NodeInfo(this.nodeId++, NodeInfo.Type.Or);
+			final Node orNode = new Node(orNodeName, info);
+			final EdgeInfo edgeInfo = this.getEdgeInfo(parent);
+			this.graph.addNode(orNode);
+			this.graph.addEdge(parent, orNode, 0, edgeInfo);
+			
+			//Parse and nodes
+			this.parseAndGuards(orNode,guards);
+		}
+	}
+	private void parseAndGuards(Node parent, OtpErlangList guards)
+	{
+		final int guardsArity = guards.arity();
+
+		for (int guardIndex = 0; guardIndex < guardsArity; guardIndex++)
+		{
+			final OtpErlangList guard = (OtpErlangList) guards.elementAt(guardIndex);
+
+			this.parseAndGuard(parent, guard);
+		}
+	}
+	private void parseAndGuard(Node parent, OtpErlangList guard)
+	{
+		if (guard.arity() > 0)
+		{
+			//ADD and node
+			final String andNodeName = "and";
+			final NodeInfo info = new NodeInfo(this.nodeId++, NodeInfo.Type.Or);
+			final Node andNode = new Node(andNodeName, info);
+			final EdgeInfo edgeInfo = this.getEdgeInfo(parent);
+			this.graph.addNode(andNode);
+			this.graph.addEdge(parent, andNode, 0, edgeInfo);
+			
+			//Parse Expressions
+			this.parseExpressions(andNode, guard);
+		}
+	}
+// END OF ADDED EXPRESSIONS (BY SERGIO)
+
 	// Others
+
 	private void parseVar(Node parent, OtpErlangTuple var)
 	{
 		final OtpErlangAtom varValue = (OtpErlangAtom) var.elementAt(2);
@@ -790,6 +1331,9 @@ public class GraphGenerator
 		final EdgeInfo edgeInfo = this.getEdgeInfo(parent);
 		this.graph.addNode(varNode);
 		this.graph.addEdge(parent, varNode, 0, edgeInfo);
+		
+		final OtpErlangLong line = (OtpErlangLong) var.elementAt(1);
+		varNode.setLine(line.longValue());
 	}
 	private void parseAtom(Node parent, OtpErlangTuple atom)
 	{
@@ -876,6 +1420,23 @@ public class GraphGenerator
 			case BinElementExpression:
 				final BinElementConstraint.Component component2 = childCount == 0 ? BinElementConstraint.Component.V : childCount == 1 ? BinElementConstraint.Component.S : BinElementConstraint.Component.T;
 				return new EdgeInfo(EdgeInfo.Type.StructuralControl, new BinElementConstraint(AccessConstraint.Operation.Remove, component2));
+				
+// ADDED BY SERGIO
+			case Record:
+				if(((OtpErlangAtom) child.elementAt(0)).atomValue().equals("record_field"))
+				{
+					OtpErlangTuple attr = (OtpErlangTuple) child.elementAt(2);
+					String attrName = ((OtpErlangAtom) attr.elementAt(2)).atomValue();
+					return new EdgeInfo(EdgeInfo.Type.StructuralControl, new RecordConstraint(AccessConstraint.Operation.Remove, attrName));
+				}
+				else
+					return new EdgeInfo(EdgeInfo.Type.StructuralControl);
+			case RecordField:
+				return new EdgeInfo(EdgeInfo.Type.StructuralControl);
+			case Map:
+				return new EdgeInfo(EdgeInfo.Type.StructuralControl);
+			case MapUpdate:
+				return new EdgeInfo(EdgeInfo.Type.StructuralControl);
 			default:
 				return new EdgeInfo(EdgeInfo.Type.NormalControl);
 		}
@@ -932,6 +1493,8 @@ public class GraphGenerator
 	}
 
 	// Text
+
+// ---DEPRECATED--- (SERGIO)
 	private String getGuardsValue(OtpErlangList guards)
 	{
 		// ";" means OR whereas "," means AND
@@ -968,6 +1531,9 @@ public class GraphGenerator
 
 		return value;
 	}
+// ----------------
+	
+// ---- PROBABLY DEPRECATED ----
 	private String getValues(OtpErlangList elements)
 	{
 		String value = "";
@@ -1007,6 +1573,8 @@ public class GraphGenerator
 				return this.getStringValue(element);
 			case "call":
 				return this.getCallValue(element);
+			case "char":
+				return this.getCharValue(element);
 			default:
 				throw new RuntimeException("Type not contempled: " + elementType.atomValue());
 		}
@@ -1113,6 +1681,12 @@ public class GraphGenerator
 
 		return value.stringValue();
 	}
+	private String getCharValue(OtpErlangTuple _char)
+	{
+	final OtpErlangLong charValue = (OtpErlangLong) _char.elementAt(2);
+
+	return charValue.longValue() + "";
+	}
 	private String getCallValue(OtpErlangTuple call)
 	{
 		// Get function
@@ -1125,4 +1699,5 @@ public class GraphGenerator
 
 		return callFunctionValue + "(" + callArgumentsValue + ")";
 	}
+// -------------------------------
 }

@@ -19,12 +19,16 @@ public class NodeInfo
 		// Expressions
 		FunctionIdentifier, Block, TupleExpression, ListExpression, BinExpression, BinElementExpression, Operation,
 		PatternMatching, Case, If, ListComprehension, BinComprehension, FunctionCall,
-		AnonymousFunction,
+		AnonymousFunction, 
 
 		// Others
 		Body, Return, ListComprehensionResult, BinComprehensionResult,
 		Record, Remote, Atom, String, Integer, Char, Default, Variable, Generator, BinGenerator,
-		Root, Other
+		Root, Other,
+		
+//New Types added (by Sergio)
+		Catch, Catch0, Throw, Receive, AfterReceive, TryCatch, TryOf, Try, CatchClause, ExceptionPattern, ExceptionReturn, AfterTry, Field, 
+		RecordField, Map, MapUpdate, MapFieldAssoc, MapFieldExact, MapMatching, Or, And
 	}
 
 	private final int id;

@@ -43,9 +43,9 @@ public class ErlPermaConnect {
 	private void openServer() throws Exception
 	{
 		final Runtime runtime = Runtime.getRuntime();
-		final String command = "/Users/serperu/Desktop/Dropbox/UPV/ProgramSlicing(MagicToolSeparado)/e-knife/e-KnifePrimigenio/Launcher/erl.sh " + "servernode"+this.id+" "+"homer"+this.id; // Esta ruta varía entre máquinas
+		final String command = "/Users/serperu/Desktop/Trabajo/Proyecto_Slicing/15_Programas/Generadores_de_entradas/erl.sh " + "servernode"+this.id+" "+"homer"+this.id; // Esta ruta varía entre máquinas
 		// Aqui se obtiene la ruta de ejecucion
-		final File launcherFile = new File("/Users/serperu/Desktop/Dropbox/UPV/ProgramSlicing(MagicToolSeparado)/e-knife/e-KnifePrimigenio/Tests/sergio/benchmarks/");
+		final File launcherFile = new File("/Users/serperu/Desktop/Trabajo/Proyecto_Slicing/15_Programas/Generadores_de_entradas/");
 		this.serverProcess = runtime.exec(command, null, launcherFile);
 		
 	}

@@ -91,6 +91,21 @@ public class GraphTraverser
 
 		return outputs;
 	}
+	public static List<Node> getExceptions(Node node, Direction direction)
+	{
+		final List<Node> exceptions = new LinkedList<Node>();
+		final EdgeInfo.Type edgeType = EdgeInfo.Type.Exception;
+		final List<Edge> exceptionEdges = GraphTraverser.getEdges(node, direction, edgeType);
+
+		for (Edge exceptionEdge : exceptionEdges)
+		{
+			final Node exception = direction == Direction.Backwards ? exceptionEdge.getFrom() : exceptionEdge.getTo();
+
+			exceptions.add(exception);
+		}
+
+		return exceptions;
+	}
 	public static List<Node> getIncomings(Node node)
 	{
 		final List<Node> nodes = new LinkedList<Node>();
@@ -199,6 +214,7 @@ public class GraphTraverser
 			case Variable:
 			case FunctionIdentifier:
 			case Return:
+			case ExceptionReturn: // ADDED BY SERGIO
 			case Atom:
 			case String:
 			case Integer:
@@ -313,7 +329,16 @@ public class GraphTraverser
 		switch (info.getType())
 		{
 			// None
-			case Guard:
+//ADDED BY SERGIO
+			case AfterTry: 
+			case ExceptionPattern:
+			case Map:
+			case MapUpdate:
+			case Record:
+			case RecordField:
+			case Throw:
+// --------------
+			//case Guard: MODIFIED
 			case TuplePattern:
 			case TupleExpression:
 			case ListPattern:
@@ -324,7 +349,6 @@ public class GraphTraverser
 			case BinElementExpression:
 			case Remote:
 				break;
-
 			// All except the first one
 			case Case:
 				children.remove(0);
@@ -335,13 +359,38 @@ public class GraphTraverser
 			case If:
 			case Operation:
 			case AnonymousFunction:
+				
+//ADDED BY SERGIO
+			case MapFieldAssoc:
+			case MapFieldExact:
+			case Field:
+			case Catch:
+			case Catch0:
+			case Receive:
+			case AfterReceive:
+			case CatchClause:
+			case Or:
+			case And:
+			case Guard:
 				valueNodes.addAll(children);
 				break;
-
+			
+				// All except the try part (first node)
+			case TryOf:
+				children.remove(0);
+			// If the last node is an After node, All except the last node
+			case TryCatch: 
+				Node last = children.get(children.size() -1);
+				if (last.getData().getType() == NodeInfo.Type.AfterTry)
+					children.remove(children.size() - 1);
+				valueNodes.addAll(children);
+				break;
+//--------------	
 			// This expression
 			case Variable:
 			case FunctionIdentifier:
 			case Return:
+			case ExceptionReturn: // ADDED BY SERGIO
 			case Atom:
 			case Default:
 			case String:
@@ -359,6 +408,11 @@ public class GraphTraverser
 				break;
 
 			// Last expression
+// ADDED BY SERGIO
+			case Clause:
+			case Try:
+			case MapMatching:
+// ----------------
 			case Block:
 			case PatternMatching:
 			case Body:
@@ -370,12 +424,13 @@ public class GraphTraverser
 				break;
 
 			// Special
-			case Clause:
-				final Node lastChild0 = children.get(children.size() - 1);
-				final List<Node> children0 = GraphTraverser.getChildren(lastChild0, EdgeInfo.Type.Control);
-				final Node lastChild1 = children0.get(children0.size() - 1);
-				valueNodes.add(lastChild1);
-				break;
+/*case Clause:
+	final Node lastChild0 = children.get(children.size() - 1);
+	final List<Node> children0 = GraphTraverser.getChildren(lastChild0, EdgeInfo.Type.Control);
+	final Node lastChild1 = children0.get(children0.size() - 1);
+	valueNodes.add(lastChild1);
+	break;
+*/
 
 			case Root:
 			case Other:
@@ -384,5 +439,19 @@ public class GraphTraverser
 		}
 
 		return valueNodes;
+	}
+	
+	//ADDED FOR ORBS
+	public static int getChildCount(Node node)
+	{
+		return GraphTraverser.getChildren(node,EdgeInfo.Type.Control).size();
+	}
+	public static int getChildNum(Node node)
+	{
+		return GraphTraverser.getChildren(GraphTraverser.getParent(node,EdgeInfo.Type.Control),EdgeInfo.Type.Control).indexOf(node);
+	}
+	public static Node getChild(Node node, int index)
+	{
+		return GraphTraverser.getChildren(node,EdgeInfo.Type.Control).get(index);
 	}
 }

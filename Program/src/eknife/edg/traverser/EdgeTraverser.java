@@ -13,16 +13,22 @@ import eknife.edg.constraint.AccessConstraint;
 import eknife.edg.constraint.BinComprehensionConstraint;
 import eknife.edg.constraint.Constraint;
 import eknife.edg.constraint.Constraints;
+import eknife.edg.constraint.ExceptionArgumentConstraint;
+import eknife.edg.constraint.ExceptionConstraint;
 import eknife.edg.constraint.StarConstraint;
 import eknife.edg.constraint.SummaryConstraint;
 import eknife.edg.constraint.TupleConstraint;
 import eknife.edg.constraint.UnresolvableConstraint;
+import eknife.edg.constraint.AccessConstraint.CompositeType;
+import eknife.edg.constraint.AccessConstraint.Operation;
 import eknife.edg.constraint.ListComprehensionConstraint;
 import eknife.edg.constraint.ListConstraint;
+import eknife.edg.constraint.RecordConstraint;
 
 public class EdgeTraverser
 {
 	// TODO Delete me
+
 	public static void main(String[] args)
 	{
 		EdgeTraverser.example1();
@@ -160,11 +166,11 @@ public class EdgeTraverser
 		System.out.println("Finishes");
 	}
 
-
-
-
-
-
+	
+	
+	
+	
+	
 	private static final int maxDepth = 5;
 	private static final int maxStackSize = 9;
 
@@ -185,19 +191,59 @@ public class EdgeTraverser
 		final List<Constraints> newConstraintsStacks = new LinkedList<Constraints>();
 
 		// Going up using control edges empties the stack
-		if (edgeType == EdgeInfo.Type.NormalControl)
-			newConstraintsStacks.add(new Constraints());
+/*******/
+// TODO SOLUCION TEMPORAL, MIRAR ESTO  
+/**** 
+ * PROBLEMA: Al atravesar un arco de control en la resolución del summary se vacía la pila 
+ * y el bottom de la pila deja de ser ExceptionConstraint. Despues de atravesar este arco
+ * alcanzamos el parámetro de entrada para el que queremos crear el summary, pero cuando
+ * consultamos si el camino se ha hecho empezando por un arco de exception (-Ex) la pila
+ * se vació previamente y no se consigue crear el summary en el exceptionReturn.
+ * Mirar Ejemplo magic6  
+****/
+		
+
+		if (edgeType == EdgeInfo.Type.NormalControl) // <- Linea original
+		{
+			Constraints newConstraints = (Constraints) constraints.clone();
+			newConstraints.clear();
+			newConstraintsStacks.add(newConstraints);
+		}
+/*******/		
 		// Structural control edges that belong to expressions can only be traversed the other way round.
 		// Traverse it this way means that one descendant is the slicing criterion, and we let go up emptying the stack.
 		if (edgeType == EdgeInfo.Type.StructuralControl &&
-			(newNodeType == NodeInfo.Type.TupleExpression || newNodeType == NodeInfo.Type.ListExpression ||
+			(newNodeType == NodeInfo.Type.TupleExpression || newNodeType == NodeInfo.Type.ListExpression || 
+			 newNodeType == NodeInfo.Type.Record || newNodeType == NodeInfo.Type.RecordField || newNodeType == NodeInfo.Type.Map || newNodeType == NodeInfo.Type.MapUpdate ||// ADDED BY SERGIO
 			 newNodeType == NodeInfo.Type.BinExpression || newNodeType == NodeInfo.Type.BinElementExpression))
 			newConstraintsStacks.add(new Constraints());
 		if (!newConstraintsStacks.isEmpty())
 			return newConstraintsStacks;
 
+		if (!constraints.isEmpty())
+		{
+if (!(edge.getData().getType() == EdgeInfo.Type.Exception && edge.getData().getConstraint() == null)) // Sin esto no se atraviesan los arcos Exception sin constraint
+{
+			final Constraint topConstraint = constraints.peek();
+			final Constraint edgeConstraint = edge.getData().getConstraint();
+			if ((topConstraint instanceof ExceptionConstraint || topConstraint instanceof ExceptionArgumentConstraint) && ((AccessConstraint) topConstraint).getOperation() == Operation.Add)
+				if (!(edgeConstraint instanceof ExceptionConstraint || edgeConstraint instanceof ExceptionArgumentConstraint))
+if (!(edge.getTo().getData().getType() == NodeInfo.Type.ExceptionReturn)) 
+// PARA RECORRER LOS ARCOS FuncName -> ExceptionReturn Y LOS SUMMARY NECESITO 
+// PERMITIR AL ALGORITMO PASAR DESDE LOS NODOS EXCEPTIONRETURN
+					return new LinkedList<Constraints>();
+else
+{
+	constraints = new Constraints(); 
+// SI PASO POR UN ARCO DESDE EL EXCEPTIONRETURN A OTRO NODO VACIO LA PILA 
+// PARA PODER SEGUIR RECORRIENDO ARCOS DE DATOS. CASO DE LAS HIGH ORDER FUNCTIONS
+}
+}
+		}
+
+		final Constraints constraintsClone = (Constraints) constraints.clone();
 		final Constraint constraint = edge.getData().getConstraint();
-		return this.traverseEdge(constraints, constraint);
+		return this.traverseEdge(constraintsClone, constraint);
 	}
 	public List<Constraints> traverseOutgoingEdge(Edge edge, Constraints constraints)
 	{
@@ -206,7 +252,8 @@ public class EdgeTraverser
 		final List<Constraints> newConstraintsStacks = new LinkedList<Constraints>();
 
 		// Traverse the edge this way can only be done using structural control edges that belong to expressions
-		if (nodeType != NodeInfo.Type.TupleExpression && nodeType != NodeInfo.Type.ListExpression &&
+		if (nodeType != NodeInfo.Type.TupleExpression && nodeType != NodeInfo.Type.ListExpression && 
+			nodeType != NodeInfo.Type.Record && nodeType != NodeInfo.Type.RecordField && nodeType != NodeInfo.Type.Map && nodeType != NodeInfo.Type.MapUpdate && // ADDED BY SERGIO
 			nodeType != NodeInfo.Type.BinExpression && nodeType != NodeInfo.Type.BinElementExpression)
 			return newConstraintsStacks;
 
@@ -249,6 +296,10 @@ public class EdgeTraverser
 
 	private Constraints resolveCollectingNonTerminals(Constraints constraintsStack, Constraint constraint)
 	{
+// FIXME Arreglame
+//if (constraintsStack.size() >= EdgeTraverser.maxStackSize)
+//	return constraintsStack;
+
 		if (constraint instanceof AccessConstraint)
 			return this.resolveAccessConstraint(constraintsStack, (AccessConstraint) constraint);
 		if (constraint instanceof StarConstraint)
@@ -301,13 +352,23 @@ if (constraintsStack.size() >= EdgeTraverser.maxStackSize)
 	{
 		if (constraintsStack.isEmpty())
 		{
+			if (!constraint.letThroughWithEmptyStack(this.resolveSummary))
+				return null;
+			
 			final Constraints newConstraintsStack = new Constraints();
-			newConstraintsStack.push(constraint);
+			
+if (!this.resolveSummary && constraint instanceof ExceptionConstraint)
+	newConstraintsStack.setExceptionSummary(true);
+			
+			if (constraint.getOperation() != null)
+				newConstraintsStack.push(constraint);
 			return newConstraintsStack;
 		}
 
 		final Constraints constraintsStackClone = (Constraints) constraintsStack.clone();
 		final Constraint lastConstraint = constraintsStackClone.pop();
+		final Constraints constraintsStackClone2 = (Constraints) constraintsStack.clone();
+		constraintsStackClone2.push(constraint);
 
 		if (lastConstraint instanceof AccessConstraint)
 		{
@@ -315,18 +376,24 @@ if (constraintsStack.size() >= EdgeTraverser.maxStackSize)
 			final AccessConstraint.Operation constraintOperation = constraint.getOperation();
 			final AccessConstraint.Operation lastConstraintOperation = lastEdgeConstraint.getOperation();
 
+			// TODO Falta por terminar
+			if (constraintOperation == null && lastConstraintOperation == AccessConstraint.Operation.Add)
+				return constraint.letThrough(lastEdgeConstraint) ? constraintsStack : null;
 			if (constraintOperation == AccessConstraint.Operation.Remove && lastConstraintOperation == AccessConstraint.Operation.Add)
 				return constraint.cancels(lastEdgeConstraint) ? constraintsStackClone : null;
+			return constraintsStackClone2;
 		}
-
-		final Constraints constraintsStackClone2 = (Constraints) constraintsStack.clone();
-		constraintsStackClone2.push(constraint);
-		return constraintsStackClone2;
+		if (lastConstraint instanceof SummaryConstraint)
+			return constraintsStackClone2;
+		if (lastConstraint instanceof UnresolvableConstraint && constraint.getOperation() == AccessConstraint.Operation.Add)
+			return constraintsStackClone2;
+		return null;
 	}
 	private Constraints resolveUnresolvableConstraint(Constraints constraintsStack, UnresolvableConstraint constraint)
 	{
 		final Constraints constraintsStackClone = (Constraints) constraintsStack.clone();
-
+		
+		constraintsStackClone.clear();
 		constraintsStackClone.push(constraint);
 
 		return constraintsStackClone;
@@ -371,12 +438,12 @@ if (constraintsStack.size() >= EdgeTraverser.maxStackSize)
 
 		return newConstraintsStack;
 	}
-
+	
 	private List<Constraints> resolveAccessConstraintAdapted(Constraints constraintsStack, AccessConstraint constraint)
 	{
 		final List<Constraints> newConstraintsStacks = new LinkedList<Constraints>();
 		final Constraints newConstraintsStack = this.resolveAccessConstraint(constraintsStack, constraint);
-
+		
 		if (newConstraintsStack != null)
 			newConstraintsStacks.add(newConstraintsStack);
 

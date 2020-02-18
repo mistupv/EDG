@@ -15,6 +15,9 @@ public class EdgeInfo
 		Input,
 		Output,
 		Summary,
+		Exception,
+		ExceptionFlag,
+		ExceptionGetAll,
 		Other
 	}
 

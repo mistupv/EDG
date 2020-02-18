@@ -11,25 +11,35 @@ import com.ericsson.otp.erlang.OtpErlangTuple;
 
 import eknife.config.Config;
 import eknife.edg.EDG;
+import eknife.edg.Edge; // ADDED BY SERGIO
 import eknife.edg.EdgeInfo;
 import eknife.edg.Node;
 import eknife.edg.NodeInfo;
+import eknife.edg.constraint.AccessConstraint.Operation;
+import eknife.edg.constraint.AccessConstraint;
 import eknife.edg.constraint.BinComprehensionConstraint;
 import eknife.edg.constraint.Constraint;
 import eknife.edg.constraint.Constraints;
+import eknife.edg.constraint.ExceptionArgumentConstraint;
+import eknife.edg.constraint.ExceptionConstraint;
 import eknife.edg.constraint.ListComprehensionConstraint;
+import eknife.edg.constraint.MapConstraint;
+import eknife.edg.constraint.RecordConstraint;
 import eknife.edg.constraint.StarConstraint;
 import eknife.edg.constraint.SummaryConstraint;
 import eknife.edg.constraint.UnresolvableConstraint;
+//import eknife.edg.constraint.RecordConstraint.Operation;
 import eknife.edg.slicingAlgorithm.SlicingAlgorithm2;
 import eknife.edg.traverser.GraphTraverser;
 import eknife.edg.util.Work;
 import eknife.edg.util.WorkList;
 import eknife.misc.Cronometro;
 import eknife.misc.Misc;
+import eknife.sergio.ClauseRelation;
 
 public class DependenceGenerator
 {
+
 	private EDG graph;
 
 	private Comparator<NodeInfo> getTypeComparator()
@@ -86,7 +96,11 @@ public class DependenceGenerator
 			{
 				final Node ancestorPreviousSibling = ancestorSiblings.get(siblingIndex);
 				final NodeInfo.Type ancestorPreviousSiblingType = ancestorPreviousSibling.getData().getType();
-				if (ancestorPreviousSiblingType == NodeInfo.Type.Clause)
+				if (ancestorPreviousSiblingType == NodeInfo.Type.Clause 
+						|| ancestorPreviousSiblingType == NodeInfo.Type.AfterTry //ADDED BY SERGIO
+						|| ancestorPreviousSiblingType == NodeInfo.Type.Try //ADDED BY SERGIO
+						|| ancestorPreviousSiblingType == NodeInfo.Type.CatchClause //ADDED BY SERGIO
+						|| ancestorPreviousSiblingType == NodeInfo.Type.Guard) //ADDED BY SERGIO
 					continue;
 
 				final List<Node> siblingDescendants = this.getDescendants(ancestorPreviousSibling, type);
@@ -121,8 +135,8 @@ public class DependenceGenerator
 					isDeclaration = true;
 				else if (ancestorParentType == NodeInfo.Type.BinGenerator && ancestorChildIndex == 0)
 					isDeclaration = true;
-				else if (ancestorParentType == NodeInfo.Type.Clause && ancestorType != NodeInfo.Type.Guard)
-					isDeclaration = true;
+				else if (ancestorParentType == NodeInfo.Type.Clause && (ancestorType != NodeInfo.Type.Guard && ancestorType != NodeInfo.Type.Body)) 
+					isDeclaration = true;  // MODIFIED (ancestorType != NodeInfo.Type.Guard) -> (ancestorType != NodeInfo.Type.Guard && ancestorType != NodeInfo.Type.Body) (BY SERGIO)
 
 				ancestor = GraphTraverser.getParent(ancestor, EdgeInfo.Type.Control);
 			}
@@ -166,6 +180,7 @@ public class DependenceGenerator
 
 		this.generateDataEdges();
 		this.generateInputOutputEdges();
+		this.generateExceptionEdges();
 		this.generateSummaryEdges();
 	}
 
@@ -176,13 +191,14 @@ public class DependenceGenerator
 	{
 		final Node root = this.graph.getRootNode();
 		final List<Node> functions = GraphTraverser.getChildren(root, EdgeInfo.Type.NormalControl);
-
+		
 		for (Node function : functions)
-		{
+		{		
 			final List<Node> functionClauses = GraphTraverser.getChildren(function, EdgeInfo.Type.NormalControl);
 			for (Node functionClause : functionClauses)
 				this.generateDataEdges(functionClause);
 		}
+		this.generateGuardDependenceEdges(); // TODO CAMBIAR ESTO DE SITIO Y HACERLO PARA CADA FUNCION AQUI NO ESTA BIEN
 	}
 	private void generateDataEdges(Node functionClause)
 	{
@@ -194,7 +210,12 @@ public class DependenceGenerator
 		if (Config.constraintsActivated)
 			this.generateValueEdges(functionClause);
 		this.generateBinEdges(functionClause);
-
+		
+		// ADDED BY SERGIO FOR EXCEPTION DATA CONTROL
+		this.generateExceptionPatternEdges(functionClause);
+		this.generateTryOfClausesEdges(functionClause);
+		this.generateMapMatchingEdges(functionClause);
+		// ------------------------------------------
 		// Special edges
 		this.generateClauseGuardsEdges(functionClause);
 	}
@@ -404,7 +425,7 @@ public class DependenceGenerator
 	/************************************/
 	private void generateRestrictionsEdges(Node functionClause)
 	{
-		final List<Node> declaredVariables = this.getDeclaredVariables(functionClause);
+		//final List<Node> declaredVariables = this.getDeclaredVariables(functionClause);
 		final List<Node> clauses = this.getDescendants(functionClause, NodeInfo.Type.Clause);
 
 		for (Node clause : clauses)
@@ -412,8 +433,14 @@ public class DependenceGenerator
 			// TODO Mirar P5S1 => Nodos 41, 55, 56 => ¿Deberia haber una restriccion?
 			final List<Node> parametersConstraints = this.getConstraints(clause);
 			final List<Node> parameters = GraphTraverser.getChildren(clause, EdgeInfo.Type.NormalControl);
-			final Node guard = parameters.remove(parameters.size() - 1);
-
+			
+			// MODIFIED (BY SERGIO)
+			//final Node guard = parameters.remove(parameters.size() - 1);
+			
+			// ADD edge guard -> body
+			final Node guard = parameters.remove(parameters.size() - 2); 
+			parameters.remove(parameters.size() - 1); 
+			
 			for (Node parameterConstraint : parametersConstraints)
 			{
 				final NodeInfo.Type nodeType = parameterConstraint.getData().getType();
@@ -426,12 +453,13 @@ public class DependenceGenerator
 					this.graph.addEdge(parameterConstraint, guard, 0, new EdgeInfo(EdgeInfo.Type.GuardRestriction, constraint));
 				}
 			}
-
-			final List<Node> scope = this.getScope(guard, NodeInfo.Type.Variable);
-			final List<Node> declaredVariablesInScope = Misc.intersect(declaredVariables, scope);
-			final List<Node> variablesInGuards = this.getVariablesInGuards(guard, declaredVariablesInScope);
-			for (Node variableInGuards : variablesInGuards)
-				this.graph.addEdge(variableInGuards, guard, 0, new EdgeInfo(EdgeInfo.Type.FlowDependence));
+// Aqui se vincula cada variable del scope con su uso en la guarda, esto ya no es necesario porque la guarda ya esta desglosada (BY SERGIO)
+			
+//			final List<Node> scope = this.getScope(guard, NodeInfo.Type.Variable);
+//			final List<Node> declaredVariablesInScope = Misc.intersect(declaredVariables, scope);
+//			final List<Node> variablesInGuards = this.getVariablesInGuards(guard, declaredVariablesInScope);
+//			for (Node variableInGuards : variablesInGuards)
+//				this.graph.addEdge(variableInGuards, guard, 0, new EdgeInfo(EdgeInfo.Type.FlowDependence));
 
 			// TODO Delete
 //			final List<Node> restrictions = Misc.union(constraints, variablesInGuards);
@@ -447,7 +475,12 @@ public class DependenceGenerator
 	{
 		final List<Node> constraints = new LinkedList<Node>();
 		final List<Node> parameters = GraphTraverser.getChildren(clause, EdgeInfo.Type.NormalControl);
-		final Node guard = parameters.remove(parameters.size() - 1);
+		
+		//MODIFIED (BY SERGIO)
+		//final Node guard = parameters.remove(parameters.size() - 1);
+		final Node guard = parameters.remove(parameters.size() - 2);
+		parameters.remove(parameters.size() - 1); 
+		
 		final List<Node> variables = this.getScope(guard, NodeInfo.Type.Variable);
 		final List<String> repeatedVariables = this.getRepeatedVariables(variables);
 
@@ -507,6 +540,11 @@ public class DependenceGenerator
 					constraints.addAll(this.getConstraints(child, repeatedVariables));
 				break;
 			case CompoundPattern:
+				final List<Node> compoundChildren = GraphTraverser.getChildren(parameter, EdgeInfo.Type.Control);
+				for (Node compoundChild : compoundChildren)
+					constraints.addAll(this.getConstraints(compoundChild, repeatedVariables));
+				break;
+			case ExceptionPattern:
 				break;
 			default:
 				throw new RuntimeException("Parameter type not contempled: " + info.getType());
@@ -515,6 +553,7 @@ public class DependenceGenerator
 		return constraints;
 	}
 
+// ---------------------------------------DEPRECATED---------------------------------------
 	/*******************/
 	/** Used in guard **/
 	/*******************/
@@ -583,6 +622,7 @@ public class DependenceGenerator
 				return this.getVariable(expression);
 			case "integer":
 			case "atom":
+			case "char":
 				return new LinkedList<String>();
 			default:
 				throw new RuntimeException("Expression type not contempled: " + expressionType);
@@ -689,7 +729,8 @@ public class DependenceGenerator
 
 		return variables;
 	}
-
+// --------------------------------------------------------------------------------------------
+	
 	/************************************/
 	/**** Function calls dependences ****/
 	/************************************/
@@ -702,8 +743,10 @@ public class DependenceGenerator
 			final List<Node> children = GraphTraverser.getChildren(call, EdgeInfo.Type.NormalControl);
 			final Node functionName = children.get(0);
 			final Node returnNode = children.get(children.size() - 1);
+//final Node exceptionReturnNode = children.get(children.size() - 2); // ADDED BY SERGIO (ExceptionReturn)
 
 			this.graph.addEdge(functionName, returnNode, 0, new EdgeInfo(EdgeInfo.Type.FlowDependence));
+//this.graph.addEdge(functionName, exceptionReturnNode, 0, new EdgeInfo(EdgeInfo.Type.FlowDependence)); // ADDED BY SERGIO (ExceptionReturn)
 		}
 	}
 
@@ -723,28 +766,755 @@ public class DependenceGenerator
 		}
 	}
 
+	/*************************************/
+	/*** Exception pattern dependences ***/
+	/*************************************/
+	private void generateExceptionPatternEdges(Node functionClause)
+	{
+		final List<Node> catchNodes = this.getDescendants(functionClause, NodeInfo.Type.CatchClause);
+
+		for (Node _catch : catchNodes)
+		{
+			final List<Node> clauses = GraphTraverser.getChildren(_catch, EdgeInfo.Type.NormalControl);
+			for (Node clause : clauses)
+			{
+				final List<Node> children = GraphTraverser.getChildren(clause, EdgeInfo.Type.NormalControl);
+				final Node exceptionPattern = children.get(0);
+				if (exceptionPattern.getData().getType() == NodeInfo.Type.ExceptionPattern)
+				{
+					final Node guard = children.get(1);
+					this.graph.addEdge(exceptionPattern, guard, 0, new EdgeInfo(EdgeInfo.Type.GuardRestriction));
+				}	
+			}
+		}
+	}
+	private void generateTryOfClausesEdges(Node functionClause)
+	{
+		final List<Node> tryOfNodes = this.getDescendants(functionClause, NodeInfo.Type.TryOf);
+		
+		for (Node tryOf : tryOfNodes)
+		{
+			final List<Node> clauses = GraphTraverser.getChildren(tryOf, EdgeInfo.Type.NormalControl);
+			final Node _try = clauses.remove(0);
+			if ((clauses.get(clauses.size()-1)).getData().getType() == NodeInfo.Type.AfterTry)
+			{
+				clauses.remove(clauses.size()-2);
+				clauses.remove(clauses.size()-1);
+			}
+			else
+				clauses.remove(clauses.size()-1);
+			
+			for (Node clause : clauses)
+			{
+				final List<Node> children = GraphTraverser.getChildren(clause, EdgeInfo.Type.NormalControl);
+				final Node pattern = children.get(0);
+				this.graph.addEdge(_try, pattern, 0, new EdgeInfo(EdgeInfo.Type.FlowDependence));	
+			}
+		}
+		
+	}
+	
+	/************************************/
+	/************** Value ***************/
+	/************************************/
+	private void generateMapMatchingEdges(Node functionClause)
+	{
+		final List<Node> mapMatchingNodes = this.getDescendants(functionClause, NodeInfo.Type.MapMatching);
+		
+		for (Node mapMatching : mapMatchingNodes)
+		{
+			final Node map = GraphTraverser.getChild(mapMatching, 0);
+			final List<Node> fields = GraphTraverser.getChildren(map, EdgeInfo.Type.StructuralControl);
+			boolean existsFreshVariable = false;
+			
+			for(Node field : fields)
+			{
+				final List<Node> fieldExpressions = GraphTraverser.getChildren(field, EdgeInfo.Type.Control);
+				final Node key = fieldExpressions.remove(0);
+				final Node value = fieldExpressions.remove(0);
+				
+				if(value.getData().getType() == NodeInfo.Type.Variable && isFreshVariable(value))
+				{
+					existsFreshVariable = true;
+					this.graph.addEdge(key, value, 0, new EdgeInfo(EdgeInfo.Type.FlowDependence, new MapConstraint(MapConstraint.Operation.Add))); // Edge Key -> Value
+				}
+			}
+			if (existsFreshVariable)
+			{
+				final Node mapVariable = GraphTraverser.getChild(mapMatching, 1);
+				// Edge MapVariable -> map (with constraint)
+				this.graph.addEdge(mapVariable, map, 0, new EdgeInfo(EdgeInfo.Type.FlowDependence, new MapConstraint(MapConstraint.Operation.Remove)));
+			}
+		}
+	}
+	
 	/************************************/
 	/************** Others **************/
 	/************************************/
+	
 	/*******************/
 	/** Clause/Guards **/
 	/*******************/
 	private void generateClauseGuardsEdges(Node functionClause)
 	{
 		final List<Node> clauses = this.getDescendants(functionClause, NodeInfo.Type.Clause);
-
+		
+//Node previousParent = null;
+//final List<Node> expressionPatterns = new LinkedList<Node>();
+		
 		for (Node clause : clauses)
 		{
 			final List<Node> parameters = GraphTraverser.getChildren(clause, EdgeInfo.Type.NormalControl);
-			final Node guards = parameters.remove(parameters.size() - 1);
-
-			this.graph.addEdge(guards, clause, 0, new EdgeInfo(EdgeInfo.Type.FlowDependence));
+			final Node guards = parameters.remove(parameters.size() - 2); // MODIFIED BY SERGIO parameters.size() - 1 => parameters.size() - 2 
+			final Node body = parameters.remove(parameters.size() - 1);
+			
+			this.graph.addEdge(guards, body, 0, new EdgeInfo(EdgeInfo.Type.FlowDependence)); // Edge guards -> body 
+			this.graph.addEdge(guards, clause, 0, new EdgeInfo(EdgeInfo.Type.FlowDependence)); // Edge guards -> clause
+			
+// ADDED BY SERGIO
+/*final Node clauseParent = GraphTraverser.getParent(clause, EdgeInfo.Type.NormalControl);
+if (clauseParent.getData().getType() != NodeInfo.Type.Function)
+	if (previousParent == null)
+	{
+		previousParent = clauseParent;
+		expressionPatterns.add(GraphTraverser.getChild(clause, 0));
+	}
+	else if (previousParent == clauseParent)
+	{
+		expressionPatterns.add(GraphTraverser.getChild(clause, 0));
+	}
+	else 
+	{
+		this.generateGuardGuardEdges(expressionPatterns);
+		expressionPatterns.clear();
+		expressionPatterns.add(GraphTraverser.getChild(clause, 0));
+		previousParent = clauseParent;
+	}*/
+		}
+//if (!expressionPatterns.isEmpty())	// ADDED BY SERGIO
+//	this.generateGuardGuardEdges(expressionPatterns);
+	}
+	private void generateGuardDependenceEdges()
+	{
+		final List<Node> nodes = this.graph.getNodes();
+		final List<Node> clauseContainers = new LinkedList<Node>();
+		for (Node node : nodes)
+			switch (node.getData().getType())
+			{
+				case Case:
+				case CatchClause:
+				case TryOf:
+				//case If:
+				//case Function:
+					clauseContainers.add(node);
+					break;
+				default:
+					break;
+			}
+		
+		for (Node clauseContainer : clauseContainers)
+		{
+			
+			final List<Node> clauses = new LinkedList<Node>();
+			final List<Node> containerChildren = GraphTraverser.getChildren(clauseContainer, EdgeInfo.Type.Control);
+			final NodeInfo.Type clauseContainerType = clauseContainer.getData().getType(); 
+			if (clauseContainerType == NodeInfo.Type.Case)
+				containerChildren.remove(0);
+			else if (clauseContainerType == NodeInfo.Type.TryOf)
+			{
+				containerChildren.remove(0);
+				if (this.hasAfter(containerChildren))
+					containerChildren.remove(containerChildren.size() - 1);
+				containerChildren.remove(containerChildren.size() - 1);
+			}
+			
+			clauses.addAll(containerChildren); 
+			final List<Node> clausePatterns = new LinkedList<Node>();
+			for (Node clause : clauses)
+			{
+				clausePatterns.add(GraphTraverser.getChild(clause, 0));
+			}
+			this.generateGuardGuardEdges(clausePatterns);
+		}
+	}
+	
+// ADDED BY SERGIO
+	private void generateGuardGuardEdges(List<Node> expressionPatterns) 
+	{
+		final int clauseSize = expressionPatterns.size();
+		ClauseRelation[][] clauseRelations = new ClauseRelation[clauseSize][clauseSize];
+		
+		if ( clauseSize != 1)
+		{
+			for (int comparePatternIndex = 1; comparePatternIndex < expressionPatterns.size(); comparePatternIndex++)
+			{
+				final Node comparePattern = expressionPatterns.get(comparePatternIndex);
+				
+				for (int previousPatternIndex = comparePatternIndex - 1 ; previousPatternIndex >= 0; previousPatternIndex--)
+				{
+					final Node previousPattern = expressionPatterns.get(previousPatternIndex);
+					
+					if ( clauseRelations[comparePatternIndex][previousPatternIndex] == null || clauseRelations[comparePatternIndex][previousPatternIndex].getRelated() == false 
+							|| (clauseRelations[comparePatternIndex][previousPatternIndex].getRelated() && !clauseRelations[comparePatternIndex][previousPatternIndex].getTotal()) ) 
+					{
+						final ClauseRelation cr = isRelated(comparePattern, previousPattern);
+						if (cr.getRelated())
+						{
+							// DRAW EDGE
+							clauseRelations[comparePatternIndex][previousPatternIndex] = cr;
+							final Node compareBody= GraphTraverser.getChild(GraphTraverser.getParent(comparePattern,EdgeInfo.Type.Control), 2);
+							final Node previousGuard = GraphTraverser.getChild(GraphTraverser.getParent(previousPattern,EdgeInfo.Type.Control), 1);
+							this.graph.addEdge(previousGuard, compareBody, 0, new EdgeInfo(EdgeInfo.Type.FlowDependence));
+							this.copyExistentRelations(clauseRelations, comparePatternIndex, previousPatternIndex);
+						}
+					}
+				}
+			}
 		}
 	}
 
+	private ClauseRelation isRelated(Node compare, Node previous) // ADDED BY SERGIO FOR CLAUSES CONTAINED IN PREVIOUS CLAUSES
+	{
+		if (previous.getData().getType() == NodeInfo.Type.Variable && this.isFreshVariable(previous))
+			return new ClauseRelation(true,false); // THE PATTERN "compare" IS DEAD CODE
+		if (previous.getData().getType() == NodeInfo.Type.CompoundPattern)
+		{
+			previous = this.resolveCompoundPattern(previous);
+			if (previous == null)
+				return new ClauseRelation(false,false);
+			this.removeNodeAndDescendants(previous);
+		}
+		switch(compare.getData().getType())
+		{
+			case Atom:
+			case Integer:
+			case String:
+			case Char:
+				switch (previous.getData().getType())
+				{
+					case Atom:
+					case Integer:
+					case String:
+					case Char:
+						if (compare.getData().getType() == previous.getData().getType() &&
+							compare.getData().getName().equals(previous.getData().getName()))
+							return new ClauseRelation(true,true);
+						return new ClauseRelation(false,false);
+					case Variable:
+					default:
+						return new ClauseRelation(true,true);
+				}
+			case Variable:
+				if (this.isFreshVariable(compare))
+					return new ClauseRelation(true,true);
+				else
+					return new ClauseRelation(true,false); // Al no saber el valor de la variable debo suponer que no es total 
+														   // (pueden incluso no estar relacionadas pero tengo que suponer que si lo estan)
+			case TuplePattern:
+				return this.isRelatedTuple(compare,previous);
+			case ListPattern:
+				return this.isRelatedList(compare,previous);
+			case CompoundPattern:
+				final Node resultNode = this.resolveCompoundPattern(compare);
+				removeNodeAndDescendants(resultNode);
+				if (resultNode == null)
+					return new ClauseRelation(false,false);
+				return this.isRelated(resultNode, previous);
+			default:
+				return new ClauseRelation(false,false);
+		
+		}
+	}
+	private ClauseRelation isRelatedTuple(Node tuple, Node previousTuple)
+	{
+		if (previousTuple.getData().getType() == NodeInfo.Type.Variable)
+			return new ClauseRelation(true,false); // DEAD CODE
+		if (previousTuple.getData().getType() == NodeInfo.Type.TuplePattern || previousTuple.getData().getType() == NodeInfo.Type.TupleExpression)
+		{
+			if (GraphTraverser.getChildCount(tuple) != GraphTraverser.getChildCount(previousTuple))
+				return new ClauseRelation(false,false);
+			else
+			{
+				final List<Node> tupleChildren = GraphTraverser.getChildren(tuple, EdgeInfo.Type.StructuralControl);
+				final List<Node> previousTupleChildren = GraphTraverser.getChildren(previousTuple, EdgeInfo.Type.StructuralControl);
+				boolean total = true;
+				for (int childIndex = 0; childIndex < GraphTraverser.getChildCount(tuple); childIndex++)
+				{
+					final Node tupleChild = tupleChildren.get(childIndex);
+					final Node previousTupleChild = previousTupleChildren.get(childIndex);
+					if (tupleChild.getData().getType() == previousTupleChild.getData().getType())
+					{
+						if (tupleChild.getData().getType() != NodeInfo.Type.Variable && 
+							tupleChild.getData().getType() != NodeInfo.Type.TuplePattern &&
+							tupleChild.getData().getType() != NodeInfo.Type.ListPattern &&
+							!tupleChild.getData().getName().equals(previousTupleChild.getData().getName()))
+							return new ClauseRelation(false,false);
+						
+						if (!isRelated(tupleChild, previousTupleChild).getRelated())
+							return new ClauseRelation(false,false);
+					}
+					else
+					{
+						final ClauseRelation cr = isRelated(tupleChild, previousTupleChild);
+						total = total && cr.getTotal();
+					}
+				}
+				return new ClauseRelation(true,total);
+			}
+		}
+		else
+			return new ClauseRelation(false,false);
+	}
+	private ClauseRelation isRelatedList(Node list, Node previousList)
+	{
+		if (previousList.getData().getType() == NodeInfo.Type.Variable && this.isFreshVariable(previousList))
+			return new ClauseRelation(true,false); // DEAD CODE
+		if (previousList.getData().getType() == NodeInfo.Type.ListPattern 
+				&& (GraphTraverser.getChildCount(previousList) == 0 || GraphTraverser.getChildCount(list) == 0))
+			return new ClauseRelation(false,false);
+		if (previousList.getData().getType() == NodeInfo.Type.ListPattern)
+		{
+			Node listRef = list;
+			Node previousListRef = previousList;
+			boolean lastList = false;
+			boolean lastPrevious = false;
+			boolean total = true;
+			while(!lastList && !lastPrevious)
+			{
+				final Node listElem;
+				final Node previousListElem;
+				if (GraphTraverser.getChildCount(listRef) != 0)
+					listElem = GraphTraverser.getChild(listRef, 0);
+				else 
+				{
+					listElem = listRef;
+					lastList = true;
+				}	
+				if (GraphTraverser.getChildCount(previousListRef) != 0)
+					previousListElem = GraphTraverser.getChild(previousListRef, 0);
+				else 
+				{
+					previousListElem = previousListRef;
+					lastPrevious = true;
+				}
+				
+				if (lastList && !lastPrevious)		// LA LISTA DE LA SEGUNDA CLAUSULA ACABA Y LA PRIMERA NO
+				{	
+					if (listElem.getName().equals("[]")) // LISTAS SIN COLA
+					{
+						return new ClauseRelation(false,false);
+					}
+					else if (!(listElem.getData().getType() == NodeInfo.Type.Variable && this.isFreshVariable(listElem)))
+							return new ClauseRelation(false,false);
+				}
+				else if (!lastList && lastPrevious) // LA LISTA DE LA PRIMERA CLAUSULA ACABA Y LA SEGUNDA NO
+				{
+					if (previousListElem.getName().equals("[]")) //LISTAS SIN COLA
+					{
+						return new ClauseRelation(false,false);
+					}
+					else if (previousListElem.getData().getType() == NodeInfo.Type.Variable && this.isFreshVariable(previousListElem))
+						return new ClauseRelation(true,false);
+					else if (!(listElem.getData().getType() == NodeInfo.Type.Variable && 	// El elemento es una variable
+							(previousListElem.getData().getType() == NodeInfo.Type.Variable || // Previous es una variable o una lista de un elemento 
+								(previousListElem.getData().getType() == NodeInfo.Type.ListPattern && // (Al ser variable y no haber dataflow no sabemos si la variable será una lista de un elemento o no)
+								GraphTraverser.getChildCount(GraphTraverser.getChild(previousListElem, 1)) == 0) &&
+								GraphTraverser.getChild(previousListElem, 1).getName().equals("[]")) &&  
+							GraphTraverser.getChildCount(GraphTraverser.getChild(listRef, 1)) == 0))	// Y es el ultimo elemento 
+						return new ClauseRelation(false,false);
+				}
+				else if (lastList && lastPrevious) // AMBAS LISTAS ACABAN
+				{
+					if (previousListElem.getName().equals("[]")) //LISTAS SIN COLA
+					{
+						if (!(listElem.getName().equals("[]") || listElem.getData().getType() == NodeInfo.Type.Variable))
+							return new ClauseRelation(false,false);
+					}
+					else if ( !(previousListElem.getData().getType() == listElem.getData().getType() &&
+							    previousListElem.getData().getType() != NodeInfo.Type.Variable &&
+							    previousListElem.getData().getName().equals(listElem.getData().getName())) )
+					{
+						final ClauseRelation cr;
+						if ((previousListElem.getData().getType() == NodeInfo.Type.Variable && listElem.getData().getType() == NodeInfo.Type.Variable) && 
+								(this.isFreshVariable(previousListElem) && this.isFreshVariable(listElem)))
+							cr = new ClauseRelation(true,true);
+						else
+							cr = isRelated(listElem, previousListElem);
+						if (!cr.getRelated())
+							return new ClauseRelation(false,false);
+						total = total && cr.getTotal();
+					}
+				}
+				else
+				{
+					final ClauseRelation cr = isRelated(listElem, previousListElem);
+					if (!cr.getRelated())
+						return new ClauseRelation(false,false);
+					total = total && cr.getTotal();
+				}
+				if (!lastList)
+					listRef = GraphTraverser.getChild(listRef, 1);
+				if (!lastPrevious)
+					previousListRef = GraphTraverser.getChild(previousListRef, 1); 	
+			}
+			return new ClauseRelation(true,total);
+		}
+		return new ClauseRelation(false,false);
+	}
+	
+	private void copyExistentRelations (ClauseRelation[][] matrix, int row, int column)
+	{
+		for (int i = 0; i < column; i++)
+			matrix [row][i] = matrix [column][i];
+	}
+	private Node resolveCompoundPattern(Node compoundPattern)
+	{
+		Node leftChild = GraphTraverser.getChild(compoundPattern, 0);
+		Node rightChild = GraphTraverser.getChild(compoundPattern, 1);
+		return this.resolvePattern(leftChild,rightChild);
+	}
+			
+	private Node resolvePattern(Node leftChild, Node rightChild)
+	{
+		NodeInfo.Type leftChildType = leftChild.getData().getType();
+		NodeInfo.Type rightChildType = rightChild.getData().getType();
+		
+		if (leftChildType == NodeInfo.Type.CompoundPattern)
+		{
+			leftChild = this.resolveCompoundPattern(leftChild);
+			leftChildType = leftChild.getData().getType();
+		}
+		if (rightChildType == NodeInfo.Type.CompoundPattern)
+		{
+			rightChild = this.resolveCompoundPattern(rightChild);
+			rightChildType = rightChild.getData().getType();
+		}
+		if (leftChildType == NodeInfo.Type.Variable) //&& this.isFreshVariable(leftChild))
+			return rightChild;
+		if (rightChildType == NodeInfo.Type.Variable) //&& this.isFreshVariable(rightChild))
+			return leftChild;
+		
+		switch(leftChildType)
+		{
+			case Atom:
+			case String:
+			case Integer:
+			case Char:
+				if (leftChildType == rightChildType && leftChild.getData().getName().equals(rightChild.getData().getName()))
+					return leftChild;
+				return null;
+			case TuplePattern:
+				if (rightChildType != NodeInfo.Type.TuplePattern)
+					return null;
+				
+				final int leftChildNumElems =GraphTraverser.getChildCount(leftChild);
+				final int rightChildNumElems =GraphTraverser.getChildCount(rightChild);
+				if (leftChildNumElems != rightChildNumElems)
+					return null;
+				
+				// Create a tuple Node with the fusion of two expressions				
+				final String tupleName = "{}";
+				final NodeInfo tupleInfo = new NodeInfo(0, NodeInfo.Type.TuplePattern);
+				final Node tupleNode = new Node(tupleName, tupleInfo);
+				this.graph.addNode(tupleNode);
+				
+				final List<Node> leftChildChildren = GraphTraverser.getChildren(leftChild, EdgeInfo.Type.Control);
+				final List<Node> rightChildChildren = GraphTraverser.getChildren(rightChild, EdgeInfo.Type.Control);
+				
+				for (int index = 0; index < leftChildNumElems; index++)
+				{
+					final Node childLeft = leftChildChildren.get(index);
+					final Node childRight = rightChildChildren.get(index);
+					final Node result = this.resolvePattern(childLeft,childRight);
+					if (result == null)
+					{	
+						this.removeNodeAndDescendants(tupleNode);
+						return null;
+					}
+					
+					final String nodeName = result.getData().getName();
+					final NodeInfo nodeInfo = new NodeInfo(0, result.getData().getType(),nodeName);
+					final Node node = new Node(result.getName(),nodeInfo);
+					this.graph.addNode(node);
+					
+					final EdgeInfo edgeInfo = new EdgeInfo(EdgeInfo.Type.StructuralControl,null);
+					this.graph.addEdge(tupleNode, node, 0, edgeInfo);
+				}
+				
+				return tupleNode;
+			case ListPattern:
+				if (rightChildType != NodeInfo.Type.ListPattern)
+					return null;
+				final String listName = "[]";
+				final NodeInfo listInfo = new NodeInfo(0, NodeInfo.Type.ListPattern);
+				final Node listNode = new Node(listName, listInfo);
+				this.graph.addNode(listNode);
+				
+				if (this.hasMoreElements(leftChild) && this.hasMoreElements(rightChild))
+				{
+					final Node leftHead = GraphTraverser.getChild(leftChild, 0);
+					final Node leftTail = GraphTraverser.getChild(leftChild, 1);
+					final Node rightHead = GraphTraverser.getChild(rightChild, 0);
+					final Node rightTail = GraphTraverser.getChild(rightChild, 1);
+					
+					final Node resultHead = this.resolvePattern(leftHead, rightHead);
+					if (resultHead == null)
+					{	
+						this.removeNodeAndDescendants(listNode);
+						return null;
+					}
+					
+					final String nodeName = resultHead.getData().getName();
+					final NodeInfo nodeInfo = new NodeInfo(0, resultHead.getData().getType(),nodeName);
+					final Node node = new Node(resultHead.getName(),nodeInfo);
+					this.graph.addNode(node);
+					
+					final EdgeInfo edgeInfo = new EdgeInfo(EdgeInfo.Type.StructuralControl,null);
+					this.graph.addEdge(listNode, node, 0, edgeInfo);
+					
+					final Node resultTail = this.resolvePattern(leftTail, rightTail);
+					if (resultTail == null)
+					{	
+						this.removeNodeAndDescendants(listNode);
+						return null;
+					}
+					
+					final EdgeInfo edgeInfoTail = new EdgeInfo(EdgeInfo.Type.StructuralControl,null);
+					this.graph.addEdge(listNode, resultTail, 0, edgeInfoTail);
+					
+					return listNode;
+				}				
+				else if (!this.hasMoreElements(leftChild) && this.hasMoreElements(rightChild))
+				{
+					if (leftChild.getData().getType() == NodeInfo.Type.Variable && this.isFreshVariable(leftChild))
+						return rightChild;
+					this.removeNodeAndDescendants(listNode);
+					return null;
+				}
+				else if (!this.hasMoreElements(rightChild) && this.hasMoreElements(leftChild))
+				{
+					if (rightChild.getData().getType() == NodeInfo.Type.Variable && this.isFreshVariable(rightChild))
+						return leftChild;
+					this.removeNodeAndDescendants(listNode);
+					return null;
+				}
+				else
+				{
+					if (leftChildType == NodeInfo.Type.ListPattern && rightChildType == NodeInfo.Type.ListPattern)
+						return listNode;
+					return this.resolvePattern(leftChild, rightChild);
+				}
+			default:
+				return null;
+		}
+	}
+	private void removeNodeAndDescendants(Node node)
+	{
+		final List<Node> children = GraphTraverser.getChildren(node, EdgeInfo.Type.Control);
+		for (Node child : children)
+		{
+			this.removeNodeAndDescendants(child);
+		}
+		this.graph.removeVertex(node);
+	}
+/*******************************	
+generateGuardGuardEdges v1.0 sin tener en cuenta la eliminación de cláusulas contenidas en otras
+private void generateGuardGuardEdges(List<Node> expressionPatterns) 
+{
+	final int clauseSize = expressionPatterns.size();
+	boolean[][] clauseRelations = this.diagonalMatrix(clauseSize);
+	boolean[][] totalRelations = new boolean[clauseSize][clauseSize];
+	if ( clauseSize != 1)
+	{
+		for (int comparePatternIndex = 1; comparePatternIndex < expressionPatterns.size(); comparePatternIndex++)
+		{
+			final Node comparePattern = expressionPatterns.get(comparePatternIndex);
+			
+			for (int previousPatternIndex = comparePatternIndex - 1 ; previousPatternIndex >= 0; previousPatternIndex--)
+			{
+				final Node previousPattern = expressionPatterns.get(previousPatternIndex);
+				
+				if (clauseRelations[comparePatternIndex][previousPatternIndex] == false && isRelated(comparePattern, previousPattern))
+				{
+					// DRAW EDGE
+					final Node compareBody= GraphTraverser.getChild(GraphTraverser.getParent(comparePattern,EdgeInfo.Type.Control), 2);
+					final Node previousGuard = GraphTraverser.getChild(GraphTraverser.getParent(previousPattern,EdgeInfo.Type.Control), 1);
+					this.graph.addEdge(previousGuard, compareBody, 0, new EdgeInfo(EdgeInfo.Type.FlowDependence));
+					this.copyExistentRelations(clauseRelations, comparePatternIndex, previousPatternIndex);
+				}
+			}
+		}
+	}
+}
+
+private boolean isRelated(Node compare, Node previous) // ADDED BY SERGIO FOR CLAUSES CONTAINED IN PREVIOUS CLAUSES
+{
+	if (previous.getData().getType() == NodeInfo.Type.Variable && this.isFreshVariable(previous))
+		return true; // THE PATTERN "compare" IS DEAD CODE
+	
+	switch(compare.getData().getType())
+	{
+		case Atom:
+		case Integer:
+		case String:
+		case Char:
+			switch (previous.getData().getType())
+			{
+				case Atom:
+				case Integer:
+				case String:
+				case Char:
+					if (compare.getData().getType() == previous.getData().getType() &&
+						compare.getData().getName().equals(previous.getData().getName()))
+						return true;
+					return false;
+				case Variable:
+				default:
+					return true;
+			}
+		case Variable:
+			return true;
+		case TuplePattern:
+			return this.isRelatedTuple(compare,previous);
+		case ListPattern:
+			return this.isRelatedList(compare,previous);
+		default:
+			return false;
+	
+	}
+}
+private boolean isRelatedTuple(Node tuple, Node previousTuple)
+{
+	if (previousTuple.getData().getType() == NodeInfo.Type.Variable)
+		return true;
+	if (previousTuple.getData().getType() == NodeInfo.Type.TuplePattern)
+	{
+		if (GraphTraverser.getChildCount(tuple) != GraphTraverser.getChildCount(previousTuple))
+			return false;
+		else
+		{
+			final List<Node> tupleChildren = GraphTraverser.getChildren(tuple, EdgeInfo.Type.StructuralControl);
+			final List<Node> previousTupleChildren = GraphTraverser.getChildren(previousTuple, EdgeInfo.Type.StructuralControl);
+			for (int childIndex = 0; childIndex < GraphTraverser.getChildCount(tuple); childIndex++)
+			{
+				final Node tupleChild = tupleChildren.get(childIndex);
+				final Node previousTupleChild = previousTupleChildren.get(childIndex);
+				if (tupleChild.getData().getType() == previousTupleChild.getData().getType())
+				{
+					if (tupleChild.getData().getType() != NodeInfo.Type.Variable && 
+						tupleChild.getData().getType() != NodeInfo.Type.TuplePattern &&
+						tupleChild.getData().getType() != NodeInfo.Type.ListPattern &&
+						!tupleChild.getData().getName().equals(previousTupleChild.getData().getName()))
+						return false;
+					if (!isRelated(tupleChild, previousTupleChild))
+						return false;
+				}
+			}
+			return true;
+		}
+	}
+	else
+		return false;
+}
+private boolean isRelatedList(Node list, Node previousList)
+{
+	if (previousList.getData().getType() == NodeInfo.Type.Variable)
+		return true;
+	if (previousList.getData().getType() == NodeInfo.Type.ListPattern 
+			&& (GraphTraverser.getChildCount(previousList) == 0 || GraphTraverser.getChildCount(list) == 0))
+		return false;
+	
+	if (previousList.getData().getType() == NodeInfo.Type.ListPattern)
+	{
+		Node listRef = list;
+		Node previousListRef = previousList;
+		boolean lastList = false;
+		boolean lastPrevious = false;
+		while(!lastList && !lastPrevious)
+		{
+			final Node listElem;
+			final Node previousListElem;
+			if (GraphTraverser.getChildCount(listRef) != 0)
+				listElem = GraphTraverser.getChild(listRef, 0);
+			else 
+			{
+				listElem = listRef;
+				lastList = true;
+			}	
+			if (GraphTraverser.getChildCount(previousListRef) != 0)
+				previousListElem = GraphTraverser.getChild(previousListRef, 0);
+			else 
+			{
+				previousListElem = previousListRef;
+				lastPrevious = true;
+			}
+			
+			if (lastList && !lastPrevious)		// LA LISTA DE LA SEGUNDA CLAUSULA ACABA Y LA PRIMERA NO
+			{	
+				if (listElem.getName().equals("[]")) // LISTAS SIN COLA
+				{
+					return false;
+				}
+				else if (!(listElem.getData().getType() == NodeInfo.Type.Variable && this.isFreshVariable(listElem)))
+						return false;
+			}
+			else if (!lastList && lastPrevious) // LA LISTA DE LA PRIMERA CLAUSULA ACABA Y LA SEGUNDA NO
+			{
+				if (previousListElem.getName().equals("[]")) //LISTAS SIN COLA
+				{
+					return false;
+				}
+				else if (!(previousListElem.getData().getType() == NodeInfo.Type.Variable && 	// Previous es una variable
+						(listElem.getData().getType() == NodeInfo.Type.Variable || listElem.getData().getType() == NodeInfo.Type.ListPattern) && // El elemento es una variable o una lista 
+						GraphTraverser.getChildCount(GraphTraverser.getChild(listRef, 1)) == 0))	// Y es el ultimo elemento 
+					return false;
+			}
+			else if (lastList && lastPrevious) // AMBAS LISTAS ACABAN
+			{
+				if (previousListElem.getName().equals("[]")) //LISTAS SIN COLA
+				{
+					if (!(listElem.getName().equals("[]") || listElem.getData().getType() == NodeInfo.Type.Variable))
+						return false;
+				}
+				else if ( !(previousListElem.getData().getType() == listElem.getData().getType() &&
+						    previousListElem.getData().getType() != NodeInfo.Type.Variable &&
+						    previousListElem.getData().getName().equals(listElem.getData().getName())) )
+					return false;
+			}
+			else
+				if (!isRelated(listElem, previousListElem))
+					return false;
+	
+			if (!lastList)
+				listRef = GraphTraverser.getChild(listRef, 1);
+			if (!lastPrevious)
+				previousListRef = GraphTraverser.getChild(previousListRef, 1); 	
+		}
+	}
+	return true;
+}
+
+private boolean[][] diagonalMatrix(int size)
+{
+	boolean[][] matrix = new boolean[size][size];
+	for (int i = 0; i < size; i++)
+		matrix[i][i] = true;
+	return matrix;
+	
+}
+private void copyExistentRelations (boolean[][] matrix, int row, int column)
+{
+	for (int i = 0; i <= column; i++)
+		matrix [row][i] = matrix [column][i];
+}
+
+	
+*******************************/	
+	
 	/************************************************************************/
 	/************************** Input/Output edges **************************/
 	/************************************************************************/
+
 	private void generateInputOutputEdges()
 	{
 		final Node root = this.graph.getRootNode();
@@ -769,6 +1539,7 @@ public class DependenceGenerator
 		final List<Node> arguments = GraphTraverser.getChildren(call, EdgeInfo.Type.NormalControl);
 		final Node function = arguments.remove(0);
 		arguments.remove(arguments.size() - 1);
+//arguments.remove(arguments.size() - 2); // ADDED BY SERGIO (ExceptionReturn)
 
 		for (Node matchingClause : matchingClauses)
 		{
@@ -857,6 +1628,7 @@ public class DependenceGenerator
 	{
 		final List<Node> parameters = GraphTraverser.getChildren(possibleClause, EdgeInfo.Type.NormalControl);
 		parameters.remove(parameters.size() - 1);
+		parameters.remove(parameters.size() - 1); // ADDED BY SERGIO delete the nodes body and guards
 		final List<Node> arguments = GraphTraverser.getChildren(call, EdgeInfo.Type.NormalControl);
 		arguments.remove(0);
 		arguments.remove(arguments.size() - 1);
@@ -924,14 +1696,19 @@ public class DependenceGenerator
 
 			final List<Node> arguments = GraphTraverser.getChildren(call, EdgeInfo.Type.NormalControl);
 			arguments.remove(0);
+			final Node exceptionReturnNode = (arguments.get(arguments.size() - 1).getData().getType() == NodeInfo.Type.ExceptionReturn) ?  arguments.remove(arguments.size() - 1) : null;
 			final Node returnNode = arguments.remove(arguments.size() - 1);
-
+			
 			for (Node argumentNode : arguments)
 			{
 				final List<Node> lasts = GraphTraverser.getLasts(argumentNode);
 
 				for (Node last : lasts)
+				{
 					this.graph.addEdge(last, returnNode, 0, new EdgeInfo(EdgeInfo.Type.Summary, starConstraint));
+					if (exceptionReturnNode != null)
+						this.graph.addEdge(last, exceptionReturnNode, 0, new EdgeInfo(EdgeInfo.Type.Summary, starConstraint));
+				}
 			}
 		}
 	}
@@ -998,15 +1775,18 @@ int iteraciones = 0;
 		while (workList.hasMore())
 		{
 iteraciones++;
-Cronometro.empezar("1 - Dentro");
-Cronometro.empezar("1.1 - Empieza");
+//Cronometro.empezar("1 - Dentro");
+//Cronometro.empezar("1.1 - Empieza");
 			final Work work = workList.next();
 			final Node initialNode = work.getInitialNode();
 			final Node currentNode = work.getCurrentNode();
 			final Constraints constraints = work.getConstraints();
-Cronometro.terminar("1.1 - Empieza");
+//Cronometro.terminar("1.1 - Empieza");
 
-Cronometro.empezar("1.2 - IsFormalIn");
+int id = currentNode.getData().getId();
+if (id == 33)
+System.out.println("Alto, la guardia civil");
+//Cronometro.empezar("1.2 - IsFormalIn");
 			if (this.isFormalIn(currentNode, initialNode))
 			{
 				// Formal in found
@@ -1015,23 +1795,23 @@ Cronometro.empezar("1.2 - IsFormalIn");
 
 				workList.repending(worksToContinue);
 			}
-Cronometro.terminar("1.2 - IsFormalIn");
-Cronometro.empezar("1.3 - Done");
+//Cronometro.terminar("1.2 - IsFormalIn");
+//Cronometro.empezar("1.3 - Done");
 			workList.done(work);
-Cronometro.terminar("1.3 - Done");
+//Cronometro.terminar("1.3 - Done");
 
-Cronometro.empezar("1.4 - NewWorks");
+//Cronometro.empezar("1.4 - NewWorks");
 			final List<Work> newWorks = this.getNewWorks(workList, work);
-Cronometro.terminar("1.4 - NewWorks");
-Cronometro.empezar("1.5 - AddNewWorks");
+//Cronometro.terminar("1.4 - NewWorks");
+//Cronometro.empezar("1.5 - AddNewWorks");
 			for (Work newWork : newWorks)
 				workList.add(newWork);
-Cronometro.terminar("1.5 - AddNewWorks");
-Cronometro.terminar("1 - Dentro");
-if (iteraciones % 10000 == 0)
-Cronometro.mostrarCronometros();
+//Cronometro.terminar("1.5 - AddNewWorks");
+//Cronometro.terminar("1 - Dentro");
+//if (iteraciones % 10000 == 0)
+	//Cronometro.mostrarCronometros();
 		}
-Cronometro.mostrarCronometros();
+//Cronometro.mostrarCronometros();
 	}
 	private List<Work> getInitialWorks()
 	{
@@ -1059,7 +1839,8 @@ Cronometro.mostrarCronometros();
 	}
 	private boolean isFormalIn(Node node, Node formalOutNode)
 	{
-		if (node.getData().getType() == NodeInfo.Type.Guard)
+		final NodeInfo.Type nodeType = node.getData().getType();
+		if (nodeType == NodeInfo.Type.Guard || nodeType == NodeInfo.Type.Body)
 			return false;
 
 		final Node parent = GraphTraverser.getParent(node, EdgeInfo.Type.NormalControl);
@@ -1092,12 +1873,13 @@ Cronometro.mostrarCronometros();
 		final List<Node> functionCallers = GraphTraverser.getInputs(clause, GraphTraverser.Direction.Backwards);
 		final List<Node> inputs = GraphTraverser.getInputs(formalIn, GraphTraverser.Direction.Backwards);
 		final List<Node> outputs = GraphTraverser.getOutputs(formalOut, GraphTraverser.Direction.Forwards);
+		final List<Node> exceptions = GraphTraverser.getExceptions(formalOut, GraphTraverser.Direction.Forwards);
 
 		final SummaryConstraint summaryConstraint = this.getSummaryConstraint(formalIn);
 		final List<Object> production0 = Arrays.asList(constraints.toArray());
 		final List<Constraint> production = new LinkedList<Constraint>();
 
-		for (Object element : production0)
+		for (Object element : production0)					// Se generan 2 arcos del return y exception return con la misma producción
 			production.add((Constraint) element);
 		this.graph.addProduction(summaryConstraint, production);
 
@@ -1105,7 +1887,9 @@ Cronometro.mostrarCronometros();
 		{
 			final Node caller = GraphTraverser.getParent(functionCaller, EdgeInfo.Type.NormalControl);
 			final List<Node> argumentNodes = this.getDescendantsNode(caller, inputs);
-			final Node returnNode = this.getDescendantsNode(caller, outputs).get(0);
+			final Node valueReturnNode = this.getDescendantsNode(caller, outputs).get(0);
+			final Node exceptionReturnNode = exceptions.isEmpty() ? null : this.getDescendantsNode(caller, exceptions).get(0);
+			final Node returnNode = this.isFromValue(constraints) ? valueReturnNode : exceptionReturnNode;
 
 			for (Node argumentNode : argumentNodes)
 				this.graph.addEdge(argumentNode, returnNode, 0, new EdgeInfo(EdgeInfo.Type.Summary, summaryConstraint));
@@ -1113,6 +1897,14 @@ Cronometro.mostrarCronometros();
 		}
 
 		return nodesToContinue;
+	}
+	private boolean isFromValue(Constraints constraints)
+	{
+		if (constraints.getExceptionSummary())
+			return false;
+		if (constraints.isEmpty())
+			return true;
+		return true;
 	}
 	private List<Node> getDescendantsNode(Node node, List<Node> list)
 	{
@@ -1175,5 +1967,1015 @@ Cronometro.terminar("1.4.3 - addWorks");
 Cronometro.terminar("1.4 - getNewWorks");
 
 		return newWorks;
+	}
+
+// ADDED BY SERGIO
+	/************************************************************************/
+	/*************************** Exception edges ****************************/
+	/************************************************************************/
+	// PERSONALIZED EXCEPTIONS 
+	private void generateExceptionEdges()
+	{
+		final List<Node> nodes = this.graph.getNodes();
+		boolean exception = false;
+		for (int index = 0; index < nodes.size() && !exception; index++)
+		{
+			final NodeInfo.Type nodeType = nodes.get(index).getData().getType();
+			if (nodeType == NodeInfo.Type.Try || nodeType == NodeInfo.Type.Catch)
+				exception = true;
+		}
+		if (exception)
+			this.generateExceptionEdges(nodes);
+	}
+	private void generateExceptionEdges(List<Node> nodes)
+	{
+		for (Node node : nodes)
+		{
+			if (node.getData().getType() == NodeInfo.Type.Throw)
+			{
+				this.generateThrowArgumentEdge(node);
+				this.generateExceptionEdges(node, null);
+			}
+		}
+		
+		this.generateHighOrderEdges();
+		
+		for (Node node : nodes)
+		{
+			if (node.getData().getType() == NodeInfo.Type.CatchClause)
+			{	
+				final List<Node> catchClauses = GraphTraverser.getChildren(node, EdgeInfo.Type.Control);
+				for (Node catchClause : catchClauses)
+					this.generateExceptionPatternClauseEdges(catchClause);
+			}
+		}
+	}
+	private void generateExceptionEdges(Node node, Node exceptionExpression)
+	{
+		final Node captureNode = getCaptureFromThrow(node);
+		if (captureNode != null)
+		{
+			if (!isThrownExpression(node, captureNode, exceptionExpression))
+				this.generateThrowCatchEdges(node,captureNode, exceptionExpression);	
+		}
+		else
+			this.generateThrowClauseEdges(node, exceptionExpression);
+	}
+
+	private void generateThrowArgumentEdge(Node _throw)
+	{
+		final Node throwExpression = GraphTraverser.getChild(_throw, 0);
+		
+		final String patternName = this.getExpressionName(throwExpression);
+		this.graph.addEdge(throwExpression, _throw, 0, new EdgeInfo(EdgeInfo.Type.Exception, new ExceptionArgumentConstraint(AccessConstraint.Operation.Remove, patternName)));
+		
+	}
+	private void generateExceptionPatternClauseEdges(Node catchClause)
+	{
+		final Node pattern = GraphTraverser.getChild(catchClause, 0);
+		if (pattern.getData().getType() == NodeInfo.Type.ExceptionPattern)
+			this.generateExceptionClauseEdges(pattern);
+		else 
+		{
+			final String patternName = this.getExpressionName(pattern);
+			this.graph.addEdge(catchClause, pattern, 0, new EdgeInfo(EdgeInfo.Type.Exception, new ExceptionArgumentConstraint(AccessConstraint.Operation.Add, patternName)));
+		}
+	}
+	
+	/************************************/
+	/******* User exception edges *******/
+	/************************************/
+	private void generateThrowCatchEdges(Node _throw,Node _try, Node exceptionExpression)
+	{
+		final List<Node> catchClauses = this.getCatchClauses(_try);
+		boolean unCatchedThrow = true;
+		
+		for (Node catchClause : catchClauses)
+		{
+			final Node catchExpression = GraphTraverser.getChild(catchClause, 0);
+			if (unCatchedThrow && !this.isUnreachableThrow(_throw, _try) && !this.isThrownExpression(_throw, _try, catchExpression) )
+			{
+				final Node throwExpression = (exceptionExpression == null) ? GraphTraverser.getChild(_throw, 0) : exceptionExpression;
+				
+				if (this.isThrowCatch(catchClause)) // CLAUSES OF TYPE _ or throw:_ ->
+				{
+					switch (throwExpression.getData().getType())
+					{
+						case Integer:
+						case Atom:
+						case Char:
+						case String:
+							if ((throwExpression.getData().getType() == catchExpression.getData().getType() && // SAME TYPE AND
+									throwExpression.getData().getName().equals(catchExpression.getData().getName())) // SAME NAME
+									|| (catchExpression.getData().getType() == NodeInfo.Type.Variable)) // CATCH PATTERN IS A VAR 
+							{
+								// Add edge throw -> catch clause (ENSURE CAPTURE)
+								if (_throw.getData().getType() == NodeInfo.Type.Throw)
+									this.graph.addEdge(_throw, catchClause, 0, new EdgeInfo(EdgeInfo.Type.Exception));
+								else
+								{
+									//No se captura una call que tiene un throw(X) despues de una expression throw(X) previa a la call
+									final Node tryCatch = GraphTraverser.getParent(GraphTraverser.getParent(catchClause, EdgeInfo.Type.Control),EdgeInfo.Type.Control);
+									if(!isThrownExpression(_throw, tryCatch, exceptionExpression))
+									{
+										final String throwExpressionName = throwExpression.getData().getName();
+										// Add edge throw -> catch clause (with constraint)
+										this.graph.addEdge(_throw, catchClause, 0, new EdgeInfo(EdgeInfo.Type.Exception, new ExceptionConstraint(ExceptionConstraint.Operation.Add, throwExpressionName) ));
+									}
+								}
+								unCatchedThrow = false; 
+							}
+							if (catchExpression.getData().getType() == NodeInfo.Type.Variable && !this.isFreshVariable(catchExpression))
+								unCatchedThrow = true;
+							break;
+							
+						case Variable:
+						case FunctionCall:
+						case Operation:
+	// TODO complete with the rest of expressions
+							if (catchExpression.getData().getType() == NodeInfo.Type.Variable && this.isFreshVariable(catchExpression))
+							{
+								// Add edge throw -> catch clause (ENSURE CAPTURE)
+								if (_throw.getData().getType() == NodeInfo.Type.Throw)
+									this.graph.addEdge(_throw, catchClause, 0, new EdgeInfo(EdgeInfo.Type.Exception));
+								else
+								{
+									final String throwExpressionName = "*";
+									// Add edge throw -> catch clause (with constraint)
+									this.graph.addEdge(_throw, catchClause, 0, new EdgeInfo(EdgeInfo.Type.Exception, new ExceptionConstraint(ExceptionConstraint.Operation.Add, throwExpressionName) ));
+								}
+								unCatchedThrow = false;
+							}
+							else 
+								// Add edge throw -> catch clause
+								if (_throw.getData().getType() == NodeInfo.Type.Throw)
+								{
+									//if (!this.isThrownExpression(_throw, _try, catchExpression))
+									this.graph.addEdge(_throw, catchClause, 0, new EdgeInfo(EdgeInfo.Type.Exception));
+								}
+								else
+								{
+									// Si el patron es una variable instanciada uso ex*
+									// Si el patron es un literal conocido uso exLITERAL
+									
+										final String throwExpressionName = this.getExpressionName(catchExpression);
+										// Add edge throw -> catch clause (with constraint)
+										this.graph.addEdge(_throw, catchClause, 0, new EdgeInfo(EdgeInfo.Type.Exception, new ExceptionConstraint(ExceptionConstraint.Operation.Add, throwExpressionName)));
+								}
+							break;
+					// TODO LISTS & TUPLES
+						case TupleExpression:
+						case ListExpression:
+							final boolean[] matchResult = this.isMatching(throwExpression,catchExpression);
+							if (matchResult[0])
+							{
+								if (_throw.getData().getType() == NodeInfo.Type.Throw)
+								{
+									this.graph.addEdge(_throw, catchClause, 0, new EdgeInfo(EdgeInfo.Type.Exception));
+								}
+								else{
+									final String throwExpressionName = matchResult[1] ? this.getExpressionName(catchExpression) : "*";
+									// Add edge throw -> catch clause (with constraint)
+									this.graph.addEdge(_throw, catchClause, 0, new EdgeInfo(EdgeInfo.Type.Exception, new ExceptionConstraint(ExceptionConstraint.Operation.Add, throwExpressionName) ));
+								}
+							}
+							if (matchResult[1])
+								unCatchedThrow = false;
+							break;
+						default:  
+							break;
+					}
+				}
+				else // CLAUSES OF TYPE _:_ ->
+				{
+					final List <Node> exceptionPatternExpressions = GraphTraverser.getChildren(catchExpression, EdgeInfo.Type.Control);
+					final Node errorExpression = exceptionPatternExpressions.remove(0);
+					final Node reasonExpression = exceptionPatternExpressions.remove(0);
+					switch (throwExpression.getData().getType())
+					{
+						case Integer:
+						case Atom:
+						case Char:
+						case String:	
+							if ((errorExpression.getData().getType() == NodeInfo.Type.Variable && isFreshVariable(errorExpression)))
+								if ((reasonExpression.getData().getType() == NodeInfo.Type.Variable && isFreshVariable(reasonExpression))||
+									(reasonExpression.getData().getType() == throwExpression.getData().getType() && 
+									reasonExpression.getData().getName().equals(throwExpression.getData().getName())))
+										unCatchedThrow = false;
+								
+							break;
+						case Variable:
+						case FunctionCall:
+						case Operation:
+	// TODO complete with the rest of expressions
+							if (errorExpression.getData().getType() == NodeInfo.Type.Variable && isFreshVariable(errorExpression))
+								if (reasonExpression.getData().getType() == NodeInfo.Type.Variable && isFreshVariable(reasonExpression))
+									unCatchedThrow = false;
+							break;
+	// TODO LISTS & TUPLES
+						case ListExpression:
+						case TupleExpression:
+						default:
+							break;
+					}
+				}
+			}
+		}
+		if (unCatchedThrow)
+		{
+			this.generateThrowClauseEdges(_throw, (exceptionExpression == null) ? GraphTraverser.getChild(_throw, 0) : exceptionExpression);
+		}
+	}
+	private void generateThrowClauseEdges(Node node, Node exceptionExpression)
+	{
+		
+		final Node body = this.getBodyFromThrow(node);
+		if (!this.isUnreachableThrow(node, body) && !this.isThrownExpression(node, body, GraphTraverser.getChild(node, 0)))
+		{
+			// TODO REFACTORIZAR
+			
+			final Node root = this.graph.getRootNode();
+			boolean foundAncestor = false;
+			Node ancestor = node;
+			while(ancestor != root && !foundAncestor)
+			{
+				ancestor = GraphTraverser.getParent(ancestor, EdgeInfo.Type.Control);
+				final Node ancestorParent = GraphTraverser.getParent(ancestor, EdgeInfo.Type.Control);
+				final NodeInfo.Type ancestorType = ancestor.getData().getType();
+				final Node throwExpression;
+				if(ancestorType == NodeInfo.Type.Catch)
+				{
+					final Node catch0 = GraphTraverser.getChild(ancestor, 0);
+					this.graph.addEdge(catch0, ancestor, 0, new EdgeInfo(EdgeInfo.Type.Exception, new ExceptionArgumentConstraint(AccessConstraint.Operation.Add,"*")));
+					if (node.getData().getType() == NodeInfo.Type.Throw)
+					{					
+						// Add edge throw -> catch (without constraint)
+						this.graph.addEdge(node, catch0, 0, new EdgeInfo(EdgeInfo.Type.Exception));
+					}
+					else 
+					{
+						throwExpression = exceptionExpression;
+						final String throwExpressionName = this.getExpressionName(throwExpression);
+						// Add edge throw -> try_catch (with constraint)
+						this.graph.addEdge(node, catch0, 0, new EdgeInfo(EdgeInfo.Type.Exception, new ExceptionConstraint(ExceptionConstraint.Operation.Add, throwExpressionName)));
+					}
+					foundAncestor = true;
+				}
+				else if (ancestorType == NodeInfo.Type.TryCatch || ancestorType == NodeInfo.Type.TryOf)
+				{
+					if (node.getData().getType() == NodeInfo.Type.Throw)
+					{
+						throwExpression = GraphTraverser.getChild(node, 0);
+						final String throwExpressionName = this.getExpressionName(throwExpression);					
+						// Add edge throw -> try_catch (with constraint)
+						this.graph.addEdge(node, ancestor, 0, new EdgeInfo(EdgeInfo.Type.Exception, new ExceptionConstraint(ExceptionConstraint.Operation.Remove, throwExpressionName)));
+					}
+					else 
+					{
+						throwExpression = exceptionExpression;
+						final String throwExpressionName = this.getExpressionName(throwExpression);
+						// Add edge throw -> try_catch (without constraint)
+						this.graph.addEdge(node, ancestor, 0, new EdgeInfo(EdgeInfo.Type.Exception, new ExceptionConstraint(null, throwExpressionName)));
+					}
+					this.generateExceptionEdges(ancestor,throwExpression);
+					foundAncestor = true;
+				}
+				else if (ancestorType == NodeInfo.Type.Clause && ancestorParent.getData().getType() == NodeInfo.Type.Function)
+				{
+					if (node.getData().getType() == NodeInfo.Type.Throw)
+					{
+						throwExpression = GraphTraverser.getChild(node, 0);
+						final String throwExpressionName = this.getExpressionName(throwExpression);
+						
+						// Add edge function clause -> function calls (with constraint)
+						this.graph.addEdge(node, ancestor, 0, new EdgeInfo(EdgeInfo.Type.Exception, new ExceptionConstraint(ExceptionConstraint.Operation.Remove, throwExpressionName)));
+					}
+					else 
+					{
+						throwExpression = exceptionExpression;
+						final String throwExpressionName = this.getExpressionName(throwExpression);
+						// Add edge function clause -> function calls  (without constraint) 
+						this.graph.addEdge(node, ancestor, 0, new EdgeInfo(EdgeInfo.Type.Exception, new ExceptionConstraint(null, throwExpressionName)));
+					}
+					this.generateClauseCallExceptionEdges(ancestor, throwExpression);
+					foundAncestor = true;
+				}
+			}
+			this.generateThrowDependenceEdges(node);
+		}
+	}
+	private void generateClauseCallExceptionEdges(Node node, Node throwExpression)
+	{
+		final List<Edge> outComingEdges = node.getOutgoingEdges();
+		for (Edge edge : outComingEdges)
+		{
+			if (edge.getData().getType() == EdgeInfo.Type.Output)
+			{
+				final Node callNode = GraphTraverser.getParent(edge.getTo(), EdgeInfo.Type.Control);
+				final List<Node> callChildren = GraphTraverser.getChildren(callNode, EdgeInfo.Type.Control);
+				
+				final Node exceptionReturnNode;
+				if (callChildren.get(callChildren.size()-1).getData().getType() != NodeInfo.Type.ExceptionReturn)
+				{
+					exceptionReturnNode = this.addExceptionReturnNode(callNode);
+				}
+				else
+					exceptionReturnNode = callChildren.get(callChildren.size() - 1);
+				
+				// MIRAR SI ESE ARCO YA EXISTE
+				boolean addEdge = true;
+				final List<Edge> edges = node.getOutgoingEdges();
+				
+				for (Edge existentEdge : edges)
+					if (existentEdge.getData().getType() == EdgeInfo.Type.Exception && existentEdge.getTo() == exceptionReturnNode && 
+							existentEdge.getData().getConstraint().toString().equals("Ex"+throwExpression.getData().getName()))
+					{	
+						addEdge = false;
+					}
+					
+				if (addEdge)
+				{
+					final String throwExpressionName = getExpressionName(throwExpression);
+					this.graph.addEdge(node, exceptionReturnNode, 0, new EdgeInfo(EdgeInfo.Type.Exception, new ExceptionConstraint(null, throwExpressionName)));
+					this.graph.addEdge(exceptionReturnNode, callNode, 0, new EdgeInfo(EdgeInfo.Type.Exception, new ExceptionConstraint(null, throwExpressionName)));
+				}
+				this.generateExceptionEdges(callNode, throwExpression);
+			}
+		}
+	}
+	private void generateThrowDependenceEdges(Node throwNode)
+	{
+		final List<Node> previousThrows = this.getPreviousThrows(throwNode);
+		for (Node previousThrow : previousThrows)
+		{
+			if (previousThrow.getData().getType() == NodeInfo.Type.FunctionCall)
+			{
+				this.graph.addEdge(previousThrow, throwNode, 0, new EdgeInfo(EdgeInfo.Type.Exception, new ExceptionConstraint(ExceptionConstraint.Operation.Add, "*")));
+			}
+			else
+				this.graph.addEdge(previousThrow, throwNode, 0, new EdgeInfo(EdgeInfo.Type.Exception));
+		}
+	}
+	
+	private void generateHighOrderEdges() 
+	{
+		final List<Node> funcCalls = this.getDescendants(this.graph.getRootNode(), NodeInfo.Type.FunctionCall);
+		for (Node funcCall : funcCalls)
+		{
+			final List<Node> callChildren = GraphTraverser.getChildren(funcCall, EdgeInfo.Type.Control);
+			final Node funcName = callChildren.remove(0);
+			if (funcName.getData().getType() == NodeInfo.Type.Variable)
+			{
+				final Node lastNode = callChildren.get(callChildren.size()-1);
+				final Node exceptionReturnNode = (lastNode.getData().getType() != NodeInfo.Type.ExceptionReturn) ? this.addExceptionReturnNode(funcCall) : lastNode;
+				this.graph.addEdge(exceptionReturnNode, funcCall, 0, new EdgeInfo(EdgeInfo.Type.Exception, new ExceptionConstraint(null,"*")));
+				
+				// An Exception of a Variable is always captured by any pattern because it's value is not known and can be any thing
+				final String fictitiousExceptionName = "*";
+				final NodeInfo info = new NodeInfo(0, NodeInfo.Type.Variable); 	
+				final Node fictitiousExceptionNode = new Node(fictitiousExceptionName, info);
+				
+				this.generateExceptionEdges(funcCall, fictitiousExceptionNode);
+			}
+		}
+	}
+	
+	/************************************/
+	/********* Internal Methods *********/
+	/************************************/
+
+	private Node getCaptureFromThrow(Node node)
+	{
+		final Node root = this.graph.getRootNode();
+		Node ancestor = node;
+		while(ancestor != root)
+		{
+			ancestor = GraphTraverser.getParent(ancestor, EdgeInfo.Type.Control);
+			final NodeInfo.Type ancestorType = ancestor.getData().getType(); 
+			if (ancestorType == NodeInfo.Type.Catch)
+				return null;
+			if (ancestorType == NodeInfo.Type.Try)
+				return ancestor;
+		}
+		return null;
+	}
+	private List<Node> getCatchClauses(Node _try)
+	{
+		final Node tryCatch = GraphTraverser.getParent(_try, EdgeInfo.Type.Control);
+		final List<Node> tryDescendants = GraphTraverser.getChildren(tryCatch, EdgeInfo.Type.Control);
+		Node last = tryDescendants.get(tryDescendants.size()-1);
+		if (last.getData().getType() == NodeInfo.Type.AfterTry)
+			last = tryDescendants.get(tryDescendants.size()-2);
+		return GraphTraverser.getChildren(last, EdgeInfo.Type.Control);
+	}
+	private boolean isThrowCatch(Node node)
+	{
+		final Node pattern = GraphTraverser.getChild(node, 0);
+		if (pattern.getData().getType() != NodeInfo.Type.ExceptionPattern)
+			return true;
+		else 
+			return false;
+	}
+	private boolean isFreshVariable(Node variable)
+	{
+		final String variableName = variable.getData().getName();
+		if (variableName.equals("_"))
+			return true;
+		
+		final List<Node> declaredVariables = this.getScope(variable, NodeInfo.Type.Variable);
+		for (Node declaredVariable : declaredVariables)
+		{
+			if (declaredVariable.getData().getName().equals(variableName))
+				return false;
+		}
+		return true;
+	}
+	private boolean hasAfter(List<Node> tryNodeChildren)
+	{
+		return tryNodeChildren.get(tryNodeChildren.size() - 1).getData().getType() == NodeInfo.Type.AfterTry;
+	}
+	
+	private Node addExceptionReturnNode(Node parent)
+	{
+		final String exceptionReturnNodeName = "exceptionReturn";
+		final NodeInfo info = new NodeInfo(this.graph.size(), NodeInfo.Type.ExceptionReturn);
+		final Node exceptionReturnNode = new Node(exceptionReturnNodeName, info);
+		final EdgeInfo edgeInfo = new EdgeInfo(EdgeInfo.Type.NormalControl);;
+		this.graph.addNode(exceptionReturnNode);
+		this.graph.addEdge(parent, exceptionReturnNode, 0, edgeInfo);
+		
+		this.addExceptionReturnEdges(exceptionReturnNode);
+		
+		return exceptionReturnNode;
+	}
+	private void addExceptionReturnEdges(Node exceptionReturn)
+	{
+		final Node parent = GraphTraverser.getParent(exceptionReturn, EdgeInfo.Type.Control);
+		final Node funcName = GraphTraverser.getChild(parent, 0);
+		this.graph.addEdge(funcName, exceptionReturn, 0, new EdgeInfo(EdgeInfo.Type.FlowDependence));
+	}
+	
+	private boolean isThrownExpression(Node throwNode, Node _try, Node exceptionExpressionNode) // Is a throw expression previously thrown?
+	{
+		exceptionExpressionNode = (exceptionExpressionNode == null) ? GraphTraverser.getChild(throwNode, 0) : exceptionExpressionNode;
+		Node ancestor = throwNode;
+		Node ancestorParent = GraphTraverser.getParent(ancestor, EdgeInfo.Type.NormalControl);
+		while (ancestorParent != _try)
+		{
+			final NodeInfo.Type ancestorParentType = ancestorParent.getData().getType();
+			if (ancestorParentType == NodeInfo.Type.Block || ancestorParentType == NodeInfo.Type.Body)
+			{ 
+				if (isPreviousThrow(exceptionExpressionNode,ancestor))
+					 return true;
+			}
+			ancestor = ancestorParent;
+			ancestorParent = GraphTraverser.getParent(ancestorParent, EdgeInfo.Type.NormalControl);
+		}
+		
+		return this.isPreviousThrow(exceptionExpressionNode, ancestor);
+	}
+	private boolean isUnreachableThrow(Node throwNode, Node _try)	// Is a previous throw always executed before? Only going up
+	{
+		final Node tryParent = GraphTraverser.getParent(_try, EdgeInfo.Type.Control);
+		Node ancestor = throwNode;
+		Node ancestorParent = GraphTraverser.getParent(ancestor, EdgeInfo.Type.NormalControl);
+		while (ancestorParent != tryParent)
+		{
+			final NodeInfo.Type ancestorParentType = ancestorParent.getData().getType();
+			if (ancestorParentType == NodeInfo.Type.Block || ancestorParentType == NodeInfo.Type.Body)
+			{ 
+				if (isPreviousThrow(null, ancestor))
+					 return true;
+			}
+			ancestor = ancestorParent;
+			ancestorParent = GraphTraverser.getParent(ancestorParent, EdgeInfo.Type.NormalControl);
+		}
+		
+		return false;
+	}
+	private boolean isPreviousThrow(Node exceptionExpression, Node expression) // Is a throw always executed inside a block or body context? Going inside the whole block or body 
+	{
+		final int throwExpressionIndex = GraphTraverser.getChildIndex(expression, EdgeInfo.Type.NormalControl);
+		final Node expressionParent = GraphTraverser.getParent(expression, EdgeInfo.Type.NormalControl);
+		
+		for (int childIndex = 0; childIndex < throwExpressionIndex ; childIndex++)
+		{
+			final Node previousExpression = GraphTraverser.getChild(expressionParent, childIndex);
+			final NodeInfo.Type previousExpressionType = previousExpression.getData().getType();
+			if (previousExpressionType != NodeInfo.Type.Block &&
+					previousExpressionType != NodeInfo.Type.Body &&
+					previousExpressionType != NodeInfo.Type.Throw && 				
+					previousExpressionType != NodeInfo.Type.FunctionCall)
+				continue;
+			else if (previousExpressionType == NodeInfo.Type.Throw)
+			{
+				if (this.throwThrowingExpression(exceptionExpression,previousExpression))
+					return true;
+				continue;
+			}
+			else if (previousExpressionType == NodeInfo.Type.Block || previousExpressionType == NodeInfo.Type.Body)
+			{
+				if (blockThrowingExpression(exceptionExpression, previousExpression))
+					return true;
+				continue;
+			}
+			else // call
+			{
+				if (callThrowingExpression(exceptionExpression, previousExpression))
+					return true;
+				continue;
+			}
+		}
+		return false;
+	}
+	private boolean throwThrowingExpression(Node exceptionExpression, Node _throw) // Is a previous throw throwing the same expression I am evaluating?
+	{
+		final Node throwExpression = GraphTraverser.getChild(_throw, 0);
+		final Node captureNode = this.getCaptureFromThrow(_throw);
+		if (this.isCatchedException(_throw, captureNode))
+			return false;
+		if (exceptionExpression == null)
+			return true;
+		
+		if (throwExpression.getData().getType() == exceptionExpression.getData().getType() && 
+				throwExpression.getData().getName().equals(exceptionExpression.getData().getName()))
+			return true;
+		return false;
+	}
+	private boolean blockThrowingExpression(Node exceptionExpression, Node block) // Is a block throwing the same expression I am evaluating?
+	{
+		final List<Node> blockExpressions = GraphTraverser.getChildren(block, EdgeInfo.Type.NormalControl);
+		
+		for (Node blockExpression : blockExpressions)
+		{
+			final NodeInfo.Type blockExpressionType = blockExpression.getData().getType();
+			if (blockExpression.getData().getType() == NodeInfo.Type.Throw)
+			{
+				if (exceptionExpression == null)
+					return true;
+				if (this.throwThrowingExpression(exceptionExpression,blockExpression))
+					return true;
+			}
+			else if (blockExpressionType == NodeInfo.Type.Block || blockExpressionType == NodeInfo.Type.Body)
+			{
+				if (this.blockThrowingExpression(exceptionExpression, blockExpression))
+					return true;
+			}
+			else if (blockExpressionType == NodeInfo.Type.FunctionCall)
+				if (callThrowingExpression(exceptionExpression, blockExpression))
+					return true;
+		}
+		return false;
+	}
+	private boolean callThrowingExpression(Node exceptionExpression, Node call) // Evaluate all the clauses of a function
+	{
+		final List<Node> callChildren = GraphTraverser.getChildren(call, EdgeInfo.Type.NormalControl);
+		final Node lastNode = callChildren.get(callChildren.size() - 1);
+		final Node returnNode = (lastNode.getData().getType() == NodeInfo.Type.Return) ? lastNode : callChildren.get(callChildren.size() - 2);
+		
+		final List<Edge> incomingEdges = returnNode.getIncomingEdges();
+		for (Edge edge : incomingEdges)
+		{
+			if (edge.getData().getType() == EdgeInfo.Type.Output)
+			{
+				final Node clause = edge.getFrom();
+				
+				if (this.functionClauseThrowingExpression(exceptionExpression, clause))
+					return true;
+			}
+		}
+		return false;
+	}
+	private boolean functionClauseThrowingExpression(Node exceptionExpression, Node clause) // Is a call throwing the same expression I am evaluating?
+	{
+		final Node body = GraphTraverser.getChild(clause, GraphTraverser.getChildCount(clause) - 1);
+		
+		final List<Node> throwNodes = this.getDescendants(body, NodeInfo.Type.Throw);
+		for (Node throwNode : throwNodes)
+		{	
+			final Node captureNode = getCaptureFromThrow(throwNode);
+			if (!this.isUnreachableThrow(throwNode, body) && !this.isCatchedException(throwNode, captureNode))
+				return true;
+		}
+		
+		final List<Node> callNodes = this.getDescendants(body, NodeInfo.Type.FunctionCall);
+		for (Node callNode : callNodes)
+			if (this.callThrowingExpression(null, callNode) && !this.isCatchedException(callNode, this.getCaptureFromThrow(callNode)))
+				return true;
+		
+		return false;
+	}
+	private boolean isCatchedException(Node throwNode, Node tryNode) // Is a throw expression captured in a function?
+	{ 
+		if (tryNode == null)
+		{
+			Node ancestor = throwNode;
+			while(ancestor.getData().getType() != NodeInfo.Type.Function)
+			{
+				ancestor = GraphTraverser.getParent(ancestor, EdgeInfo.Type.Control);
+				if (ancestor.getData().getType() == NodeInfo.Type.Catch)
+					return true;
+			}
+		}
+		else{
+			final Node throwExpression = GraphTraverser.getChild(throwNode, 0);
+			final List<Node> catchClauses = this.getCatchClauses(tryNode);
+			for (Node catchClause : catchClauses)
+			{
+				final Node catchPattern = GraphTraverser.getChild(catchClause, 0);
+				if (this.isMatching(throwExpression, catchPattern)[1])
+					return true;
+			}
+			final Node captureNode = this.getCaptureFromThrow(tryNode);
+			return this.isCatchedException(tryNode, captureNode);
+		}
+		return false;
+	}
+	
+	private boolean[] isMatching(Node throwExpression, Node catchPattern)
+	{
+		final boolean[] result = new boolean[2];  // result[0] matching: true/false. result[1] fullyCaptured: true/false.
+		switch(throwExpression.getData().getType()){
+			case Integer:
+			case Atom:
+			case Char:
+			case String:
+				if ((throwExpression.getData().getType() == catchPattern.getData().getType() &&
+				throwExpression.getData().getName().equals(catchPattern.getData().getName())) 
+				|| (catchPattern.getData().getType() == NodeInfo.Type.Variable)) 
+				{ 
+					result[0] = true;
+					result[1] = true;
+				}
+				break;
+			case Variable:
+				result[0] = true;
+				if (catchPattern.getData().getType() == NodeInfo.Type.Variable && this.isFreshVariable(catchPattern))
+					result[1] = true;
+				else
+					result[1] = false;
+				break;
+			case TupleExpression:
+				if (catchPattern.getData().getType() == NodeInfo.Type.TuplePattern)
+				{
+					final boolean[] tupleResult = this.isMatchingTuple(throwExpression,catchPattern);
+					result[0] = tupleResult[0];
+					result[1] = tupleResult[1];
+				}
+				break;
+			case ListExpression:
+				if (catchPattern.getData().getType() == NodeInfo.Type.ListPattern)
+				{
+					final boolean[] listResult = this.isMatchingList(throwExpression, catchPattern);
+					result[0] = listResult[0];
+					result[1] = listResult[1];
+				}
+				break;
+			default:
+				break;
+		}
+		return result;
+	}
+	private boolean[] isMatchingTuple(Node throwExpression, Node catchPattern)
+	{
+		if (GraphTraverser.getChildCount(throwExpression) != GraphTraverser.getChildCount(catchPattern))
+			return new boolean[2];
+		
+		final boolean[] result = new boolean[2];
+		result[0] = true;
+		result[1] = true;
+		
+		final List<Node> throwTupleChildren = GraphTraverser.getChildren(throwExpression, EdgeInfo.Type.StructuralControl);
+		final List<Node> catchTupleChildren = GraphTraverser.getChildren(catchPattern, EdgeInfo.Type.StructuralControl);
+		for (int childIndex = 0; childIndex < GraphTraverser.getChildCount(throwExpression); childIndex++)
+		{
+			final Node throwTupleChild = throwTupleChildren.get(childIndex);
+			final Node catchTupleChild = catchTupleChildren.get(childIndex);
+			final NodeInfo.Type throwChildType = throwTupleChild.getData().getType();
+			final NodeInfo.Type catchChildType = catchTupleChild.getData().getType();
+			
+			if (throwChildType == catchChildType &&
+				catchChildType != NodeInfo.Type.Variable && 
+				!catchTupleChild.getData().getName().equals(throwTupleChild.getData().getName()))
+			{
+				result[0] = false;
+				result[1] = false;
+				return result;
+			}
+			
+			final boolean[] subMatching = this.isMatching(throwTupleChild,catchTupleChild);
+			result[0] = result[0] & subMatching[0];
+			result[1] = result[1] & subMatching[1];
+		}
+		return result;
+	}
+	private boolean[] isMatchingList(Node throwExpression, Node catchPattern)
+	{
+		final boolean[] result = new boolean[2];
+		result[0] = true;
+		result[1] = true;
+		if (GraphTraverser.getChildCount(throwExpression) == 0 && GraphTraverser.getChildCount(catchPattern) == 0)
+			return result;
+		
+		Node throwRef = throwExpression;
+		Node catchRef = catchPattern;
+		boolean lastThrow = false;
+		boolean lastCatch = false;
+
+		while(!lastThrow && !lastCatch)
+		{
+			// SELECCIONAR EL ELEMENTO CORRESPONDIENTE DE CADA LISTA MIRANDO SI ES O NO EL ULTIMO ELEMENTO
+			
+			//CASO NO CONTEMPLADO: [1,2|{1}]
+			final Node throwElem;
+			if (GraphTraverser.getChildCount(throwRef) != 0)		// LISTA THROW 
+				throwElem = GraphTraverser.getChild(throwRef, 0);
+			else 
+			{
+				throwElem = throwRef;
+				lastThrow = true;
+			}
+			
+			final Node catchElem;
+			if (GraphTraverser.getChildCount(catchRef) != 0)		// LISTA CATCH
+				catchElem = GraphTraverser.getChild(catchRef, 0);
+			else 
+			{
+				catchElem = catchRef;
+				lastCatch = true;
+			}
+		
+			if (lastThrow && !lastCatch)		// LA LISTA DEL THROW ACABA Y LA DEL CATCH NO
+			{	
+				if (throwElem.getName().equals("[]")) // LISTA SIN COLA Ej: [1,2]
+				{
+					return new boolean[2];
+				}
+				else 
+				{
+					if (!(catchElem.getData().getType() == NodeInfo.Type.Variable && this.isFreshVariable(catchElem) && this.isLastElement(catchRef)))
+					{
+						return new boolean[2];
+					}
+				}
+			}
+			else if (!lastThrow && lastCatch) // LA LISTA DEL CATCH ACABA Y LA DEL THROW NO
+			{
+				if (catchElem.getName().equals("[]")) 
+				{
+					return new boolean[2];
+				}
+				else if (catchElem.getData().getType() == NodeInfo.Type.Variable && !this.isFreshVariable(catchElem))
+				{
+					result[0] = result[0] & true;
+					result[1] = result[1] & false;
+				}
+				else if (!(catchElem.getData().getType() == NodeInfo.Type.Variable && this.isFreshVariable(catchElem))) // VARIABLE FRESCA COMO COLA
+				{
+					return new boolean[2];
+				}	
+			}
+			else if (lastThrow && lastCatch) // THROW Y CATCH ACABAN A LA VEZ
+			{
+				if (throwElem.getName().equals("[]")) 
+				{
+					if (!(catchElem.getName().equals("[]") || 
+						(catchElem.getData().getType() == NodeInfo.Type.Variable && this.isFreshVariable(catchElem))))
+					{
+						return new boolean[2];
+					}
+				}
+				else 
+				{
+					boolean[] matchingTail = this.isMatching(throwElem, catchElem);
+					if (!(matchingTail[0]))
+					{
+						return new boolean[2];
+					}
+					else
+					{
+						result[0] = result[0] & matchingTail[0];
+						result[1] = result[1] & matchingTail[1];
+					}
+				}
+			}
+			else	// ELEMENTOS NO FINALES DE NINGUNA LISTA
+			{
+				boolean[] matchingTail = this.isMatching(throwElem, catchElem);
+				if (!(matchingTail[0]))
+				{
+					return new boolean[2];
+				}
+				else
+				{
+					result[0] = result[0] & matchingTail[0];
+					result[1] = result[1] & matchingTail[1];
+				}
+			}
+			if (!lastThrow)
+				throwRef = GraphTraverser.getChild(throwRef, 1);
+			if (!lastCatch)
+				catchRef = GraphTraverser.getChild(catchRef, 1); 	
+		}
+		return result;
+	}
+	private boolean isLastElement(Node listElement)
+	{
+		final Node nextChild = GraphTraverser.getChild(listElement, 1);
+		return GraphTraverser.getChildCount(nextChild) == 0 && nextChild.getName().equals("[]");
+	}
+	
+	private String getExpressionName(Node throwExpression)
+	{
+		switch(throwExpression.getData().getType())
+		{
+			case Variable:
+			case FunctionCall:
+			case Operation:
+				return "*";
+			case TupleExpression:
+			case TuplePattern:
+				return getTupleConstraintName(throwExpression);
+			case ListExpression:
+			case ListPattern:
+				return getListConstraintName(throwExpression);
+			default:
+				return throwExpression.getData().getName();
+				
+		}
+	}
+	private String getTupleConstraintName(Node tuple)
+	{
+		if (tuple.getData().getType() == NodeInfo.Type.TupleExpression)
+		{
+			String name = "{";
+			final List<Node> children = GraphTraverser.getChildren(tuple, EdgeInfo.Type.StructuralControl);
+			for (int childIndex=0; childIndex < children.size()-2; childIndex++)
+			{
+				String childName = children.get(childIndex).getData().getName();
+				name += childName+",";
+			}
+			name += children.get(children.size()-1).getData().getName()+"}";
+			return name;
+		}
+		else
+		{
+			String name = "{";
+			final List<Node> children = GraphTraverser.getChildren(tuple, EdgeInfo.Type.StructuralControl);
+			for (int childIndex=0; childIndex < children.size()-2; childIndex++)
+			{
+				Node child = children.get(childIndex);
+				if (child.getData().getType() == NodeInfo.Type.Variable && this.isFreshVariable(child))
+					return "*";
+					
+				String childName = children.get(childIndex).getData().getName();
+				name += childName+",";
+			}
+			// TREATING LAST ELEMENT
+			Node child = children.get(children.size()-1);
+			if (child.getData().getType() == NodeInfo.Type.Variable && this.isFreshVariable(child))
+				return "*";
+			
+			name += children.get(children.size()-1).getData().getName()+"}";
+			return name;
+		}
+	}
+	private String getListConstraintName(Node list)
+	{
+		String name = "[";
+		Node listElement = list; 
+		while(hasMoreElements(listElement))
+		{
+			final Node elementValue = GraphTraverser.getChild(listElement, 0);
+			String elementValueName = getExpressionName(elementValue);
+			if (elementValueName.equals("*"))
+				return "*";
+			name += elementValueName;
+			listElement = GraphTraverser.getChild(listElement, 1);
+			if (!hasMoreElements(listElement))
+			{
+				if (!listElement.getName().equals("[]"))
+				{
+					elementValueName = getExpressionName(listElement);
+					if (elementValueName.equals("*"))
+						return "*";
+					name += "|"+elementValueName;
+				}
+				name += "]";
+			}
+			else
+				name+=",";
+		}	
+		return name;
+	}
+	private boolean hasMoreElements(Node list)
+	{
+		if (GraphTraverser.getChildCount(list) == 0)
+			return false;
+		final NodeInfo.Type elementType = list.getData().getType();
+		if (elementType != NodeInfo.Type.ListPattern && elementType != NodeInfo.Type.ListExpression)
+			return false;
+		return true;
+	}
+
+	private Node getBodyFromThrow(Node throwNode)
+	{
+		Node ancestor = throwNode;
+		Node ancestorParent = GraphTraverser.getParent(ancestor, EdgeInfo.Type.Control);
+		
+		while (ancestorParent.getData().getType() != NodeInfo.Type.Function)
+		{
+			ancestor = ancestorParent;
+			ancestorParent = GraphTraverser.getParent(ancestor, EdgeInfo.Type.Control);
+		}
+		
+		return GraphTraverser.getChild(ancestor, GraphTraverser.getChildCount(ancestor) - 1);
+	}
+	private List<Node> getPreviousThrows(Node throwNode) // Returns a list with the throws that may be executed before a throw statement
+	{
+		final Node body = this.getBodyFromThrow(throwNode); // Returns the body of the function clause that contains the throw node
+		final Node bodyParent = GraphTraverser.getParent(body, EdgeInfo.Type.Control);
+		final List<Node> previousThrows = new LinkedList<Node>();
+		Node ancestor = throwNode;
+		Node ancestorParent = GraphTraverser.getParent(ancestor, EdgeInfo.Type.Control);
+		
+		while (ancestorParent != bodyParent)
+		{
+			final int ancestorIndex = GraphTraverser.getChildIndex(ancestor, EdgeInfo.Type.Control);
+			for (int index = 0; index < ancestorIndex; index++)
+			{
+				final Node previousChild = GraphTraverser.getChild(ancestorParent, index);
+				
+				final List<Node> previousThrowNodes = this.getDescendants(previousChild, NodeInfo.Type.Throw);
+				for (Node previousThrowNode : previousThrowNodes)
+				{	
+					final Node captureNode = getCaptureFromThrow(previousThrowNode);
+					if (!this.isUnreachableThrow(previousThrowNode, body) && 
+						!this.isCatchedException(previousThrowNode, captureNode))
+					{
+						final Node throwNodeExpression = GraphTraverser.getChild(throwNode, 0);
+						if (!this.throwThrowingExpression(throwNodeExpression, previousThrowNode))
+							previousThrows.add(previousThrowNode);
+					}
+				}
+				
+				final List<Node> callNodes = this.getDescendants(previousChild, NodeInfo.Type.FunctionCall);
+				for (Node callNode : callNodes)
+					if (this.callThrowingExpression(null, callNode) && !this.isCatchedException(callNode, this.getCaptureFromThrow(callNode)))
+						previousThrows.add(callNode);
+			}
+			ancestor = ancestorParent;
+			ancestorParent = GraphTraverser.getParent(ancestorParent, EdgeInfo.Type.Control);
+		}
+		return previousThrows;
+	}
+
+	/************************************/
+	/****** Erlang exception edges ******/
+	/************************************/
+	private void generateExceptionClauseEdges(Node node)
+	{
+		
+		final Node exceptionPatternError = GraphTraverser.getChild(node, 0);
+		if(!exceptionPatternError.getData().getName().equals("throw"))
+		{	
+			final Node catchClause = GraphTraverser.getParent(node, EdgeInfo.Type.Control);
+			final Node tryCatchNode = GraphTraverser.getParent((GraphTraverser.getParent(catchClause, EdgeInfo.Type.Control)), EdgeInfo.Type.Control);
+			final Node tryNode = GraphTraverser.getChild(tryCatchNode, 0);
+			
+			this.graph.addEdge(tryNode, catchClause, 0, new EdgeInfo(EdgeInfo.Type.Exception));
+			generateExceptionGetAllEdges(tryNode);
+		}
+	}
+	private void generateExceptionGetAllEdges(Node node)
+	{
+		final List<Node> children = GraphTraverser.getChildren(node, EdgeInfo.Type.Control);
+		
+		for (Node child : children)
+		{
+			this.graph.addEdge(child, node, 0, new EdgeInfo(EdgeInfo.Type.ExceptionGetAll));
+			if (child.getData().getType() == NodeInfo.Type.FunctionCall)
+			{
+				 final Node functionName = GraphTraverser.getChild(child, 0);
+				 final List<Node> functionCalls = this.getRelatedClauses(functionName);
+				 for (Node functionCall : functionCalls)
+				 {	
+					this.graph.addEdge(functionCall, child, 0, new EdgeInfo(EdgeInfo.Type.ExceptionGetAll));
+					this.generateExceptionGetAllEdges(functionCall);
+				 }
+			}
+			this.generateExceptionGetAllEdges(child);
+		}
+	}
+	private List<Node> getRelatedClauses(Node node)
+	{
+		final List<Edge> outComingEdges = node.getOutgoingEdges();
+		final List<Node> functionClauses = new LinkedList<Node>();
+		for (Edge outComingEdge : outComingEdges)
+		{
+			if (outComingEdge.getData().getType() == EdgeInfo.Type.Input)
+				functionClauses.add(outComingEdge.getTo());
+		}
+		return functionClauses;
 	}
 }

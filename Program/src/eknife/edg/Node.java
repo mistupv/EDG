@@ -8,6 +8,8 @@ import eknife.lib.graph.Vertex;
 
 public class Node extends Vertex<NodeInfo, EdgeInfo>
 {
+	private long line;
+
 	public Node()
 	{
 		this(null, null);
@@ -51,5 +53,14 @@ public class Node extends Vertex<NodeInfo, EdgeInfo>
 			edges.add((Edge) arrow);
 
 		return edges;
+	}
+	
+	public void setLine(long line)
+	{
+		this.line = line;
+	}
+	public long getLine()
+	{
+		return this.line;
 	}
 }
