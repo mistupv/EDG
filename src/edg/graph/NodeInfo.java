@@ -93,7 +93,8 @@ public class NodeInfo {
 //			case Result:
 			case Restrictions:
 			case Value:
-			
+			case Condition:
+
 				return true;
 			default:
 				return false;
