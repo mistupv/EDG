@@ -223,7 +223,7 @@ public class Graph<T, S> {
 		if (Objects.equals(from, to))
 		{
 			from.getOutgoingArrows().add(e);
-			to.getOutgoingArrows().add(e);
+			to.getIncomingArrows().add(e);
 		} else
 		{
 			from.addEdge(e);
