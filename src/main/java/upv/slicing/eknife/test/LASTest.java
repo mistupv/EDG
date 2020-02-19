@@ -1,17 +1,17 @@
-package eknife.test;
+package upv.slicing.eknife.test;
 
-import edg.DotFactory;
-import edg.EDGFactory;
-import edg.PdfFactory;
-import edg.graph.EDG;
-import edg.graph.LAST;
-import edg.graph.Node;
-import edg.slicing.ConstrainedAlgorithm;
-import edg.slicing.SlicingAlgorithm;
-import edg.slicing.SlicingCriterion;
-import eknife.EKnife.Language;
-import eknife.LASTFactory;
-import eknife.config.Config;
+import upv.slicing.edg.DotFactory;
+import upv.slicing.edg.EDGFactory;
+import upv.slicing.edg.PdfFactory;
+import upv.slicing.edg.graph.EDG;
+import upv.slicing.edg.graph.LAST;
+import upv.slicing.edg.graph.Node;
+import upv.slicing.edg.slicing.ConstrainedAlgorithm;
+import upv.slicing.edg.slicing.SlicingAlgorithm;
+import upv.slicing.edg.slicing.SlicingCriterion;
+import upv.slicing.eknife.EKnife.Language;
+import upv.slicing.eknife.LASTFactory;
+import upv.slicing.eknife.config.Config;
 
 import java.io.File;
 import java.util.List;
@@ -21,8 +21,8 @@ public class LASTest {
 	{
 		final Config config = Config.getConfig();
 
-		final String className = "prueba2.java";
-		final SlicingCriterion slicingCriterion = new SlicingCriterion(className, 8, "x", 1); // Test.java
+		final String className = "Test.java";
+		final SlicingCriterion slicingCriterion = new SlicingCriterion(className, 18, "z", 1); // Test.java
 
 //		final String className = "Test.java";
 //		final SlicingCriterion slicingCriterion = new SlicingCriterion(className, 38, "a", 1); // Test.java
@@ -34,7 +34,7 @@ public class LASTest {
 //		final SlicingCriterion slicingCriterion = new SlicingCriterion(className, 21, "a", 1); // Test.java
 //		final SlicingCriterion slicingCriterion = new SlicingCriterion(className, 10, "n", 1); // Test.java
 
-		final String codebase = "/Users/serperu/Desktop/Benchmarks/";
+		final String codebase = "./src/test/res/carlos/";
 		final String sourcePath = config.getTestPathBenchmarks() + className; // BENCHMARK DIRECTORY (DESKTOP)
 
 		final String outputDotPath = codebase + "output.dot";
@@ -70,6 +70,7 @@ public class LASTest {
 //		System.out.println("****** EDG SLICE *******");
 //		System.out.println("************************\n");
 
+		DotFactory.createDot(new File(outputDotFile.getParentFile(), "output-whole.dot"), edg);
 		DotFactory.createDot(outputDotFile, edg, SC, slice);
 		PdfFactory.createPdf(outputPdfFile, outputDotFile);
 //		CodeFactory.createCode(Language.Java, outputJavaFile, edg, slice);

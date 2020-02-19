@@ -1,10 +1,10 @@
-package eknife.java;
+package upv.slicing.eknife.java;
 
-import edg.graph.EdgeInfo;
-import edg.graph.LAST;
-import edg.graph.Node;
-import edg.graph.NodeInfo;
-import edg.traverser.LASTTraverser;
+import upv.slicing.edg.graph.EdgeInfo;
+import upv.slicing.edg.graph.LAST;
+import upv.slicing.edg.graph.Node;
+import upv.slicing.edg.graph.NodeInfo;
+import upv.slicing.edg.traverser.LASTTraverser;
 
 import java.util.List;
 
