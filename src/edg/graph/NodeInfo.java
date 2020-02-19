@@ -12,7 +12,7 @@ public class NodeInfo {
 
 		// Expressions
 		List, DataConstructor, DataConstructorAccess, FieldAccess,
-		Block, Operation, Equality,
+		Block, Operation, Equality, Pattern,
 		If, Condition, Then, Else,
 		Switch, Selector, Cases, Case, DefaultCase, Selectable,
 		Call, Callee, Scope, Name, Arguments,
