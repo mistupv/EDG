@@ -10,5 +10,6 @@
     <orderEntry type="library" name="javaparser-core" level="project" />
     <orderEntry type="module" module-name="EDG" />
     <orderEntry type="module" module-name="misc" />
+    <orderEntry type="library" name="poi-3.15" level="project" />
   </component>
 </module>
