@@ -1,20 +1,19 @@
-package eknife;
+package upv.slicing.eknife;
 
-import edg.graph.EDG;
-import edg.graph.Node;
-import eknife.EKnife.Language;
-import eknife.java.JavaCodeFactory;
+import upv.slicing.edg.graph.EDG;
+import upv.slicing.edg.graph.Node;
+import upv.slicing.eknife.java.JavaCodeFactory;
 
 import java.io.File;
 import java.util.List;
 
 public class CodeFactory
 {
-	public static void createCode(Language language, File outputFile, EDG edg)
+	public static void createCode(EKnife.Language language, File outputFile, EDG edg)
 	{
 		CodeFactory.createCode(language, outputFile, edg, null);
 	}
-	public static void createCode(Language language, File outputFile, EDG edg, List<Node> slice)
+	public static void createCode(EKnife.Language language, File outputFile, EDG edg, List<Node> slice)
 	{
 		switch (language)
 		{

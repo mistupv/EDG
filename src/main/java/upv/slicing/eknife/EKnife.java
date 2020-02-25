@@ -1,15 +1,15 @@
-package eknife;
+package upv.slicing.eknife;
 
-import edg.DotFactory;
-import edg.EDGFactory;
-import edg.PdfFactory;
-import edg.graph.EDG;
-import edg.graph.EdgeInfo;
-import edg.graph.LAST;
-import edg.graph.Node;
-import edg.slicing.ConstrainedAlgorithm;
-import edg.slicing.SlicingAlgorithm;
-import edg.slicing.SlicingCriterion;
+import upv.slicing.edg.DotFactory;
+import upv.slicing.edg.EDGFactory;
+import upv.slicing.edg.PdfFactory;
+import upv.slicing.edg.graph.EDG;
+import upv.slicing.edg.graph.EdgeInfo;
+import upv.slicing.edg.graph.LAST;
+import upv.slicing.edg.graph.Node;
+import upv.slicing.edg.slicing.ConstrainedAlgorithm;
+import upv.slicing.edg.slicing.SlicingAlgorithm;
+import upv.slicing.edg.slicing.SlicingCriterion;
 
 import java.io.File;
 import java.util.Hashtable;
@@ -148,29 +148,26 @@ public class EKnife {
 	}
 	private static void printHelp()
 	{
-		String help = "";
-
-		help += "Use the following options:\n";
-		help += "  -ln <language>      To specify the target language (Java, Erlang) \n";
-		help += "  -ip <file/folder>   To specify the file/folder where the source code is\n";
-		help += "  -op <file/folder>   To specify the file/folder where the slice will be stored\n";
-		help += "  -ar <file>          To specify the archive (relative to -ip) where the slicing criterion is\n";
-		help += "  -li <num>           To specify the line of the slicing criterion\n";
-		help += "  -na <name>          To specify the name of the slicing criterion (must be a variable)\n";
-		help += "  -oc <num>           To specify the occurrence of the slicing criterion in that line\n";
-		help += "  -dot <file>         To generate a dot that represents the EDG\n";
-		help += "  -pdf <file>         To generate a pdf that represents the EDG\n";
-		help += "  -omitarcs           To omit the generation of arcs\n";
-		help += "  -allarcs            To draw all arcs\n";
-		help += "  -controlFlow        To draw control flow arcs\n";
-		help += "  -control            To draw control arcs\n";
-		help += "  -value              To draw value arcs\n";
-		help += "  -flow               To draw flow arcs\n";
-		help += "  -call               To draw call arcs\n";
-		help += "  -input              To draw input arcs\n";
-		help += "  -output             To draw output arcs\n";
-		help += "  -summary            To draw summary arcs";
-
+		String help = "Use the following options:\n" +
+				"  -ln <language>      To specify the target language (Java, Erlang) \n" +
+				"  -ip <file/folder>   To specify the file/folder where the source code is\n" +
+				"  -op <file/folder>   To specify the file/folder where the slice will be stored\n" +
+				"  -ar <file>          To specify the archive (relative to -ip) where the slicing criterion is\n" +
+				"  -li <num>           To specify the line of the slicing criterion\n" +
+				"  -na <name>          To specify the name of the slicing criterion (must be a variable)\n" +
+				"  -oc <num>           To specify the occurrence of the slicing criterion in that line\n" +
+				"  -dot <file>         To generate a dot that represents the EDG\n" +
+				"  -pdf <file>         To generate a pdf that represents the EDG\n" +
+				"  -omitarcs           To omit the generation of arcs\n" +
+				"  -allarcs            To draw all arcs\n" +
+				"  -controlFlow        To draw control flow arcs\n" +
+				"  -control            To draw control arcs\n" +
+				"  -value              To draw value arcs\n" +
+				"  -flow               To draw flow arcs\n" +
+				"  -call               To draw call arcs\n" +
+				"  -input              To draw input arcs\n" +
+				"  -output             To draw output arcs\n" +
+				"  -summary            To draw summary arcs";
 		System.out.print(help);
 	}
 

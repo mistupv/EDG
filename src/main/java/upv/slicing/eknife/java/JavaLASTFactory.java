@@ -1,4 +1,4 @@
-package eknife.java;
+package upv.slicing.eknife.java;
 
 import com.github.javaparser.JavaParser;
 import com.github.javaparser.ast.*;
@@ -9,12 +9,12 @@ import com.github.javaparser.ast.type.ArrayType;
 import com.github.javaparser.ast.type.ClassOrInterfaceType;
 import com.github.javaparser.ast.type.PrimitiveType;
 import com.github.javaparser.ast.type.Type;
-import edg.LASTBuilder.Where;
-import edg.LASTFactory;
-import edg.LDASTNodeInfo;
-import edg.graph.LAST;
-import edg.graph.NodeInfo;
-import misc.Misc;
+import upv.slicing.edg.LASTBuilder.Where;
+import upv.slicing.edg.LASTFactory;
+import upv.slicing.edg.LDASTNodeInfo;
+import upv.slicing.edg.graph.LAST;
+import upv.slicing.edg.graph.NodeInfo;
+import upv.slicing.misc.Misc;
 
 import java.io.File;
 import java.util.*;

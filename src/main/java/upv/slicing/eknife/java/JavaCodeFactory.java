@@ -1,4 +1,4 @@
-package eknife.java;
+package upv.slicing.eknife.java;
 
 import com.github.javaparser.ast.ArrayCreationLevel;
 import com.github.javaparser.ast.CompilationUnit;
@@ -13,13 +13,13 @@ import com.github.javaparser.ast.stmt.*;
 import com.github.javaparser.ast.type.*;
 import com.github.javaparser.ast.type.PrimitiveType.Primitive;
 import com.github.javaparser.printer.Printable;
-import edg.LDASTNodeInfo;
-import edg.graph.EDG;
-import edg.graph.Node;
-import edg.graph.NodeInfo;
-import edg.graph.VariableInfo;
-import edg.traverser.EDGTraverser;
-import misc.Misc;
+import upv.slicing.edg.LDASTNodeInfo;
+import upv.slicing.edg.graph.EDG;
+import upv.slicing.edg.graph.Node;
+import upv.slicing.edg.graph.NodeInfo;
+import upv.slicing.edg.graph.VariableInfo;
+import upv.slicing.edg.traverser.EDGTraverser;
+import upv.slicing.misc.Misc;
 
 import java.io.File;
 import java.util.EnumSet;

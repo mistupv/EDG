@@ -1,8 +1,8 @@
-package eknife.config;
+package upv.slicing.eknife.config;
 
 import java.io.File;
 
-public final class Config extends misc.Config
+public final class Config extends upv.slicing.misc.Config
 {
 	/********************************************************************************************************************************/
 	/************************************************************ STATIC ************************************************************/
