@@ -101,11 +101,11 @@ public class ExceptionConstraint extends SeekingConstraint {
 //
 //	private Constraints getAllWorks(Edge edge)
 //	{
-//		final Node nodeFrom = edge.getFrom();
-//		final List<Edge> incomingEdges = nodeFrom.getIncomingEdges();
+//		final Node nodeFrom = edge.getFrom(); // this needs to be looked up in the graph!
+//		final List<Edge> incomingEdges = nodeFrom.getIncomingEdges(); // this needs to be looked up in the graph!
 //		for (Edge incomingEdge : incomingEdges)
 //		{
-//			final EdgeInfo.Type edgeType = incomingEdge.getData().getType();
+//			final EdgeInfo.Type edgeType = incomingEdge.getInfo().getType();
 //			if (edgeType != EdgeInfo.Type.ExceptionGetAll && edgeType != EdgeInfo.Type.NormalControl  
 //					&& edgeType != EdgeInfo.Type.StructuralControl && edgeType != EdgeInfo.Type.ValueDependence)
 //				return new Constraints();

@@ -1,25 +1,19 @@
 package upv.slicing.edg;
 
-import java.util.HashMap;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Map;
-import java.util.Stack;
-
-
 import upv.slicing.edg.LASTBuilder.Where;
 import upv.slicing.edg.graph.LAST;
-import upv.slicing.edg.graph.NodeInfo;
 import upv.slicing.edg.graph.Node;
 import upv.slicing.edg.traverser.LASTTraverser;
+
+import java.util.*;
 
 public abstract class LASTFactory
 {
 	private LAST last;
-	private final Stack<Branch> branches = new Stack<Branch>();
-	final protected Map<String,Integer> currentLabels = new HashMap<String,Integer>();
-	final protected Map<String,List<Integer>> unresolvedLabels = new HashMap<String,List<Integer>>();
-	
+	private final Stack<Branch> branches = new Stack<>();
+	final protected Map<String,Integer> currentLabels = new HashMap<>();
+	final protected Map<String,List<Integer>> unresolvedLabels = new HashMap<>();
+
 	private <R> void processElements(R[] elements)
 	{	
 		for (int elementIndex = 0; elementIndex < elements.length; elementIndex++)
@@ -30,7 +24,7 @@ public abstract class LASTFactory
 	}
 	private void processElement(Object element, int index, int length)
 	{
-		final Map<String, Object> info = new HashMap<String, Object>();
+		final Map<String, Object> info = new HashMap<>();
 		final Branch parent = this.branches.isEmpty() ? null : this.branches.get(this.branches.size() - 1);
 		if (parent != null)
 		{
@@ -85,7 +79,7 @@ public abstract class LASTFactory
 	{
 		final int moduleId = LASTBuilder.addModule(this.last, name, info);
 
-		this.branches.push(new Branch(moduleId, NodeInfo.Type.Module, info));
+		this.branches.push(new Branch(moduleId, Node.Type.Module, info));
 		this.processElements(members);
 		this.branches.pop();
 	}
@@ -102,7 +96,7 @@ public abstract class LASTFactory
 		final Where where = parent.getWhere();
 		final int routineId = LASTBuilder.addRoutine(this.last, parentId, where, name, info);
 
-		this.branches.push(new Branch(routineId, NodeInfo.Type.Routine, info));
+		this.branches.push(new Branch(routineId, Node.Type.Routine, info));
 		this.processElements(clauses);
 		this.branches.pop();
 	}
@@ -117,7 +111,7 @@ public abstract class LASTFactory
 		final Branch parent = this.branches.peek();
 		final int parentId = parent.getNodeId();
 		final int clauseId = LASTBuilder.addClause(this.last, parentId, info);
-		final Branch branch = this.branches.push(new Branch(clauseId, NodeInfo.Type.Clause, info));
+		final Branch branch = this.branches.push(new Branch(clauseId, Node.Type.Clause, info));
 
 		currentLabels.clear(); // Clear Label list when generating a Clause
 		
@@ -142,7 +136,7 @@ public abstract class LASTFactory
 		final Branch parent = this.branches.peek();
 		final int parentId = parent.getNodeId();
 		final int clauseId = LASTBuilder.addClause(this.last, parentId, info);
-		final Branch branch = this.branches.push(new Branch(clauseId, NodeInfo.Type.Clause, info));
+		final Branch branch = this.branches.push(new Branch(clauseId, Node.Type.Clause, info));
 
 		branch.setWhere(Where.ParameterIn);
 		branch.setWhere(Where.Parameters);
@@ -179,7 +173,7 @@ public abstract class LASTFactory
 		final Where where = parent.getWhere();
 		final int equalityId = LASTBuilder.addEquality(this.last, parentId, where, info);
 
-		this.branches.push(new Branch(equalityId, NodeInfo.Type.Equality, info));
+		this.branches.push(new Branch(equalityId, Node.Type.Equality, info));
 		this.processElement(left, 1, 2);
 		this.processElement(right, 2, 2);
 		this.branches.pop();
@@ -191,7 +185,7 @@ public abstract class LASTFactory
 		final Where where = parent.getWhere();
 		final int equalityId = LASTBuilder.addEquality(this.last, parentId, where, operator, info);
 
-		this.branches.push(new Branch(equalityId, NodeInfo.Type.Equality, info));
+		this.branches.push(new Branch(equalityId, Node.Type.Equality, info));
 		this.processElement(left, 1, 2);
 		this.processElement(right, 2, 2);
 		this.branches.pop();
@@ -208,7 +202,7 @@ public abstract class LASTFactory
 		final Where where = parent.getWhere();
 		final int operationId = LASTBuilder.addOperation(this.last, parentId, where, operation, info);
 
-		this.branches.push(new Branch(operationId, NodeInfo.Type.Operation, info));
+		this.branches.push(new Branch(operationId, Node.Type.Operation, info));
 		this.processElements(operands);
 		this.branches.pop();
 	}
@@ -219,7 +213,7 @@ public abstract class LASTFactory
 		final Where where = parent.getWhere();
 		final int operationId = LASTBuilder.addOperation(this.last, parentId, where, operation, info);
 
-		this.branches.push(new Branch(operationId, NodeInfo.Type.Operation, info));
+		this.branches.push(new Branch(operationId, Node.Type.Operation, info));
 		this.processElement(expression,1,1);
 		this.branches.pop();
 	}
@@ -232,7 +226,7 @@ public abstract class LASTFactory
 		final Where where = parent.getWhere();
 		final int typeCheckId = LASTBuilder.addTypeCheck(this.last, parentId, where, info);
 
-		this.branches.push(new Branch(typeCheckId, NodeInfo.Type.TypeCheck, info));
+		this.branches.push(new Branch(typeCheckId, Node.Type.TypeCheck, info));
 		this.processElement(expression,1,1);
 		this.processElement(type,2,1);
 		this.branches.pop();
@@ -244,7 +238,7 @@ public abstract class LASTFactory
 		final Where where = parent.getWhere();
 		final int typeTransformId = LASTBuilder.addTypeTransformation(this.last, parentId, where, info, isEnclosedExpr);
 		
-		this.branches.push(new Branch(typeTransformId, NodeInfo.Type.TypeTransformation, info));
+		this.branches.push(new Branch(typeTransformId, Node.Type.TypeTransformation, info));
 		this.processElement(type,1,1);
 		this.processElement(expression,2,1);
 		this.branches.pop();
@@ -256,7 +250,7 @@ public abstract class LASTFactory
 		final Where where = parent.getWhere();
 		final int typeTransformId = LASTBuilder.addTypeTransformation(this.last, parentId, where, info);
 		
-		this.branches.push(new Branch(typeTransformId, NodeInfo.Type.TypeTransformation, info));
+		this.branches.push(new Branch(typeTransformId, Node.Type.TypeTransformation, info));
 		this.processElement(type,1,1);
 		this.processElement(expression,2,1);
 		this.branches.pop();
@@ -283,7 +277,7 @@ public abstract class LASTFactory
 		final Where where = parent.getWhere();
 		final int dataConstructorId = LASTBuilder.addDataConstructor(this.last, parentId, where, info);
 
-		this.branches.push(new Branch(dataConstructorId, NodeInfo.Type.DataConstructor, info));
+		this.branches.push(new Branch(dataConstructorId, Node.Type.DataConstructor, info));
 		this.processElements(elements);
 		this.branches.pop();
 	}
@@ -299,7 +293,7 @@ public abstract class LASTFactory
 		final Where where = parent.getWhere();
 		final int listId = LASTBuilder.addList(this.last, parentId, where, info);
 
-		this.branches.push(new Branch(listId, NodeInfo.Type.List, info));
+		this.branches.push(new Branch(listId, Node.Type.List, info));
 		this.processElements(elements);
 		this.branches.pop();
 	}
@@ -310,7 +304,7 @@ public abstract class LASTFactory
 		final Where where = parent.getWhere();
 		final int dataConstructorId = LASTBuilder.addDataConstructorAccess(this.last, parentId, where, info);
 
-		this.branches.push(new Branch(dataConstructorId, NodeInfo.Type.DataConstructorAccess, info));
+		this.branches.push(new Branch(dataConstructorId, Node.Type.DataConstructorAccess, info));
 		this.processElement(dataConstructor, 1, 2);
 		this.processElement(access, 2, 2);
 		this.branches.pop();
@@ -322,7 +316,7 @@ public abstract class LASTFactory
 		final Where where = parent.getWhere();
 		final int fieldAccessId = LASTBuilder.addFieldAccess(this.last, parentId, where, info);
 
-		this.branches.push(new Branch(fieldAccessId, NodeInfo.Type.FieldAccess, info));
+		this.branches.push(new Branch(fieldAccessId, Node.Type.FieldAccess, info));
 		this.processElement(structure, 1, 2);
 		this.processElement(field, 2, 2);
 		this.branches.pop();
@@ -339,7 +333,7 @@ public abstract class LASTFactory
 		final Where where = parent.getWhere();
 		final int blockId = LASTBuilder.addBlock(this.last, parentId, where, info);
 
-		this.branches.push(new Branch(blockId, NodeInfo.Type.Block, info));
+		this.branches.push(new Branch(blockId, Node.Type.Block, info));
 		this.processElements(expressions);
 		this.branches.pop();
 	}
@@ -355,7 +349,7 @@ public abstract class LASTFactory
 		final int parentId = parent.getNodeId();
 		final Where where = parent.getWhere();
 		final int ifId = LASTBuilder.addIf(this.last, parentId, where, info);
-		final Branch branch = this.branches.push(new Branch(ifId, NodeInfo.Type.If, info));
+		final Branch branch = this.branches.push(new Branch(ifId, Node.Type.If, info));
 
 		branch.setWhere(Where.Condition);
 		this.processElement(condition, 1, 1);
@@ -376,7 +370,7 @@ public abstract class LASTFactory
 		final int parentId = parent.getNodeId();
 		final Where where = parent.getWhere();
 		final int switchId = LASTBuilder.addSwitch(this.last, parentId, where, info);
-		final Branch branch = this.branches.push(new Branch(switchId, NodeInfo.Type.Switch, info));
+		final Branch branch = this.branches.push(new Branch(switchId, Node.Type.Switch, info));
 
 		branch.setWhere(Where.Selector);
 		if (selector != null)
@@ -390,7 +384,7 @@ public abstract class LASTFactory
 		final Branch parent = this.branches.peek();
 		final int parentId = parent.getNodeId();
 		final int caseId = LASTBuilder.addCase(this.last, parentId, info);
-		final Branch branch = this.branches.push(new Branch(caseId, NodeInfo.Type.Case, info));
+		final Branch branch = this.branches.push(new Branch(caseId, Node.Type.Case, info));
 
 		branch.setWhere(Where.Selectable);
 		this.processElement(selectable, 1, 1);
@@ -412,7 +406,7 @@ public abstract class LASTFactory
 		final Branch parent = this.branches.peek();
 		final int parentId = parent.getNodeId();
 		final int caseId = LASTBuilder.addCase(this.last, parentId, info);
-		final Branch branch = this.branches.push(new Branch(caseId, NodeInfo.Type.Case, info));
+		final Branch branch = this.branches.push(new Branch(caseId, Node.Type.Case, info));
 
 		branch.setWhere(Where.Selectable);
 		if (selectable != null)
@@ -429,7 +423,7 @@ public abstract class LASTFactory
 		final Branch parent = this.branches.peek();
 		final int parentId = parent.getNodeId();
 		final int defaultCaseId = LASTBuilder.addDefaultCase(this.last, parentId, info);
-		final Branch branch = this.branches.push(new Branch(defaultCaseId, NodeInfo.Type.DefaultCase, info));
+		final Branch branch = this.branches.push(new Branch(defaultCaseId, Node.Type.DefaultCase, info));
 
 		branch.setWhere(Where.Body);
 		if (body != null)
@@ -446,7 +440,7 @@ public abstract class LASTFactory
 		final Branch parent = this.branches.peek();
 		final int parentId = parent.getNodeId();
 		final int defaultCaseId = LASTBuilder.addDefaultCase(this.last, parentId, info);
-		final Branch branch = this.branches.push(new Branch(defaultCaseId, NodeInfo.Type.DefaultCase, info));
+		final Branch branch = this.branches.push(new Branch(defaultCaseId, Node.Type.DefaultCase, info));
 
 		branch.setWhere(Where.Body);
 		this.processElements(expressions);
@@ -463,7 +457,7 @@ public abstract class LASTFactory
 		final int parentId = parent.getNodeId();
 		final Where where = parent.getWhere();
 		final int callId = LASTBuilder.addCall(this.last, parentId, where, info);
-		final Branch branch = this.branches.push(new Branch(callId, NodeInfo.Type.Call, info));
+		final Branch branch = this.branches.push(new Branch(callId, Node.Type.Call, info));
 
 		branch.setWhere(Where.Scope);
 		if (scope != null)
@@ -489,7 +483,7 @@ public abstract class LASTFactory
 		final int parentId = parent.getNodeId();
 		final Where where = parent.getWhere();
 		final int listComprehensionId = LASTBuilder.addListComprehension(this.last, parentId, where, info);
-		final Branch branch = this.branches.push(new Branch(listComprehensionId, NodeInfo.Type.ListComprehension, info));
+		final Branch branch = this.branches.push(new Branch(listComprehensionId, Node.Type.ListComprehension, info));
 
 		branch.setWhere(Where.Restrictions);
 		this.processElements(restrictions);
@@ -505,7 +499,7 @@ public abstract class LASTFactory
 		final Where where = parent.getWhere();
 		final int generatorId = LASTBuilder.addGenerator(this.last, parentId, where, info);
 
-		this.branches.push(new Branch(generatorId, NodeInfo.Type.Generator, info));
+		this.branches.push(new Branch(generatorId, Node.Type.Generator, info));
 		if (left != null)
 			this.processElement(left, 1, 2);
 		if (right != null)
@@ -519,7 +513,7 @@ public abstract class LASTFactory
 		final Where where = parent.getWhere();
 		final int filterId = LASTBuilder.addFilter(this.last, parentId, where, info);
 
-		this.branches.push(new Branch(filterId, NodeInfo.Type.Filter, info));
+		this.branches.push(new Branch(filterId, Node.Type.Filter, info));
 		this.processElement(filter, 1, 1);
 		this.branches.pop();
 	}
@@ -538,7 +532,7 @@ public abstract class LASTFactory
 		final int parentId = parent.getNodeId();
 		final Where where = parent.getWhere();
 		final int loopId = LASTBuilder.addForLoop(this.last, parentId, where, info, true);
-		final Branch branch = this.branches.push(new Branch(loopId, NodeInfo.Type.FLoop, info));
+		final Branch branch = this.branches.push(new Branch(loopId, Node.Type.FLoop, info));
 
 		
 		branch.setWhere(Where.Init);
@@ -562,7 +556,7 @@ public abstract class LASTFactory
 		final int parentId = parent.getNodeId();
 		final Where where = parent.getWhere();
 		final int loopId = LASTBuilder.addCondLoop(this.last, parentId, where, info, false);
-		final Branch branch = this.branches.push(new Branch(loopId, NodeInfo.Type.CLoop, info));
+		final Branch branch = this.branches.push(new Branch(loopId, Node.Type.CLoop, info));
 
 		branch.setWhere(Where.Condition);
 		this.processElement(condition, 1, 1);
@@ -581,7 +575,7 @@ public abstract class LASTFactory
 		final int parentId = parent.getNodeId();
 		final Where where = parent.getWhere();
 		final int loopId = LASTBuilder.addRepeatLoop(this.last, parentId, where, info, false);
-		final Branch branch = this.branches.push(new Branch(loopId, NodeInfo.Type.RLoop, info));
+		final Branch branch = this.branches.push(new Branch(loopId, Node.Type.RLoop, info));
 
 		branch.setWhere(Where.Body);
 		this.processElements(bodyExpressions);
@@ -600,7 +594,7 @@ public abstract class LASTFactory
 		final int parentId = parent.getNodeId();
 		final Where where = parent.getWhere();
 		final int foreachId = LASTBuilder.addForeach(this.last, parentId, where, info);
-		final Branch branch = this.branches.push(new Branch(foreachId, NodeInfo.Type.Foreach, info));
+		final Branch branch = this.branches.push(new Branch(foreachId, Node.Type.Foreach, info));
 		
 		branch.setWhere(Where.Iterator);
 		this.addGenerator(varDeclaration, iterableExpr, info);
@@ -617,7 +611,7 @@ public abstract class LASTFactory
 		final Where where = parent.getWhere();
 		final int returnId = LASTBuilder.addReturn(this.last, parentId, where, dstId, info);
 
-		this.branches.push(new Branch(returnId, NodeInfo.Type.Return, info));
+		this.branches.push(new Branch(returnId, Node.Type.Return, info));
 		if (expression != null)
 			this.processElement(expression, 1, 1);
 		this.branches.pop();
@@ -641,7 +635,7 @@ public abstract class LASTFactory
 		if(dstId == -1)
 		{
 			final List<Integer> unresolvedContinues = unresolvedLabels.get(labelText);
-			final List<Integer> continueList = new LinkedList<Integer>();
+			final List<Integer> continueList = new LinkedList<>();
 			if(unresolvedContinues != null)
 				continueList.addAll(unresolvedContinues);
 			continueList.add(continueId);
@@ -663,7 +657,7 @@ public abstract class LASTFactory
 		final int parentId = parent.getNodeId();
 		final Where where = parent.getWhere();
 		final int tryId = LASTBuilder.addExHandler(this.last, parentId, where, info);
-		final Branch branch = this.branches.push(new Branch(tryId, NodeInfo.Type.ExHandler, info));
+		final Branch branch = this.branches.push(new Branch(tryId, Node.Type.ExHandler, info));
 
 		branch.setWhere(Where.Try);
 		this.processElements(tryExpressions);
@@ -685,7 +679,7 @@ public abstract class LASTFactory
 		final int parentId = parent.getNodeId();
 		final Where where = parent.getWhere();
 		final int catchClauseId = LASTBuilder.addCatchClause(this.last, parentId, where, info);
-		final Branch branch = this.branches.push(new Branch(catchClauseId, NodeInfo.Type.CatchClause, info));
+		final Branch branch = this.branches.push(new Branch(catchClauseId, Node.Type.CatchClause, info));
 		
 		branch.setWhere(Where.Parameters);
 		this.processElement(parameter,1,1);
@@ -700,7 +694,7 @@ public abstract class LASTFactory
 		final Where where = parent.getWhere();
 		final int throwId = LASTBuilder.addThrow(this.last, parentId, where, info);
 		
-		this.branches.push(new Branch(throwId, NodeInfo.Type.Throw, info));
+		this.branches.push(new Branch(throwId, Node.Type.Throw, info));
 		this.processElement(expression,1,1);
 		this.branches.pop();
 	}
@@ -732,7 +726,7 @@ public abstract class LASTFactory
 		currentLabels.put(labelText, labelId);
 		resolveLabel(labelText, labelId);
 		
-		this.branches.push(new Branch(labelId, NodeInfo.Type.Label, info));
+		this.branches.push(new Branch(labelId, Node.Type.Label, info));
 		this.processElement(labeledExpr,1,1);
 		this.branches.pop();
 
@@ -741,7 +735,7 @@ public abstract class LASTFactory
 	@SuppressWarnings("unchecked")
 	private <R> R[] getArray(Iterable<R> iterable)
 	{
-		final List<R> list = new LinkedList<R>();
+		final List<R> list = new LinkedList<>();
 
 		for (R element : iterable)
 			list.add(element);
@@ -753,7 +747,7 @@ public abstract class LASTFactory
 		for (int ancestorIndex = ancestors.size() - 1; ancestorIndex >= 0; ancestorIndex--)
 		{
 			final Branch ancestor = ancestors.get(ancestorIndex);
-			final NodeInfo.Type type = ancestor.getNodeType();
+			final Node.Type type = ancestor.getNodeType();
 			final Where where = ancestor.getWhere();
 			final int index = ancestor.getIndex();
 
@@ -795,13 +789,13 @@ public abstract class LASTFactory
 	public static class Branch
 	{
 		private final int nodeId;
-		private final NodeInfo.Type nodeType;
+		private final Node.Type nodeType;
 		private final LDASTNodeInfo ldNodeInfo;
 		private Where where;
 		private int index;
 		private int length;
 
-		public Branch(int nodeId, NodeInfo.Type nodeType, LDASTNodeInfo ldNodeInfo)
+		public Branch(int nodeId, Node.Type nodeType, LDASTNodeInfo ldNodeInfo)
 		{
 			this.nodeId = nodeId;
 			this.nodeType = nodeType;
@@ -812,7 +806,7 @@ public abstract class LASTFactory
 		{
 			return this.nodeId;
 		}
-		public NodeInfo.Type getNodeType()
+		public Node.Type getNodeType()
 		{
 			return this.nodeType;
 		}

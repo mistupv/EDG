@@ -1,25 +1,25 @@
 package upv.slicing.edg.constraint;
 
 import upv.slicing.edg.graph.Edge;
-import upv.slicing.edg.graph.EdgeInfo;
 import upv.slicing.edg.slicing.Phase;
 
+import java.util.Arrays;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Set;
 
 public class IgnoreEdgeConstraint extends NodeConstraint {
-	private final List<EdgeInfo.Type> types = new LinkedList<EdgeInfo.Type>();
+	private final List<Edge.Type> types = new LinkedList<>();
 
-	public IgnoreEdgeConstraint(EdgeInfo.Type type, EdgeInfo.Type... types)
+	public IgnoreEdgeConstraint(Edge.Type type, Edge.Type... types)
 	{
 		this.types.add(type);
-		for (EdgeInfo.Type type0 : types)
-			this.types.add(type0);
+		this.types.addAll(Arrays.asList(types));
 	}
 
-	public void resolve(Phase phase, List<Edge> edges)
+	public void resolve(Phase phase, Set<Edge> edges)
 	{
-		edges.removeIf(edge -> this.types.contains(edge.getData().getType()));
+		edges.removeIf(edge -> this.types.contains(edge.getType()));
 	}
 
 	public boolean equals(Object object)
@@ -35,13 +35,13 @@ public class IgnoreEdgeConstraint extends NodeConstraint {
 	}
 	public String toString()
 	{
-		String toString = "";
+		StringBuilder str = new StringBuilder();
 
-		for (EdgeInfo.Type type : this.types)
-			toString += type.name() + ",";
-		if (!toString.isEmpty())
-			toString = toString.substring(0, toString.length() - 1);
+		if (types.size() > 0)
+			str.append(types.get(0).name());
+		for (int i = 1; i < types.size(); i++)
+			str.append(", ").append(types.get(i).name());
 
-		return "I-[" + toString + "]";
+		return "I-[" + str.toString() + "]";
 	}
 }

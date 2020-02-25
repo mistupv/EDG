@@ -1,9 +1,10 @@
 package upv.slicing.edg.constraint;
 
-import java.util.List;
-
+import upv.slicing.edg.graph.EDG;
 import upv.slicing.edg.graph.Edge;
 import upv.slicing.edg.slicing.Phase;
+
+import java.util.List;
 
 public class EmptyConstraint extends EdgeConstraint
 {
@@ -27,21 +28,21 @@ public class EmptyConstraint extends EdgeConstraint
 		return "";
 	}
 
-	protected List<Constraints> resolve(Phase phase, Edge edge, Constraints constraints, int productionDepth)
+	protected List<Constraints> resolve(Phase phase, EDG edg, Edge edge, Constraints constraints, int productionDepth)
 	{
 		return super.wrap(constraints);
 	}
-	protected List<Constraints> resolve(Phase phase, Edge edge, Constraints constraints, AccessConstraint topConstraint, int productionDepth)
+	protected List<Constraints> resolve(Phase phase, EDG edg, Edge edge, Constraints constraints, AccessConstraint topConstraint, int productionDepth)
 	{
 		return super.wrap(constraints);
 	}
-	protected List<Constraints> resolve(Phase phase, Edge edge, Constraints constraints, GrammarConstraint topConstraint, int productionDepth)
+	protected List<Constraints> resolve(Phase phase, EDG edg, Edge edge, Constraints constraints, GrammarConstraint topConstraint, int productionDepth)
 	{
 		super.check(phase, Phase.SummaryGeneration);
 
 		return super.wrap(constraints);
 	}	
-	protected List<Constraints> resolve(Phase phase, Edge edge, Constraints constraints, SeekingConstraint topConstraint, int productionDepth)
+	protected List<Constraints> resolve(Phase phase, EDG edg, Edge edge, Constraints constraints, SeekingConstraint topConstraint, int productionDepth)
 	{
 		if (topConstraint.operation == SeekingConstraint.Operation.LetThrough)
 			super.check(phase, Phase.SummaryGeneration);
@@ -54,7 +55,7 @@ public class EmptyConstraint extends EdgeConstraint
 		return super.wrap(constraints);
 	}
 
-	protected List<Constraints> resolve(Phase phase, Edge edge, Constraints constraints, AsteriskConstraint topConstraint, int productionDepth)
+	protected List<Constraints> resolve(Phase phase, EDG edg, Edge edge, Constraints constraints, AsteriskConstraint topConstraint, int productionDepth)
 	{
 		super.check(phase, Phase.SummaryGeneration);
 

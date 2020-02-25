@@ -1,13 +1,11 @@
 package upv.slicing.edg.traverser;
 
-import upv.slicing.edg.graph.EdgeInfo;
+import upv.slicing.edg.graph.EDG;
+import upv.slicing.edg.graph.Edge;
+import upv.slicing.edg.graph.LAST;
 import upv.slicing.edg.graph.Node;
-import upv.slicing.edg.graph.NodeInfo;
 
-import java.util.HashSet;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Predicate;
@@ -66,21 +64,14 @@ public class ControlFlowTraverser {
 			if (!(obj instanceof NodeWork))
 				return false;
 
-			@SuppressWarnings("unchecked") final NodeWork<T> nodeWork = (NodeWork<T>) obj;
-			final Node node = nodeWork.node;
-			final T state = nodeWork.state;
-
-			if (this.node != node)
-				return false;
-			if (this.state != null && !this.state.equals(state))
-				return false;
-			return state == null || state.equals(this.state);
+			@SuppressWarnings("unchecked")
+			final NodeWork<T> nodeWork = (NodeWork<T>) obj;
+			return Objects.equals(this.node, nodeWork.node) &&
+					Objects.equals(this.state, nodeWork.state);
 		}
 		public int hashCode()
 		{
-			if (this.state == null)
-				return this.node.getData().getId();
-			return this.node.getData().getId() + this.state.hashCode();
+			return Objects.hash(node.getId(), state);
 		}
 	}
 
@@ -89,59 +80,57 @@ public class ControlFlowTraverser {
 		return EDGTraverser.Direction.valueOf(direction.name());
 	}
 
-	public static Set<Node> traverse(Node node, Configuration configuration, Predicate<Node> collectAndStop)
+	public static Set<Node> traverse(EDG edg, Node node, Configuration configuration, Predicate<Node> collectAndStop)
 	{
-		return ControlFlowTraverser.traverse(node, configuration, null, collectAndStop, collectAndStop);
+		return ControlFlowTraverser.traverse(edg, node, configuration, null, collectAndStop, collectAndStop);
 	}
-	public static Set<Node> traverse(Node node, Configuration configuration, Predicate<Node> collect, Predicate<Node> stop)
+	public static Set<Node> traverse(EDG edg, Node node, Configuration configuration, Predicate<Node> collect, Predicate<Node> stop)
 	{
-		return ControlFlowTraverser.traverse(node, configuration, null, collect, stop);
+		return ControlFlowTraverser.traverse(edg, node, configuration, null, collect, stop);
 	}
-	public static Set<Node> traverse(Node node, Configuration configuration, Consumer<Node> newNode, Predicate<Node> collectAndStop)
+	public static Set<Node> traverse(EDG edg, Node node, Configuration configuration, Consumer<Node> newNode, Predicate<Node> collectAndStop)
 	{
-		return ControlFlowTraverser.traverse(node, configuration, newNode, collectAndStop, collectAndStop);
+		return ControlFlowTraverser.traverse(edg, node, configuration, newNode, collectAndStop, collectAndStop);
 	}
-	public static Set<Node> traverse(Node node, Configuration configuration, Consumer<Node> newNode, Predicate<Node> collect, Predicate<Node> stop)
+	public static Set<Node> traverse(EDG edg, Node node, Configuration configuration, Consumer<Node> newNode, Predicate<Node> collect, Predicate<Node> stop)
 	{
-		final NodeWork<Object> nodeWork = new NodeWork<Object>(node, null);
-		final Function<NodeWork<Object>, Set<NodeWork<Object>>> newStates = state -> { final Set<NodeWork<Object>> states = new HashSet<NodeWork<Object>>(); states.add(state); return states; };
+		final NodeWork<Object> nodeWork = new NodeWork<>(node, null);
+		final Function<NodeWork<Object>, Set<NodeWork<Object>>> newStates = state -> { final Set<NodeWork<Object>> states = new HashSet<>(); states.add(state); return states; };
 		final Predicate<NodeWork<Object>> collect0 = work -> collect.test(work.node);
 		final Predicate<NodeWork<Object>> stop0 = work -> stop.test(work.node);
-		final Set<NodeWork<Object>> states = ControlFlowTraverser.traverse(nodeWork, configuration, newNode, newStates, collect0, stop0);
-		final Set<Node> nodes = new HashSet<Node>();
+		final Set<NodeWork<Object>> states = ControlFlowTraverser.traverse(edg, nodeWork, configuration, newNode, newStates, collect0, stop0);
+		final Set<Node> nodes = new HashSet<>();
 
 		states.forEach(state -> nodes.add(state.node));
 
 		return nodes;
 	}
-	public static <T> Set<NodeWork<T>> traverse(NodeWork<T> nodeWork, Configuration configuration, Function<NodeWork<T>, Set<NodeWork<T>>> newWorks, Predicate<NodeWork<T>> collectAndStop)
+	public static <T> Set<NodeWork<T>> traverse(EDG edg, NodeWork<T> nodeWork, Configuration configuration, Function<NodeWork<T>, Set<NodeWork<T>>> newWorks, Predicate<NodeWork<T>> collectAndStop)
 	{
-		return ControlFlowTraverser.traverse(nodeWork, configuration, null, newWorks, collectAndStop, collectAndStop);
+		return ControlFlowTraverser.traverse(edg, nodeWork, configuration, null, newWorks, collectAndStop, collectAndStop);
 	}
-	public static <T> Set<NodeWork<T>> traverse(NodeWork<T> nodeWork, Configuration configuration, Function<NodeWork<T>, Set<NodeWork<T>>> newWorks, Predicate<NodeWork<T>> collect, Predicate<NodeWork<T>> stop)
+	public static <T> Set<NodeWork<T>> traverse(EDG edg, NodeWork<T> nodeWork, Configuration configuration, Function<NodeWork<T>, Set<NodeWork<T>>> newWorks, Predicate<NodeWork<T>> collect, Predicate<NodeWork<T>> stop)
 	{
-		return ControlFlowTraverser.traverse(nodeWork, configuration, null, newWorks, collect, stop);
+		return ControlFlowTraverser.traverse(edg, nodeWork, configuration, null, newWorks, collect, stop);
 	}
-	public static <T> Set<NodeWork<T>> traverse(NodeWork<T> nodeWork, Configuration configuration, Consumer<Node> newNode, Function<NodeWork<T>, Set<NodeWork<T>>> newWorks, Predicate<NodeWork<T>> collectAndStop)
+	public static <T> Set<NodeWork<T>> traverse(EDG edg, NodeWork<T> nodeWork, Configuration configuration, Consumer<Node> newNode, Function<NodeWork<T>, Set<NodeWork<T>>> newWorks, Predicate<NodeWork<T>> collectAndStop)
 	{
-		return ControlFlowTraverser.traverse(nodeWork, configuration, newNode, newWorks, collectAndStop, collectAndStop);
+		return ControlFlowTraverser.traverse(edg, nodeWork, configuration, newNode, newWorks, collectAndStop, collectAndStop);
 	}
-	public static <T> Set<NodeWork<T>> traverse(NodeWork<T> nodeWork, Configuration configuration, Consumer<Node> newNode, Function<NodeWork<T>, Set<NodeWork<T>>> newWorks, Predicate<NodeWork<T>> collect, Predicate<NodeWork<T>> stop)
+	public static <T> Set<NodeWork<T>> traverse(EDG edg, NodeWork<T> nodeWork, Configuration configuration, Consumer<Node> newNode, Function<NodeWork<T>, Set<NodeWork<T>>> newWorks, Predicate<NodeWork<T>> collect, Predicate<NodeWork<T>> stop)
 	{
-		final Set<NodeWork<T>> collectedWorks = new HashSet<NodeWork<T>>();
-		final Set<NodeWork<T>> pendingWorks = new HashSet<NodeWork<T>>();
-		final Set<NodeWork<T>> doneWorks = new HashSet<NodeWork<T>>();
+		final Set<NodeWork<T>> collectedWorks = new HashSet<>();
+		final Set<NodeWork<T>> pendingWorks = new HashSet<>();
+		final Set<NodeWork<T>> doneWorks = new HashSet<>();
 		final boolean collectAndStop = collect == stop;
 		boolean ignore = configuration.ignoreInitialNode;
 // ADDED FOR ARRAYS		
-		final List<String> visitedArrayDefinitions = new LinkedList<String>();                // Variable to accumulate which positions of the array have been re-defined after declaration
+		final List<String> visitedArrayDefinitions = new LinkedList<>();                // Variable to accumulate which positions of the array have been re-defined after declaration
 		final Node nodeWorkNode = nodeWork.node;                                        // Expected result node
-		final Node nodeWorkSibling = EDGTraverser
-				.getNodeFromRes(nodeWorkNode);        // Expected DataConstructorAccess node
-		final NodeInfo.Type nodeWorkSiblingType = nodeWorkSibling.getData()
-																 .getType();    // Expected NodeInfo.Type.DataConstructorAccess
+		final Node nodeWorkSibling = EDGTraverser.getNodeFromRes(edg, nodeWorkNode);    // Expected DataConstructorAccess node
+		final Node.Type nodeWorkSiblingType = nodeWorkSibling.getType();    // Expected NodeInfo.Type.DataConstructorAccess
 //System.out.println("--------------");
-//System.out.println(nodeWorkNode.getData().getId());
+//System.out.println(nodeWorkNode.getId());
 //System.out.println("--------------"); 
 // ----------------
 		pendingWorks.add(nodeWork);
@@ -150,34 +139,34 @@ public class ControlFlowTraverser {
 //System.out.println(++cont);
 			final NodeWork<T> currentNodeWork = pendingWorks.iterator().next();
 			final Node node = currentNodeWork.node;
-//int k = node.getData().getId();
+//int k = node.getId();
 //System.out.print(k + " -> ");
 
 			boolean collectWork = !ignore && collect.test(currentNodeWork);
 			boolean stopHere = collectAndStop || ignore ? collectWork : stop.test(currentNodeWork);
-			final Set<NodeWork<T>> nextWorks = new HashSet<NodeWork<T>>();
+			final Set<NodeWork<T>> nextWorks = new HashSet<>();
 
 			pendingWorks.remove(currentNodeWork);
 // ADDED FOR ARRAYS (TREATING THE USES)
 			if (collectWork)
 			{
-				final Node parent = EDGTraverser.getParent(node);
-				final NodeInfo.Type parentType = parent.getData().getType();
-				if (parentType == NodeInfo.Type.DataConstructorAccess)            // The use is a data access (x[0])
+				final Node parent = EDGTraverser.getParent(edg, node);
+				final Node.Type parentType = parent.getType();
+				if (parentType == Node.Type.DataConstructorAccess)            // The use is a data access (x[0])
 				{
-					final Node index = EDGTraverser.getChild(parent, NodeInfo.Type.Index);
+					final Node index = EDGTraverser.getChild(edg, parent, Node.Type.Index);
 					if (nodeWorkSiblingType ==
-						NodeInfo.Type.DataConstructorAccess)        // The definition of the variable is also a data access (x[0])
+						Node.Type.DataConstructorAccess)        // The definition of the variable is also a data access (x[0])
 					{
-						final Node nodeWorkIndex = EDGTraverser.getChild(nodeWorkSibling, NodeInfo.Type.Index);
-						if (nodeWorkIndex.getData().getType() == NodeInfo.Type.Literal &&
+						final Node nodeWorkIndex = EDGTraverser.getChild(edg, nodeWorkSibling, Node.Type.Index);
+						if (nodeWorkIndex.getType() == Node.Type.Literal &&
 							// Both data accesses DO NOT refer to the same position
-							index.getData().getType() == NodeInfo.Type.Literal &&
-							!nodeWorkIndex.getData().getName().equals(index.getData().getName()))
+							index.getType() == Node.Type.Literal &&
+							!nodeWorkIndex.getName().equals(index.getName()))
 							collectWork = false;                                            // IT IS NOT A USE, DON'T ACCUMULATE IT
 					} else                                                                    // The definition of the variable is not a data access (int[] x = ...)
 					{
-						final String fullVarName = node.getData().getName() + "[" + index.getData().getName() +
+						final String fullVarName = node.getName() + "[" + index.getName() +
 												   "]";    // fullVarName => String representing a concrete position ("x[1]")
 						if (visitedArrayDefinitions.contains(
 								fullVarName))                                            // The used data access has been previously defined after input definition
@@ -194,29 +183,22 @@ public class ControlFlowTraverser {
 
 			if (stopHere)
 			{
-				final Node parent = EDGTraverser.getParent(node);
-				final NodeInfo.Type parentType = parent.getData().getType();
-				if (parentType ==
-					NodeInfo.Type.DataConstructorAccess)            // The definition is a data access (x[0])
+				final Node parent = EDGTraverser.getParent(edg, node);
+				final Node.Type parentType = parent.getType();
+				if (parentType == Node.Type.DataConstructorAccess)            // The definition is a data access (x[0])
 				{
-					final Node index = EDGTraverser.getChild(parent, NodeInfo.Type.Index);
-					if (nodeWorkSiblingType ==
-						NodeInfo.Type.DataConstructorAccess)        // The definition of the input variable is also a data access (x[0])
+					final Node index = EDGTraverser.getChild(edg, parent, Node.Type.Index);
+					if (nodeWorkSiblingType == Node.Type.DataConstructorAccess)        // The definition of the input variable is also a data access (x[0])
 					{
-						final Node nodeWorkIndex = EDGTraverser.getChild(nodeWorkSibling, NodeInfo.Type.Index);
-						if (!(index.getData().getType() == NodeInfo.Type.Literal) ||
-							// The re-definition of the input variable is not concerte (x[y] = ...)
-							!nodeWorkIndex.getData().getName().equals(index.getData()
-																		   .getName()))  // or they are not defining the same position (x[0] /= x[1])
-							stopHere = false;                                            // The input variable may not be defined, look for the next definition
-					} else                                                                // The definition of the variable is not a data access (int[] x = ...)
+						final Node nodeWorkIndex = EDGTraverser.getChild(edg, nodeWorkSibling, Node.Type.Index);
+						if (!(index.getType() == Node.Type.Literal) ||			// The re-definition of the input variable is not concerte (x[y] = ...)
+							!nodeWorkIndex.getName().equals(index.getName()))	// or they are not defining the same position (x[0] /= x[1])
+							stopHere = false;									// The input variable may not be defined, look for the next definition
+					} else														// The definition of the variable is not a data access (int[] x = ...)
 					{
-						if (index.getData().getType() ==
-							NodeInfo.Type.Literal)            // The current definition is defining a concrete position of the array (x[0] = ...)
+						if (index.getType() == Node.Type.Literal)				// The current definition is defining a concrete position of the array (x[0] = ...)
 							// Store the definition for not linking a use with the input definition
-							visitedArrayDefinitions
-									.add(node.getData().getName() + "[" + index.getData().getName() + "]");
-
+							visitedArrayDefinitions.add(node.getName() + "[" + index.getName() + "]");
 						stopHere = false;                                                // Continue looking for a total definition
 					}
 				}
@@ -226,8 +208,8 @@ public class ControlFlowTraverser {
 // ------------------
 			if (!stopHere)
 			{
-				final Set<Node> nextNodes = ControlFlowTraverser.step(currentNodeWork.node, configuration);
-				nextNodes.forEach(nextNode -> nextWorks.addAll(newWorks.apply(new NodeWork<T>(nextNode, currentNodeWork.state))));
+				final Set<Node> nextNodes = ControlFlowTraverser.step(edg, currentNodeWork.node, configuration);
+				nextNodes.forEach(nextNode -> nextWorks.addAll(newWorks.apply(new NodeWork<>(nextNode, currentNodeWork.state))));
 			}
 
 			doneWorks.add(currentNodeWork);
@@ -237,20 +219,20 @@ public class ControlFlowTraverser {
 			pendingWorks.addAll(nextWorks);
 
 			ignore = false;
-//nextWorks.forEach(nextWork -> System.out.print(nextWork.node.getData().getId()+", "));
+//nextWorks.forEach(nextWork -> System.out.print(nextWork.node.getId()+", "));
 //System.out.println();
 		}
 		return collectedWorks;
 	}
 
-	public static Set<Node> step(Node node, Configuration configuration)
+	public static Set<Node> step(LAST last, Node node, Configuration configuration)
 	{
-		final Set<Node> nextNodes = new HashSet<Node>();
+		final Set<Node> nextNodes = new HashSet<>();
 		final EDGTraverser.Direction direction = ControlFlowTraverser.getGraphTraverserDirection(configuration.direction);
-		final List<Node> nodes = EDGTraverser.getNodes(node, direction, EdgeInfo.Type.ControlFlow);
-		final boolean isContextBridgeNode = ControlFlowTraverser.isContextBridgeNode(node);
-		final boolean hasSubCFG = ControlFlowTraverser.hasSubCFG(node);
-		final boolean hasSuperCFG = ControlFlowTraverser.hasSuperCFG(node);
+		final List<Node> nodes = EDGTraverser.getNodes(last, node, direction, Edge.Type.ControlFlow);
+		final boolean isContextBridgeNode = ControlFlowTraverser.isContextBridgeNode(last, node);
+		final boolean hasSubCFG = ControlFlowTraverser.hasSubCFG(last, node);
+		final boolean hasSuperCFG = ControlFlowTraverser.hasSuperCFG(last, node);
 		final boolean isCFGBridgeNode = hasSubCFG || hasSuperCFG;
 		final boolean isExiting = ControlFlowTraverser.isExiting(node, configuration.direction);
 
@@ -258,78 +240,78 @@ public class ControlFlowTraverser {
 			nextNodes.addAll(nodes);
 		else if (isContextBridgeNode)
 		{
-			final NodeInfo.Type nodeType = node.getData().getType();
+			final Node.Type nodeType = node.getType();
 			if (isExiting)
 				nextNodes.addAll(nodes);
 			else
 			{
-				if (configuration.enterContexts && nodeType != NodeInfo.Type.Result)
+				if (configuration.enterContexts && nodeType != Node.Type.Result)
 					nextNodes.addAll(nodes);
 // TODO Falta que no se pueda salir de los contextos
 //				if (!configuration.exitContexts)
 //					nextNodes.removeIf(n -> isContextBridgeNode(n) && isExiting(n, configuration.direction));
-				nextNodes.add(EDGTraverser.getSibling(node, configuration.direction == Direction.Forwards ? 1 : 0));
+				nextNodes.add(EDGTraverser.getSibling(last, node, configuration.direction == Direction.Forwards ? 1 : 0));
 			}
 		}
 		else if (isCFGBridgeNode)
 		{
-			final NodeInfo.Type nodeType = node.getData().getType();
-			if (configuration.enterSubCFG && hasSubCFG && nodeType != NodeInfo.Type.Result && !isExiting)
-				nextNodes.addAll(EDGTraverser.getChildren(node));
-			if (configuration.exitSubCFG && hasSuperCFG && nodeType != NodeInfo.Type.Result && isExiting)
-				nextNodes.add(EDGTraverser.getParent(node));
+			final Node.Type nodeType = node.getType();
+			if (configuration.enterSubCFG && hasSubCFG && nodeType != Node.Type.Result && !isExiting)
+				nextNodes.addAll(EDGTraverser.getChildren(last, node));
+			if (configuration.exitSubCFG && hasSuperCFG && nodeType != Node.Type.Result && isExiting)
+				nextNodes.add(EDGTraverser.getParent(last, node));
 			nextNodes.addAll(nodes);
 		}
 
 		return nextNodes;
 	}
-	public static Set<Node> step(Node node, Direction direction)
+	public static Set<Node> step(LAST last, Node node, Direction direction)
 	{
 		final EDGTraverser.Direction graphTraverserDirection = ControlFlowTraverser.getGraphTraverserDirection(direction);
-		return new HashSet<Node>(EDGTraverser.getNodes(node, graphTraverserDirection, EdgeInfo.Type.ControlFlow));
+		return new HashSet<>(EDGTraverser.getNodes(last, node, graphTraverserDirection, Edge.Type.ControlFlow));
 	}
 
-	private static boolean hasSubCFG(Node node)
+	private static boolean hasSubCFG(LAST last, Node node)
 	{
-		final Set<NodeInfo.Type> shadowingTypes = new HashSet<NodeInfo.Type>();
-		shadowingTypes.add(NodeInfo.Type.Routine);
-		return ControlFlowTraverser.isBridgeNode(node, shadowingTypes);
+		final Set<Node.Type> shadowingTypes = new HashSet<>();
+		shadowingTypes.add(Node.Type.Routine);
+		return ControlFlowTraverser.isBridgeNode(last, node, shadowingTypes);
 	}
-	private static boolean hasSuperCFG(Node node)
+	private static boolean hasSuperCFG(LAST last, Node node)
 	{
-		final Set<NodeInfo.Type> shadowingTypes = new HashSet<NodeInfo.Type>();
-		shadowingTypes.add(NodeInfo.Type.Clause);
-		return ControlFlowTraverser.isBridgeNode(node, shadowingTypes);
+		final Set<Node.Type> shadowingTypes = new HashSet<>();
+		shadowingTypes.add(Node.Type.Clause);
+		return ControlFlowTraverser.isBridgeNode(last, node, shadowingTypes);
 	}
-	private static boolean isContextBridgeNode(Node node)
+	private static boolean isContextBridgeNode(LAST last, Node node)
 	{
-		final Set<NodeInfo.Type> contextTypes = new HashSet<NodeInfo.Type>();
-		contextTypes.add(NodeInfo.Type.ListComprehension);
-		return ControlFlowTraverser.isBridgeNode(node, contextTypes);
+		final Set<Node.Type> contextTypes = new HashSet<>();
+		contextTypes.add(Node.Type.ListComprehension);
+		return ControlFlowTraverser.isBridgeNode(last, node, contextTypes);
 	}
-	private static boolean isBridgeNode(Node node, Set<NodeInfo.Type> types)
+	private static boolean isBridgeNode(LAST last, Node node, Set<Node.Type> types)
 	{
-		final NodeInfo.Type nodeType = node.getData().getType();
+		final Node.Type nodeType = node.getType();
 		if (types.contains(nodeType))
 			return true;
-		final Node parent = EDGTraverser.getParent(node);
-		final NodeInfo.Type parentType = parent.getData().getType();
-		if (types.contains(parentType) && nodeType == NodeInfo.Type.Result)
+		final Node parent = EDGTraverser.getParent(last, node);
+		final Node.Type parentType = parent.getType();
+		if (types.contains(parentType) && nodeType == Node.Type.Result)
 			return true;
-		final Node sibling = EDGTraverser.getChild(parent, 0);
-		final NodeInfo.Type siblingType = sibling.getData().getType();
-		return types.contains(siblingType) && nodeType == NodeInfo.Type.Result;
+		final Node sibling = EDGTraverser.getChild(last, parent, 0);
+		final Node.Type siblingType = sibling.getType();
+		return types.contains(siblingType) && nodeType == Node.Type.Result;
 	}
 	private static boolean isExiting(Node node, Direction direction)
 	{
-		final NodeInfo.Type nodeType = node.getData().getType();
+		final Node.Type nodeType = node.getType();
 
 		switch (direction)
 		{
 			case Backwards:
-				return nodeType != NodeInfo.Type.Result;
+				return nodeType != Node.Type.Result;
 			case Forwards:
-				return nodeType == NodeInfo.Type.Result;
+				return nodeType == Node.Type.Result;
 			default:
 				throw new RuntimeException("Direction not contemplated: " + direction);
 		}

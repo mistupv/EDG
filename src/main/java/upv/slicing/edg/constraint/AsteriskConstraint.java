@@ -1,9 +1,10 @@
 package upv.slicing.edg.constraint;
 
-import java.util.List;
-
+import upv.slicing.edg.graph.EDG;
 import upv.slicing.edg.graph.Edge;
 import upv.slicing.edg.slicing.Phase;
+
+import java.util.List;
 
 public class AsteriskConstraint extends EdgeConstraint
 {
@@ -27,11 +28,11 @@ public class AsteriskConstraint extends EdgeConstraint
 		return "*";
 	}
 
-	protected List<Constraints> resolve(Phase phase, Edge edge, Constraints constraints, int productionDepth)
+	protected List<Constraints> resolve(Phase phase, EDG edg, Edge edge, Constraints constraints, int productionDepth)
 	{
 		return super.wrap(constraints);
 	}
-	protected List<Constraints> resolve(Phase phase, Edge edge, Constraints constraints, AccessConstraint topConstraint, int productionDepth)
+	protected List<Constraints> resolve(Phase phase, EDG edg, Edge edge, Constraints constraints, AccessConstraint topConstraint, int productionDepth)
 	{
 		if (phase.isInstanceof(Phase.Slicing))
 			return super.wrap(new Constraints());
@@ -46,15 +47,15 @@ public class AsteriskConstraint extends EdgeConstraint
 			return super.wrap(newConstraints);
 
 		final EdgeConstraint peekConstraint = newConstraints.peekEdgeConstraint();
-		return super.resolve(phase, edge, newConstraints, peekConstraint, productionDepth);
+		return super.resolve(phase, edg, edge, newConstraints, peekConstraint, productionDepth);
 	}
-	protected List<Constraints> resolve(Phase phase, Edge edge, Constraints constraints, GrammarConstraint topConstraint, int productionDepth)
+	protected List<Constraints> resolve(Phase phase, EDG edg, Edge edge, Constraints constraints, GrammarConstraint topConstraint, int productionDepth)
 	{
 		super.check(phase, Phase.SummaryGeneration);
 
 		return super.wrap(super.push(phase, constraints));
 	}
-	protected List<Constraints> resolve(Phase phase, Edge edge, Constraints constraints, SeekingConstraint topConstraint, int productionDepth)
+	protected List<Constraints> resolve(Phase phase, EDG edg, Edge edge, Constraints constraints, SeekingConstraint topConstraint, int productionDepth)
 	{
 		if (phase.isInstanceof(Phase.Slicing))
 			return super.wrap(new Constraints());
@@ -69,10 +70,10 @@ public class AsteriskConstraint extends EdgeConstraint
 			return super.wrap(newConstraints);
 
 		final EdgeConstraint peekConstraint = newConstraints.peekEdgeConstraint();
-		return super.resolve(phase, edge, newConstraints, peekConstraint, productionDepth);
+		return super.resolve(phase, edg, edge, newConstraints, peekConstraint, productionDepth);
 	}
 		
-	protected List<Constraints> resolve(Phase phase, Edge edge, Constraints constraints, AsteriskConstraint topConstraint, int productionDepth)
+	protected List<Constraints> resolve(Phase phase, EDG edg, Edge edge, Constraints constraints, AsteriskConstraint topConstraint, int productionDepth)
 	{
 		super.check(phase, Phase.SummaryGeneration);
 

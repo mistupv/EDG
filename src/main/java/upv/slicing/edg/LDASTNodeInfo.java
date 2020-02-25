@@ -75,8 +75,7 @@ public class LDASTNodeInfo
 	{
 		int lastIndex = this.info.length;
 		Object[] newInfo = new Object[lastIndex+1];
-		for (int i = 0; i < lastIndex; i++)
-			newInfo[i] = this.info[i];
+		System.arraycopy(this.info, 0, newInfo, 0, lastIndex);
 		newInfo[lastIndex] = o;
 		this.info = newInfo;
 	}

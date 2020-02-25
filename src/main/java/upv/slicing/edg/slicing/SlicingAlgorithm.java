@@ -1,10 +1,11 @@
 package upv.slicing.edg.slicing;
 
-import java.util.List;
-
 import upv.slicing.edg.graph.Node;
+
+import java.util.Set;
 
 public interface SlicingAlgorithm
 {
-	List<Node> slice(Node node);
+	/** Obtain a slice from an initial node. */
+	Set<Node> slice(Node node);
 }

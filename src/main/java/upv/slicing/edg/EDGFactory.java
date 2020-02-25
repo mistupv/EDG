@@ -7,43 +7,53 @@ import upv.slicing.edg.edge.ControlEdgeGenerator;
 import upv.slicing.edg.edge.FlowEdgeGenerator;
 import upv.slicing.edg.edge.InterproceduralEdgeGenerator;
 import upv.slicing.edg.edge.SummaryEdgeGenerator;
-import edg.graph.*;
+import upv.slicing.edg.graph.EDG;
+import upv.slicing.edg.graph.Edge;
+import upv.slicing.edg.graph.LAST;
+import upv.slicing.edg.graph.Node;
 import upv.slicing.edg.traverser.EDGTraverser;
 import upv.slicing.edg.traverser.LASTTraverser;
-import upv.slicing.edg.graph.*;
 
 import java.util.List;
+import java.util.Set;
 
 public class EDGFactory {
-	private static EDG edg;
-	private static int fictitiousId = -1;
+	private final LAST last;
+	private EDG edg;
+	private int fictitiousId = -1;
+
+	public EDGFactory(LAST last)
+	{
+		this.last = last;
+	}
 
 	// Required Configuration Parameters (Questions made to the users in order to decide the dependencies built on the graph) 
 	private static boolean isOOLanguage = true;
 
-	public static EDG createEDG(LAST last)
+	public EDG createEDG()
 	{
-		initializeEDG(last);
+		initializeEDG();
 		transformExpressionNodes();
-		//return edg;
 		if (isOOLanguage)
 			LASTBuilder.addInheritanceInfomation(edg); // Only For OOPrograms With Inheritance
 		generateDependencies();
 		return edg;
 	}
 	
-	private static void initializeEDG(LAST last)
+	private void initializeEDG()
 	{
 		edg = new EDG(last);
 	}
-	private static void transformExpressionNodes()
+
+	private void transformExpressionNodes()
 	{
 		final List<Node> expressionNodes = EDGTraverser
-				.getNodes(edg, node -> node.getData().getInfo() != null && node.getData().getInfo().isExpression());
+				.getNodes(edg, node -> node.getInfo() != null && node.getInfo().isExpression());
 		for (Node expression : expressionNodes)
 			createThreeNodeStructures(expression);
 	}
-	private static void generateDependencies()
+
+	private void generateDependencies()
 	{
 		new ControlEdgeGenerator(edg).generate();
 
@@ -56,34 +66,28 @@ public class EDGFactory {
 		new SummaryEdgeGenerator(edg).generate();
 //		new ExceptionEdgeGenerator(edg).generate();
 	}
-	
-	private static void createThreeNodeStructures(Node node)
+
+	private void createThreeNodeStructures(Node node)
 	{
-		// Conversion of 1 to 3 nodes & structural change
-		final LDASTNodeInfo nodeInfo = node.getData().getInfo();
+		// Conversion of 1 to 2 nodes & structural change
+		final LDASTNodeInfo nodeInfo = node.getInfo();
 		final LDASTNodeInfo ldNodeInfo = new LDASTNodeInfo(nodeInfo.getArchive(), nodeInfo.getClassName(),
 														   nodeInfo.getLine(), nodeInfo.getConstruction());
 
-		// Expr Node
-//		final NodeInfo exprNodeInfo = new NodeInfo(fictitiousId--, NodeInfo.Type.Expression, "", ldNodeInfo);
-//		final Node expr = new Node("expression", exprNodeInfo);
-
 		// Result Node
-		final NodeInfo resultNodeInfo = new NodeInfo(fictitiousId--, NodeInfo.Type.Result, "", ldNodeInfo);
-		final Node result = new Node("result", resultNodeInfo);
+		final Node result = new Node("result", fictitiousId--, Node.Type.Result, "", ldNodeInfo);
 
-		final Node parent = EDGTraverser.getParent(node);
+		final Node parent = EDGTraverser.getParent(last, node);
 
-//		edg.addNode(expr);
 		edg.addNode(result);
 
 		// Remove the Structural edges if the parent is an expression -> The hidden structural edges inside nodes remain in the graph
-		if (!parent.getData().isFictitious() && parent.getData().getInfo().isExpression())
+		if (!parent.getType().isFictitious() && parent.getInfo().isExpression())
 		{
-			if (!LASTTraverser.isPatternZone(node))
+			if (!LASTTraverser.isPatternZone(last, node))
 			{
-				edg.removeEDGEdge(parent, node, EdgeInfo.Type.Structural);
-				edg.setRemovableEdge(parent, node, EdgeInfo.Type.Structural);
+				edg.removeEDGEdge(parent, node, Edge.Type.Structural);
+				edg.setRemovableEdge(parent, node, Edge.Type.Structural);
 			}
 		}
 
@@ -91,22 +95,22 @@ public class EDGFactory {
 		edg.addStructuralEdge(parent, result);
 
 		// Modify Value Arcs
-		switch (node.getData().getType())
+		switch (node.getType())
 		{
-			case NodeInfo.Type.DataConstructor:
-				final boolean isPatternZone = EDGTraverser.isPatternZone(node);
+			case DataConstructor:
+				final boolean isPatternZone = EDGTraverser.isPatternZone(last, node);
 				if (!isPatternZone)
 				{
 					treatDataConstructorExpressions(node, result);
 					break;
 				}
-			case NodeInfo.Type.Variable: // Variables scope of a call, don't add the result node to the slice
+			case Variable: // Variables scope of a call, don't add the result node to the slice
 				// 3 levels (in case it is a casting)
-				final Node grandParent = EDGTraverser.getParent(parent);
-				final Node grandGrandParent = EDGTraverser.getParent(grandParent);
-				if (parent.getData().getType() == NodeInfo.Type.Scope ||
-					grandParent.getData().getType() == NodeInfo.Type.Scope ||
-					grandGrandParent.getData().getType() == NodeInfo.Type.Scope)
+				final Node grandParent = EDGTraverser.getParent(last, parent);
+				final Node grandGrandParent = EDGTraverser.getParent(last, grandParent);
+				if (parent.getType() == Node.Type.Scope ||
+						grandParent.getType() == Node.Type.Scope ||
+						grandGrandParent.getType() == Node.Type.Scope)
 					break;
 				// When there is a result of a callee, the value arc is only joined from the name node, and there is another one from the scope to the name
 			default:
@@ -115,90 +119,92 @@ public class EDGFactory {
 		}
 
 		// Modify CFG Arcs to add Results to the CFG
-		final List<Edge> outgoingCFGEdges = node.getOutgoingEdges();
-		outgoingCFGEdges.removeIf(edge -> edge.getData().getType() != EdgeInfo.Type.ControlFlow);
+		final Set<Edge> outgoingCFGEdges = edg.outgoingEdgesOf(node);
+		outgoingCFGEdges.removeIf(edge -> edge.getType() != Edge.Type.ControlFlow);
 
 		for (Edge CFGEdge : outgoingCFGEdges)
 		{
-			final Node to = CFGEdge.getTo();
+			final Node from = edg.getEdgeSource(CFGEdge);
+			final Node to = edg.getEdgeTarget(CFGEdge);
 			edg.removeEdge(CFGEdge);
-			final Edge e1 = new Edge(node, result, 0, new EdgeInfo(EdgeInfo.Type.ControlFlow));
-			final Edge e2 = new Edge(result, to, 0, new EdgeInfo(EdgeInfo.Type.ControlFlow));
-			edg.addEdge(e1);
-			edg.addEdge(e2);
+			final Edge e1 = new Edge(Edge.Type.ControlFlow);
+			final Edge e2 = new Edge(Edge.Type.ControlFlow);
+			edg.addEdge(from, result, e1);
+			edg.addEdge(result, to, e2);
 		}
 
 		// Value arcs between initial node and its result
-		edg.addEdge(node, result, 0, new EdgeInfo(EdgeInfo.Type.Value));
+		edg.addEdge(node, result, Edge.Type.Value);
 	}
 
-	private static void treatCommonNodes(Node node, Node result)
+	private void treatCommonNodes(Node node, Node result)
 	{
-		final List<Edge> outgoingEdges = node.getOutgoingEdges();
-		outgoingEdges.removeIf(edge -> edge.getData().getType() != EdgeInfo.Type.Value);
+		final Set<Edge> outgoingEdges = edg.outgoingEdgesOf(node);
+		outgoingEdges.removeIf(edge -> edge.getType() != Edge.Type.Value);
 		
 		for (Edge valueEdge : outgoingEdges)
 		{
-			final Node to = valueEdge.getTo();
-			final EdgeConstraint edgeConstraint = valueEdge.getData().getConstraint(); 
+			final Node from = edg.getEdgeSource(valueEdge);
+			final Node to = edg.getEdgeTarget(valueEdge);
+			final EdgeConstraint edgeConstraint = valueEdge.getConstraint();
 			edg.removeEdge(valueEdge);
-			final Edge e = new Edge(result, to, 0, new EdgeInfo(EdgeInfo.Type.Value, edgeConstraint));
-			edg.addEdge(e);
+			final Edge e = new Edge(Edge.Type.Value, edgeConstraint);
+			edg.addEdge(from, to, e);
 		}
 		
-		final List<Edge> incomingEdges = node.getIncomingEdges();
-		incomingEdges.removeIf(edge -> edge.getData().getType() != EdgeInfo.Type.Value);
+		final Set<Edge> incomingEdges = edg.incomingEdgesOf(node);
+		incomingEdges.removeIf(edge -> edge.getType() != Edge.Type.Value);
 
 		for (Edge valueEdge : incomingEdges)
 		{
-			final Node from = valueEdge.getFrom();
-			final EdgeConstraint edgeConstraint = valueEdge.getData().getConstraint();
+			final Node from = edg.getEdgeSource(valueEdge);
+			final Node to = edg.getEdgeTarget(valueEdge);
+			final EdgeConstraint edgeConstraint = valueEdge.getConstraint();
 			edg.removeEdge(valueEdge);
-			final Edge e = new Edge(from, result, 0, new EdgeInfo(EdgeInfo.Type.Value, edgeConstraint));
-			edg.addEdge(e);
+			final Edge e = new Edge(Edge.Type.Value, edgeConstraint);
+			edg.addEdge(from, to, e);
 		}
 	}
 
-	private static void treatDataConstructorExpressions(Node dataConstructor,
-														Node result) // TODO: REVIEW AFTER DELETING "EXPRESSION" NODES
+	private void treatDataConstructorExpressions(Node dataConstructor, Node result) // TODO: REVIEW AFTER DELETING "EXPRESSION" NODES
 	{
 		deleteIncomingValueArcs(dataConstructor);
 		modifyDataConstructorArcs(dataConstructor, result);
 	}
 
-	private static void deleteIncomingValueArcs(Node dataConstructor)
+	private void deleteIncomingValueArcs(Node dataConstructor)
 	{
-		final List<Edge> incomingEdges = dataConstructor.getIncomingEdges();
-		incomingEdges.removeIf(edge -> edge.getData().getType() != EdgeInfo.Type.Value);
-
-		for (Edge valueEdge : incomingEdges)
-			edg.removeEdge(valueEdge);	
+		for (Edge edge : edg.incomingEdgesOf(dataConstructor))
+			if (edge.getType() == Edge.Type.Value)
+				edg.removeEdge(edge);
 	}
-	private static void modifyDataConstructorArcs(Node dataConstructor, Node result)
-	{	
-		final List<Node> dataConstructorChildren = EDGTraverser.getChildren(dataConstructor);
+
+	private void modifyDataConstructorArcs(Node dataConstructor, Node result)
+	{
+		final List<Node> dataConstructorChildren = EDGTraverser.getChildren(edg, dataConstructor);
 		final int dataConstructorChildrenCount = dataConstructorChildren.size();
 
 		for (int childIndex = 0; childIndex < dataConstructorChildrenCount; childIndex++)
 		{
 			final Node dataConstructorChild = dataConstructorChildren.get(childIndex);
-			final Node from = dataConstructorChild.getData().getType() == NodeInfo.Type.Expression ?
-					EDGTraverser.getChild(dataConstructorChild, NodeInfo.Type.Result) : dataConstructorChild;
+			final Node from = dataConstructorChild.getType() == Node.Type.Expression ?
+					EDGTraverser.getChild(edg, dataConstructorChild, Node.Type.Result) : dataConstructorChild;
 			final DataConstructorConstraint constraint = new DataConstructorConstraint(
 					AccessConstraint.Operation.Remove, childIndex + "");
-			edg.addEdge(from, result, 0, new EdgeInfo(EdgeInfo.Type.Value, constraint));
+			edg.addEdge(from, result, new Edge(Edge.Type.Value, constraint));
 		}
 		
-		final List<Edge> outgoingEdges = dataConstructor.getOutgoingEdges();
-		outgoingEdges.removeIf(edge -> edge.getData().getType() != EdgeInfo.Type.Value);
+		final Set<Edge> outgoingEdges = edg.outgoingEdgesOf(dataConstructor);
+		outgoingEdges.removeIf(edge -> edge.getType() != Edge.Type.Value);
 		
 		for (Edge valueEdge : outgoingEdges)
 		{
-			final Node to = valueEdge.getTo();
-			final EdgeConstraint edgeConstraint = valueEdge.getData().getConstraint(); 
+			final Node from = edg.getEdgeSource(valueEdge);
+			final Node to = edg.getEdgeTarget(valueEdge);
+			final EdgeConstraint edgeConstraint = valueEdge.getConstraint();
 			edg.removeEdge(valueEdge);
-			final Edge e = new Edge(result, to, 0, new EdgeInfo(EdgeInfo.Type.Value, edgeConstraint));
-			edg.addEdge(e);
+			final Edge e = new Edge(Edge.Type.Value, edgeConstraint);
+			edg.addEdge(from, to, e);
 		}
 	}
 }
