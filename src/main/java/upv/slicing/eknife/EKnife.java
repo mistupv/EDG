@@ -4,7 +4,7 @@ import upv.slicing.edg.DotFactory;
 import upv.slicing.edg.EDGFactory;
 import upv.slicing.edg.PdfFactory;
 import upv.slicing.edg.graph.EDG;
-import upv.slicing.edg.graph.EdgeInfo;
+import upv.slicing.edg.graph.Edge;
 import upv.slicing.edg.graph.LAST;
 import upv.slicing.edg.graph.Node;
 import upv.slicing.edg.slicing.ConstrainedAlgorithm;
@@ -13,8 +13,8 @@ import upv.slicing.edg.slicing.SlicingCriterion;
 
 import java.io.File;
 import java.util.Hashtable;
-import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 public class EKnife {
 	public enum Language {Java, Erlang, Php}
@@ -186,22 +186,22 @@ public class EKnife {
 		final File dotFile = dotPath == null ? null : new File(dotPath);
 		final File pdfFile = pdfPath == null ? null : new File(pdfPath);
 		final boolean edges = (boolean) arguments[9];
-		final Map<EdgeInfo.Type, Boolean> edgeFlags = new Hashtable<EdgeInfo.Type, Boolean>();
-		edgeFlags.put(EdgeInfo.Type.ControlFlow, (boolean) arguments[10]);
-		edgeFlags.put(EdgeInfo.Type.Control, (boolean) arguments[11]);
-		edgeFlags.put(EdgeInfo.Type.Value, (boolean) arguments[12]);
-		edgeFlags.put(EdgeInfo.Type.Flow, (boolean) arguments[13]);
-		edgeFlags.put(EdgeInfo.Type.Call, (boolean) arguments[14]);
-		edgeFlags.put(EdgeInfo.Type.Input, (boolean) arguments[15]);
-		edgeFlags.put(EdgeInfo.Type.Output, (boolean) arguments[16]);
-		edgeFlags.put(EdgeInfo.Type.Summary, (boolean) arguments[17]);
+		final Map<Edge.Type, Boolean> edgeFlags = new Hashtable<>();
+		edgeFlags.put(Edge.Type.ControlFlow, (boolean) arguments[10]);
+		edgeFlags.put(Edge.Type.Control, (boolean) arguments[11]);
+		edgeFlags.put(Edge.Type.Value, (boolean) arguments[12]);
+		edgeFlags.put(Edge.Type.Flow, (boolean) arguments[13]);
+		edgeFlags.put(Edge.Type.Call, (boolean) arguments[14]);
+		edgeFlags.put(Edge.Type.Input, (boolean) arguments[15]);
+		edgeFlags.put(Edge.Type.Output, (boolean) arguments[16]);
+		edgeFlags.put(Edge.Type.Summary, (boolean) arguments[17]);
 
 		final LAST last = LASTFactory.createLAST(Language.Java, inputPath, edges);
-		final EDG edg = EDGFactory.createEDG(last);
+		final EDG edg = new EDGFactory(last).createEDG();
 		final SlicingCriterion slicingCriterion = new SlicingCriterion(archive, line, name, occurrence);
 		final Node SC = edg.getNode(slicingCriterion);
-		final SlicingAlgorithm slicingAlgorithm = new ConstrainedAlgorithm();
-		final List<Node> slice = slicingAlgorithm.slice(SC);
+		final SlicingAlgorithm slicingAlgorithm = new ConstrainedAlgorithm(edg);
+		final Set<Node> slice = slicingAlgorithm.slice(SC);
 
 		CodeFactory.createCode(language, outputFile, edg, slice);
 		if (dotFile != null)

@@ -5,7 +5,7 @@ import upv.slicing.edg.graph.Node;
 import upv.slicing.eknife.java.JavaCodeFactory;
 
 import java.io.File;
-import java.util.List;
+import java.util.Set;
 
 public class CodeFactory
 {
@@ -13,7 +13,7 @@ public class CodeFactory
 	{
 		CodeFactory.createCode(language, outputFile, edg, null);
 	}
-	public static void createCode(EKnife.Language language, File outputFile, EDG edg, List<Node> slice)
+	public static void createCode(EKnife.Language language, File outputFile, EDG edg, Set<Node> slice)
 	{
 		switch (language)
 		{

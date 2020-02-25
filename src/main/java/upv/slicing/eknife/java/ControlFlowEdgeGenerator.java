@@ -1,9 +1,8 @@
 package upv.slicing.eknife.java;
 
-import upv.slicing.edg.graph.EdgeInfo;
+import upv.slicing.edg.graph.Edge;
 import upv.slicing.edg.graph.LAST;
 import upv.slicing.edg.graph.Node;
-import upv.slicing.edg.graph.NodeInfo;
 import upv.slicing.edg.traverser.LASTTraverser;
 
 import java.util.LinkedList;
@@ -12,7 +11,6 @@ import java.util.List;
 public class ControlFlowEdgeGenerator {
 	private enum Way {Forwards, Backwards}
 
-	private final EdgeInfo controlFlowEdgeInfo = new EdgeInfo(EdgeInfo.Type.ControlFlow);
 	protected final LAST last;
 
 	public ControlFlowEdgeGenerator(LAST last)
@@ -22,21 +20,21 @@ public class ControlFlowEdgeGenerator {
 
 	public void generate()
 	{
-		final List<Node> modules = LASTTraverser.getNodes(this.last, NodeInfo.Type.Module);
+		final List<Node> modules = LASTTraverser.getNodes(this.last, Node.Type.Module);
 		for (Node module : modules)
 			this.generate(module);
 
-		final List<Node> clauses = LASTTraverser.getNodes(this.last, NodeInfo.Type.Clause);
+		final List<Node> clauses = LASTTraverser.getNodes(this.last, Node.Type.Clause);
 		for (Node clause : clauses)
 			this.generate(clause);
 	}
 
 	private List<Node> generate(Node node)
 	{
-		final NodeInfo.Type type = node.getData().getType();
-		final List<Node> children = LASTTraverser.getChildren(node);
+		final Node.Type type = node.getType();
+		final List<Node> children = LASTTraverser.getChildren(last, node);
 
-		if (type != NodeInfo.Type.Break && type != NodeInfo.Type.Return && type != NodeInfo.Type.Continue)
+		if (type != Node.Type.Break && type != Node.Type.Return && type != Node.Type.Continue)
 			if (children.isEmpty())
 				return this.generateSingleNode(node);
 
@@ -141,16 +139,14 @@ public class ControlFlowEdgeGenerator {
 
 	private List<Node> generateSingleNode(Node node)
 	{
-		final List<Node> nodes = new LinkedList<Node>();
-
+		final List<Node> nodes = new LinkedList<>();
 		nodes.add(node);
-
 		return nodes;
 	}
 
 	private List<Node> generateStructure(Node node, Way way)
 	{
-		final List<Node> children = LASTTraverser.getChildren(node);
+		final List<Node> children = LASTTraverser.getChildren(last, node);
 		final int beginIndex = way == Way.Forwards ? 0 : children.size() - 1;
 		final int endIndex = way == Way.Forwards ? children.size() - 1 : 0;
 		final int increment = way == Way.Forwards ? 1 : -1;
@@ -162,36 +158,36 @@ public class ControlFlowEdgeGenerator {
 			final Node child = children.get(childIndex);
 			final Node nextChild = children.get(childIndex + increment);
 			final List<Node> resultNodes = this.generate(nextChild);
-			// if (nextChild.getData().getType() != NodeInfo.Type.Result) // ¿Why is this "if" here?
+			// if (nextChild.getType() != Node.Info.Type.Result) // ¿Why is this "if" here?
 			for (Node resultNode : resultNodes)
-				this.last.addEdge(child, resultNode, 0, this.controlFlowEdgeInfo);
+				this.last.addEdge(child, resultNode, Edge.Type.ControlFlow);
 		}
 
 		final Node lastChild = children.get(endIndex);
-		NodeInfo.Type lastChildType = lastChild.getData().getType();
-		if (lastChildType != NodeInfo.Type.Break && lastChildType != NodeInfo.Type.Continue &&
-			lastChildType != NodeInfo.Type.Return)
-			this.last.addEdge(lastChild, node, 0, this.controlFlowEdgeInfo);
+		Node.Type lastChildType = lastChild.getType();
+		if (lastChildType != Node.Type.Break && lastChildType != Node.Type.Continue &&
+			lastChildType != Node.Type.Return)
+			this.last.addEdge(lastChild, node, Edge.Type.ControlFlow);
 
 		return firstChildResultNodes;
 	}
 
 	private List<Node> generateModuleStructure(Node node)
 	{
-		final List<Node> children = LASTTraverser.getChildren(node);
-		List<Node> resultNodes = new LinkedList<Node>();
+		final List<Node> children = LASTTraverser.getChildren(last, node);
+		List<Node> resultNodes = new LinkedList<>();
 
 		for (Node child : children)
 		{
-			final NodeInfo.Type type = child.getData().getType();
-			if (type == NodeInfo.Type.Routine)
+			final Node.Type type = child.getType();
+			if (type == Node.Type.Routine)
 				continue;
 
 			final List<Node> childResults = this.generate(child);
 
 			for (Node resultNode : resultNodes)
 				for (Node childResult : childResults)
-					this.last.addEdge(resultNode, childResult, 0, this.controlFlowEdgeInfo);
+					this.last.addEdge(resultNode, childResult, Edge.Type.ControlFlow);
 
 			resultNodes.clear();
 			resultNodes.add(child);
@@ -202,39 +198,36 @@ public class ControlFlowEdgeGenerator {
 
 	private List<Node> generateIfStructure(Node node)
 	{
-		final List<Node> nodes = new LinkedList<Node>();
-		final Node conditionChild = LASTTraverser.getChild(node, 0);
-		final Node thenChild = LASTTraverser.getChild(node, 1);
-		final Node elseChild = LASTTraverser.getChild(node, 2);
+		final Node conditionChild = LASTTraverser.getChild(last, node, 0);
+		final Node thenChild = LASTTraverser.getChild(last, node, 1);
+		final Node elseChild = LASTTraverser.getChild(last, node, 2);
 		final List<Node> conditionResultNodes = this.generate(conditionChild);
 		final List<Node> thenResultNodes = this.generate(thenChild);
 		final List<Node> elseResultNodes = this.generate(elseChild);
 
 		// Condition -> Then First Node
 		for (Node resultNode : thenResultNodes)
-			this.last.addEdge(conditionChild, resultNode, 0, this.controlFlowEdgeInfo);
+			this.last.addEdge(conditionChild, resultNode, Edge.Type.ControlFlow);
 		// Condition -> Else First Node
 		for (Node resultNode : elseResultNodes)
-			this.last.addEdge(conditionChild, resultNode, 0, this.controlFlowEdgeInfo);
+			this.last.addEdge(conditionChild, resultNode, Edge.Type.ControlFlow);
 
-		this.last.addEdge(thenChild, node, 0, this.controlFlowEdgeInfo);
-		this.last.addEdge(elseChild, node, 0, this.controlFlowEdgeInfo);
+		this.last.addEdge(thenChild, node, Edge.Type.ControlFlow);
+		this.last.addEdge(elseChild, node, Edge.Type.ControlFlow);
 
-		nodes.addAll(conditionResultNodes);
-
-		return nodes;
+		return new LinkedList<>(conditionResultNodes);
 	}
 
 	private List<Node> generateCasesStructure(Node node)
 	{
 
-		final List<Node> selectorDestinationNodes = new LinkedList<Node>();
+		final List<Node> selectorDestinationNodes = new LinkedList<>();
 
-		final List<Node> children = LASTTraverser.getChildren(node);
-		final List<Node> cases = new LinkedList<Node>(children);
-		final List<Node> defaults = new LinkedList<Node>(children);
-		cases.removeIf((c) -> c.getData().getType() != NodeInfo.Type.Case);
-		defaults.removeIf((c) -> c.getData().getType() != NodeInfo.Type.DefaultCase);
+		final List<Node> children = LASTTraverser.getChildren(last, node);
+		final List<Node> cases = new LinkedList<>(children);
+		final List<Node> defaults = new LinkedList<>(children);
+		cases.removeIf((c) -> c.getType() != Node.Type.Case);
+		defaults.removeIf((c) -> c.getType() != Node.Type.DefaultCase);
 
 		// Put the default at the end of the treated cases
 		final Node defaultCase = defaults.isEmpty() ? null : defaults.get(0);
@@ -242,21 +235,20 @@ public class ControlFlowEdgeGenerator {
 			cases.add(defaultCase);
 
 		final Node lastCase = cases.isEmpty() ? defaultCase : cases.get(cases.size() - 1);
-		this.last.addEdge(lastCase, node, 0, this.controlFlowEdgeInfo);
+		this.last.addEdge(lastCase, node, Edge.Type.ControlFlow);
 
 		Node previousCase = null;
 
 		// Cases
-		for (int caseIndex = 0; caseIndex < cases.size(); caseIndex++)
+		for (final Node _case : cases)
 		{
 			// Current case
-			final Node _case = cases.get(caseIndex);
 			final List<Node> caseResults = generate(_case);
 
 			selectorDestinationNodes.addAll(caseResults);
 			if (previousCase != null)
 				for (Node caseResult : caseResults)
-					this.last.addEdge(previousCase, caseResult, 0, this.controlFlowEdgeInfo);
+					this.last.addEdge(previousCase, caseResult, Edge.Type.ControlFlow);
 			previousCase = _case;
 		}
 
@@ -265,8 +257,8 @@ public class ControlFlowEdgeGenerator {
 
 	private List<Node> generateCaseStructure(Node node)
 	{
-		final List<Node> nodes = new LinkedList<Node>();
-		final List<Node> children = LASTTraverser.getChildren(node);
+		final List<Node> nodes = new LinkedList<>();
+		final List<Node> children = LASTTraverser.getChildren(last, node);
 		final Node firstChild = children.get(0);
 		this.generate(firstChild);
 
@@ -280,131 +272,118 @@ public class ControlFlowEdgeGenerator {
 			if (nextChild == lastChild)
 				nodes.addAll(resultNodes);
 			for (Node resultNode : resultNodes)
-				this.last.addEdge(child, resultNode, 0, this.controlFlowEdgeInfo);
+				this.last.addEdge(child, resultNode, Edge.Type.ControlFlow);
 		}
 
-		NodeInfo.Type lastChildType = lastChild.getData().getType();
-		if (lastChildType != NodeInfo.Type.Break && lastChildType != NodeInfo.Type.Continue &&
-			lastChildType != NodeInfo.Type.Return)
-			this.last.addEdge(lastChild, node, 0, this.controlFlowEdgeInfo);
+		Node.Type lastChildType = lastChild.getType();
+		if (lastChildType != Node.Type.Break && lastChildType != Node.Type.Continue &&
+			lastChildType != Node.Type.Return)
+			this.last.addEdge(lastChild, node, Edge.Type.ControlFlow);
 
 		return nodes;
 	}
 
 	private List<Node> generateForeachStructure(Node node)
 	{
-		final Node iteratorChild = LASTTraverser.getChild(node, NodeInfo.Type.Iterator);
-		final Node bodyChild = LASTTraverser.getChild(node, NodeInfo.Type.Body);
+		final Node iteratorChild = LASTTraverser.getChild(last, node, Node.Type.Iterator);
+		final Node bodyChild = LASTTraverser.getChild(last, node, Node.Type.Body);
 
-		final List<Node> nodes = new LinkedList<Node>();
 		final List<Node> iteratorResultNodes = this.generate(iteratorChild);
 		final List<Node> bodyResultNodes = this.generate(bodyChild);
 
-		this.last.addEdge(node, iteratorChild, 0, this.controlFlowEdgeInfo);
+		this.last.addEdge(node, iteratorChild, Edge.Type.ControlFlow);
 		for (Node resultNode : iteratorResultNodes)
-			this.last.addEdge(resultNode, bodyChild, 0, this.controlFlowEdgeInfo);
+			this.last.addEdge(resultNode, bodyChild, Edge.Type.ControlFlow);
 
 		for (Node resultNode : bodyResultNodes)
-			this.last.addEdge(resultNode, iteratorChild, 0, this.controlFlowEdgeInfo);
+			this.last.addEdge(resultNode, iteratorChild, Edge.Type.ControlFlow);
 
-		nodes.addAll(iteratorResultNodes);
-
-		return nodes;
+		return new LinkedList<>(iteratorResultNodes);
 	}
 
 	private List<Node> generateCLoopStructure(Node node)
 	{
-		final List<Node> nodes = new LinkedList<Node>();
-		final Node conditionChild = LASTTraverser.getChild(node, NodeInfo.Type.Condition);
-		final Node bodyChild = LASTTraverser.getChild(node, NodeInfo.Type.Body);
+		final Node conditionChild = LASTTraverser.getChild(last, node, Node.Type.Condition);
+		final Node bodyChild = LASTTraverser.getChild(last, node, Node.Type.Body);
 		final List<Node> conditionResultNodes = this.generate(conditionChild);
 		final List<Node> bodyResultNodes = this.generate(bodyChild);
 
-		this.last.addEdge(conditionChild, node, 0, this.controlFlowEdgeInfo);
+		this.last.addEdge(conditionChild, node, Edge.Type.ControlFlow);
 
 		for (Node resultNode : bodyResultNodes)
-			this.last.addEdge(conditionChild, resultNode, 0, this.controlFlowEdgeInfo);
+			this.last.addEdge(conditionChild, resultNode, Edge.Type.ControlFlow);
 		for (Node resultNode : conditionResultNodes)
-			this.last.addEdge(bodyChild, resultNode, 0, this.controlFlowEdgeInfo);
+			this.last.addEdge(bodyChild, resultNode, Edge.Type.ControlFlow);
 
-		nodes.addAll(conditionResultNodes);
-
-		return nodes;
+		return new LinkedList<>(conditionResultNodes);
 	}
 
 	private List<Node> generateFLoopStructure(Node node)
 	{
-		final Node initChild = LASTTraverser.getChild(node, NodeInfo.Type.Init);
-		final Node conditionChild = LASTTraverser.getChild(node, NodeInfo.Type.Condition);
-		final Node bodyChild = LASTTraverser.getChild(node, NodeInfo.Type.Body);
-		final Node updateChild = LASTTraverser.getChild(node, NodeInfo.Type.Update);
+		final Node initChild = LASTTraverser.getChild(last, node, Node.Type.Init);
+		final Node conditionChild = LASTTraverser.getChild(last, node, Node.Type.Condition);
+		final Node bodyChild = LASTTraverser.getChild(last, node, Node.Type.Body);
+		final Node updateChild = LASTTraverser.getChild(last, node, Node.Type.Update);
 
-		final List<Node> nodes = new LinkedList<Node>();
 		final List<Node> initResultNodes = this.generate(initChild);
 		final List<Node> conditionResultNodes = this.generate(conditionChild);
 		final List<Node> bodyResultNodes = this.generate(bodyChild);
 		final List<Node> updateResultNodes = this.generate(updateChild);
 
-		this.last.addEdge(conditionChild, node, 0, this.controlFlowEdgeInfo);
+		this.last.addEdge(conditionChild, node, Edge.Type.ControlFlow);
 
 		for (Node resultNode : conditionResultNodes)
 		{
-			this.last.addEdge(initChild, resultNode, 0, this.controlFlowEdgeInfo);
-			this.last.addEdge(updateChild, resultNode, 0, this.controlFlowEdgeInfo);
+			this.last.addEdge(initChild, resultNode, Edge.Type.ControlFlow);
+			this.last.addEdge(updateChild, resultNode, Edge.Type.ControlFlow);
 		}
 
 		for (Node resultNode : bodyResultNodes)
-			this.last.addEdge(conditionChild, resultNode, 0, this.controlFlowEdgeInfo);
+			this.last.addEdge(conditionChild, resultNode, Edge.Type.ControlFlow);
 
 		for (Node resultNode : updateResultNodes)
-			this.last.addEdge(bodyChild, resultNode, 0, this.controlFlowEdgeInfo);
+			this.last.addEdge(bodyChild, resultNode, Edge.Type.ControlFlow);
 
-		nodes.addAll(initResultNodes);
-
-		return nodes;
+		return new LinkedList<>(initResultNodes);
 	}
 
 	private List<Node> generateRLoopStructure(Node node)
 	{
-		final List<Node> nodes = new LinkedList<Node>();
-		final Node bodyChild = LASTTraverser.getChild(node, NodeInfo.Type.Body);
-		final Node conditionChild = LASTTraverser.getChild(node, NodeInfo.Type.Condition);
+		final Node bodyChild = LASTTraverser.getChild(last, node, Node.Type.Body);
+		final Node conditionChild = LASTTraverser.getChild(last, node, Node.Type.Condition);
 		final List<Node> bodyResultNodes = this.generate(bodyChild);
 		final List<Node> conditionResultNodes = this.generate(conditionChild);
 
-		this.last.addEdge(conditionChild, node, 0, this.controlFlowEdgeInfo);
+		this.last.addEdge(conditionChild, node, Edge.Type.ControlFlow);
 		for (Node resultNode : conditionResultNodes)
-			this.last.addEdge(bodyChild, resultNode, 0, this.controlFlowEdgeInfo);
+			this.last.addEdge(bodyChild, resultNode, Edge.Type.ControlFlow);
 
 		for (Node resultNode : bodyResultNodes)
-			this.last.addEdge(conditionChild, resultNode, 0, this.controlFlowEdgeInfo);
+			this.last.addEdge(conditionChild, resultNode, Edge.Type.ControlFlow);
 
-		nodes.addAll(bodyResultNodes);
-
-		return nodes;
+		return new LinkedList<>(bodyResultNodes);
 	}
 
 	private List<Node> generateExHandlerStructure(Node node)
 	{
-		final List<Node> nodes = new LinkedList<Node>();
-		final Node tryChild = LASTTraverser.getChild(node, NodeInfo.Type.Try);
-		final Node catchChild = LASTTraverser.getChild(node, NodeInfo.Type.Catch);
-		final Node finallyChild = LASTTraverser.getChild(node, NodeInfo.Type.Finally);
-		nodes.add(
-				tryChild); // This CFG arc is necessary to select definitions before the try block when slicing a catch clause
+		final List<Node> nodes = new LinkedList<>();
+		final Node tryChild = LASTTraverser.getChild(last, node, Node.Type.Try);
+		final Node catchChild = LASTTraverser.getChild(last, node, Node.Type.Catch);
+		final Node finallyChild = LASTTraverser.getChild(last, node, Node.Type.Finally);
+		nodes.add(tryChild); // This CFG arc is necessary to select definitions before the try block when slicing a catch clause
 		final List<Node> tryResultNodes = this.generate(tryChild);
 		final List<Node> catchResultNodes = this.generateCatchStructure(catchChild);
 		final List<Node> finallyResultNodes = this.generate(finallyChild);
 
-		this.last.addEdge(finallyChild, node, 0, this.controlFlowEdgeInfo);
+		this.last.addEdge(finallyChild, node, Edge.Type.ControlFlow);
 
 		for (Node resultNode : catchResultNodes)
-			this.last.addEdge(tryChild, resultNode, 0, this.controlFlowEdgeInfo);
+			this.last.addEdge(tryChild, resultNode, Edge.Type.ControlFlow);
 
 		for (Node resultNode : finallyResultNodes)
 		{
-			this.last.addEdge(tryChild, resultNode, 0, this.controlFlowEdgeInfo);
-			this.last.addEdge(catchChild, resultNode, 0, this.controlFlowEdgeInfo);
+			this.last.addEdge(tryChild, resultNode, Edge.Type.ControlFlow);
+			this.last.addEdge(catchChild, resultNode, Edge.Type.ControlFlow);
 		}
 
 		nodes.addAll(tryResultNodes);
@@ -414,11 +393,11 @@ public class ControlFlowEdgeGenerator {
 
 	private List<Node> generateCatchStructure(Node node)
 	{
-		List<Node> catchResultNodes = new LinkedList<Node>();
-		List<Node> catchClauses = LASTTraverser.getChildren(node);
+		List<Node> catchResultNodes = new LinkedList<>();
+		List<Node> catchClauses = LASTTraverser.getChildren(last, node);
 		for (Node clause : catchClauses)
 		{
-			this.last.addEdge(clause, node, 0, this.controlFlowEdgeInfo);
+			this.last.addEdge(clause, node, Edge.Type.ControlFlow);
 			List<Node> resultNodes = this.generate(clause);
 			catchResultNodes.addAll(resultNodes);
 		}
@@ -427,23 +406,23 @@ public class ControlFlowEdgeGenerator {
 
 	private List<Node> generateJumpStructure(Node node)
 	{
-		final List<Node> nodes = new LinkedList<Node>();
-		final List<Node> children = LASTTraverser.getChildren(node);
+		final List<Node> nodes = new LinkedList<>();
+		final List<Node> children = LASTTraverser.getChildren(last, node);
 		final Node child = children.isEmpty() ? null : children.get(0);
 
 		if (child != null)
 		{
 			nodes.addAll(generate(child));
-			this.last.addEdge(child, node, 0, this.controlFlowEdgeInfo);
+			this.last.addEdge(child, node, Edge.Type.ControlFlow);
 		} else
 			nodes.add(node);
 
-		final String dstText = node.getData().getName();
+		final String dstText = node.getName();
 		final int dstId = Integer.parseInt(dstText.substring(dstText.lastIndexOf(" ") + 1));
 		final Node dstNode = LASTTraverser.getNode(this.last, dstId);
 
 		if (dstNode != null)
-			this.last.addEdge(node, dstNode, 0, this.controlFlowEdgeInfo);
+			this.last.addEdge(node, dstNode, Edge.Type.ControlFlow);
 
 		return nodes;
 	}

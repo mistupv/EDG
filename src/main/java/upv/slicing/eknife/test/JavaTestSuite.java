@@ -1,5 +1,10 @@
 package upv.slicing.eknife.test;
 
+import org.apache.poi.hssf.usermodel.HSSFWorkbook;
+import org.apache.poi.ss.usermodel.Cell;
+import org.apache.poi.ss.usermodel.Row;
+import org.apache.poi.ss.usermodel.Sheet;
+import org.apache.poi.ss.usermodel.Workbook;
 import upv.slicing.edg.EDGFactory;
 import upv.slicing.edg.graph.EDG;
 import upv.slicing.edg.graph.EDG.GraphGeneratorTimer;
@@ -14,17 +19,13 @@ import upv.slicing.eknife.LASTFactory;
 import upv.slicing.eknife.config.Config;
 import upv.slicing.misc.Misc;
 import upv.slicing.misc.math.Statistics;
-import org.apache.poi.hssf.usermodel.HSSFWorkbook;
-import org.apache.poi.ss.usermodel.Cell;
-import org.apache.poi.ss.usermodel.Row;
-import org.apache.poi.ss.usermodel.Sheet;
-import org.apache.poi.ss.usermodel.Workbook;
 
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Set;
 import java.util.StringTokenizer;
 
 public class JavaTestSuite {
@@ -333,12 +334,12 @@ public class JavaTestSuite {
 		final File outputJavaFile = new File(outputJavaPath);
 
 		final LAST last = LASTFactory.createLAST(Language.Java, sourcePath);
-		final EDG edg = EDGFactory.createEDG(last);
+		final EDG edg = new EDGFactory(last).createEDG();
 
 		final Node SC = edg.getNode(slicingCriterion);
 
-		final SlicingAlgorithm slicingAlgorithm = new ConstrainedAlgorithm();
-		final List<Node> slice = slicingAlgorithm.slice(SC);
+		final SlicingAlgorithm slicingAlgorithm = new ConstrainedAlgorithm(edg);
+		final Set<Node> slice = slicingAlgorithm.slice(SC);
 
 //		final String outputDotPath = codebase + "output.dot";
 //		final String outputPdfPath = codebase + "output.pdf";
@@ -364,8 +365,8 @@ public class JavaTestSuite {
 //		PdfFactory.createPdf(outputPdfFileSDG, outputDotFileSDG);
 //		CodeFactory.createCode(Language.Java, outputJavaFileSDG, edg, SDGSlice);
 //		
-//		slice.removeIf(sliceNode -> sliceNode.getData().isFictitious());
-//		SDGSlice.removeIf(sliceNode -> sliceNode.getData().isFictitious());
+//		slice.removeIf(sliceNode -> sliceNode.getInfo().isFictitious());
+//		SDGSlice.removeIf(sliceNode -> sliceNode.getInfo().isFictitious());
 //		
 //		System.out.println("Total EDG Nodes: "+slice.size());
 //		System.out.println("Total SDG Nodes: "+SDGSlice.size());
@@ -378,12 +379,12 @@ public class JavaTestSuite {
 //		
 //		final List<Node> edgNodesCopy = edg.getNodes();
 //		final int SDGNumberNodes = countSDGNodes(edgNodesCopy);;
-//		edgNodesCopy.removeIf(node -> node.getData().isFictitious());
+//		edgNodesCopy.removeIf(node -> node.getInfo().isFictitious());
 //		
 //		final List<Node> edgNodes = edg.getNodes();
 //		for (Node edgNode : edgNodes)
 //		{
-//			if (!edgNode.getData().isSliceable(edgNode))
+//			if (!edgNode.getInfo().isSliceable(edgNode))
 //				continue;
 //			
 //			final Row newRow = resultsSheet.createRow(currentRow);
@@ -406,8 +407,8 @@ public class JavaTestSuite {
 //			totalSDGNodes.setCellValue(SDGNumberNodes);
 //			totalEDGNonFititiousNodes.setCellValue(edgNodesCopy.size());
 //			
-//			criterionEDGNumberCell.setCellValue(edgNode.getData().getId());
-//			criterionSDGNumberCell.setCellValue(edgNode.getData().getSDGId());
+//			criterionEDGNumberCell.setCellValue(edgNode.getInfo().getId());
+//			criterionSDGNumberCell.setCellValue(edgNode.getInfo().getSDGId());
 //			
 //			final SlicingAlgorithm slicingAlgorithm = new ConstrainedAlgorithm();
 //			final SlicingAlgorithm slicingSDGAlgorithm = new SDGAlgorithm();
@@ -421,8 +422,8 @@ public class JavaTestSuite {
 //			final int numberOfSDGNodes = countSDGNodes(SDGSlice);
 //			sliceSDG.setCellValue(numberOfSDGNodes);
 //			
-//			EDGSlice.removeIf(sliceNode -> sliceNode.getData().isFictitious());
-//			SDGSlice.removeIf(sliceNode -> sliceNode.getData().isFictitious());
+//			EDGSlice.removeIf(sliceNode -> sliceNode.getInfo().isFictitious());
+//			SDGSlice.removeIf(sliceNode -> sliceNode.getInfo().isFictitious());
 //			
 //			final CellReference cellRefSliceEDG = new CellReference(sliceEDG);
 //			final CellReference cellRefSliceSDG = new CellReference(sliceSDGEDGNodes);
@@ -451,7 +452,7 @@ public class JavaTestSuite {
 		for (int i = 0; i < 214; i++)
 		{
 			final LAST last = LASTFactory.createLAST(Language.Java, sourcePath);
-			final EDG edg = EDGFactory.createEDG(last);
+			final EDG edg = new EDGFactory(last).createEDG();
 
 			if (i == 0)
 				continue;
@@ -459,8 +460,7 @@ public class JavaTestSuite {
 			GraphGeneratorTimer ggt = edg.getGenerationTime();
 			double EDGTime = ggt.getGenerationEDGTime();
 
-			if (i != 0)
-				Misc.write(benchGenTimeFile, EDGTime + "\n", true);
+			Misc.write(benchGenTimeFile, EDGTime + "\n", true);
 		}
 //		final int windowSize = 10;
 
@@ -475,21 +475,20 @@ public class JavaTestSuite {
 	public static void testBenchSliceTime(String className, String sourcePath) // Generate Slice 
 	{
 		final LAST last = LASTFactory.createLAST(Language.Java, sourcePath);
-		final EDG edg = EDGFactory.createEDG(last);
+		final EDG edg = new EDGFactory(last).createEDG();
 
 //		final List<Node> edgNodesCopy = edg.getNodes();
 //		final int SDGNumberNodes = countSDGNodes(edgNodesCopy);;
-//		edgNodesCopy.removeIf(node -> node.getData().isFictitious());
+//		edgNodesCopy.removeIf(node -> node.getInfo().isFictitious());
 
 
 		final String className0 = className.substring(0, className.lastIndexOf("."));
 		final File benchSliceTimeFile = new File(codebase + className0 + "_sliceTime.txt");
 		Misc.delete(benchSliceTimeFile);
 
-		final List<Node> edgNodes = edg.getNodes();
-		for (Node edgNode : edgNodes)
+		for (Node edgNode : edg.vertexSet())
 		{
-			if (!edgNode.getData().isSliceable(edgNode))
+			if (!edgNode.getType().isSliceable())
 				continue;
 
 //			final Row newRow = resultsSheet.createRow(currentRow);
@@ -512,10 +511,10 @@ public class JavaTestSuite {
 //			totalSDGNodes.setCellValue(SDGNumberNodes);
 //			totalEDGNonFititiousNodes.setCellValue(edgNodesCopy.size());
 //			
-//			criterionEDGNumberCell.setCellValue(edgNode.getData().getId());
-//			criterionSDGNumberCell.setCellValue(edgNode.getData().getSDGId());
+//			criterionEDGNumberCell.setCellValue(edgNode.getInfo().getId());
+//			criterionSDGNumberCell.setCellValue(edgNode.getInfo().getSDGId());
 
-			final SlicingAlgorithm slicingAlgorithm = new ConstrainedAlgorithm();
+			final SlicingAlgorithm slicingAlgorithm = new ConstrainedAlgorithm(edg);
 //			final SlicingAlgorithm slicingSDGAlgorithm = new SDGAlgorithm();
 
 			//String line = "";
@@ -527,7 +526,7 @@ public class JavaTestSuite {
 				slicingAlgorithm.slice(edgNode);
 				final long end = System.nanoTime();
 				if (i != 0)
-					array[i - 1] = new Double((end - start) / 1000000.0);
+					array[i - 1] = (end - start) / 1000000.0;
 			}
 
 			final double avg = obtainMinimalWindowCoV(array, windowSize).getAvg();
@@ -538,8 +537,8 @@ public class JavaTestSuite {
 //			final int numberOfSDGNodes = countSDGNodes(SDGSlice);
 //			sliceSDG.setCellValue(numberOfSDGNodes);
 
-//			EDGSlice.removeIf(sliceNode -> sliceNode.getData().isFictitious());
-//			SDGSlice.removeIf(sliceNode -> sliceNode.getData().isFictitious());
+//			EDGSlice.removeIf(sliceNode -> sliceNode.getInfo().isFictitious());
+//			SDGSlice.removeIf(sliceNode -> sliceNode.getInfo().isFictitious());
 
 //			final CellReference cellRefSliceEDG = new CellReference(sliceEDG);
 //			final CellReference cellRefSliceSDG = new CellReference(sliceSDGEDGNodes);
@@ -564,12 +563,11 @@ public class JavaTestSuite {
 		for (int i = 0; i < 1000 - windowSize; i++)
 		{
 			double[] window = new double[windowSize];
-			for (int j = 0; j < windowSize; j++)
-				window[j] = array[i + j];
+			System.arraycopy(array, i, window, 0, windowSize);
 
 
 			double CoV = Statistics.coefficientOfVariation(window);
-			if (CoV < 0.01 || CoV == Double.NaN)
+			if (CoV < 0.01 || Double.isNaN(CoV))
 			{
 				avg = Statistics.average(window);
 				std = Statistics.standardDeviation(window);
@@ -594,12 +592,11 @@ public class JavaTestSuite {
 		for (int i = 0; i < 1000 - windowSize; i++)
 		{
 			double[] window = new double[windowSize];
-			for (int j = 0; j < windowSize; j++)
-				window[j] = array[i + j];
+			System.arraycopy(array, i, window, 0, windowSize);
 
 
 			double CoV = Statistics.coefficientOfVariation(window);
-			if (CoV < 0.01 || CoV == Double.NaN)
+			if (CoV < 0.01 || Double.isNaN(CoV))
 			{
 				avg = Statistics.average(window);
 				std = Statistics.standardDeviation(window);
@@ -641,7 +638,7 @@ public class JavaTestSuite {
 				tmpPath + "GraphGenTimes/" + className.substring(0, className.lastIndexOf(".")) +
 				"_GraphGeneratioTimes1000.txt";
 
-		final List<Double> programSliceTimeValues = new LinkedList<Double>();
+		final List<Double> programSliceTimeValues = new LinkedList<>();
 		final File file = new File(fileSliceTimeName);
 		final List<String> lines = Misc.readLines(file);
 
