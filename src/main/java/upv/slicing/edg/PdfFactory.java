@@ -1,15 +1,15 @@
 package upv.slicing.edg;
 
-import java.io.File;
-import java.util.List;
-import java.util.Map;
-
 import upv.slicing.edg.config.Config;
 import upv.slicing.edg.graph.EDG;
-import upv.slicing.edg.graph.EdgeInfo;
+import upv.slicing.edg.graph.Edge;
 import upv.slicing.edg.graph.Node;
 import upv.slicing.misc.Misc;
 import upv.slicing.misc.util.Flusher;
+
+import java.io.File;
+import java.util.Map;
+import java.util.Set;
 
 public class PdfFactory
 {
@@ -35,15 +35,15 @@ public class PdfFactory
 	{
 		PdfFactory.createPdf(outputFile, edg, null, null, null);
 	}
-	public static void createPdf(File outputFile, EDG edg, Map<EdgeInfo.Type, Boolean> edgeFlags)
+	public static void createPdf(File outputFile, EDG edg, Map<Edge.Type, Boolean> edgeFlags)
 	{
 		PdfFactory.createPdf(outputFile, edg, null, null, edgeFlags);
 	}
-	public static void createPdf(File outputFile, EDG edg, Node slicingCriterion, List<Node> slice)
+	public static void createPdf(File outputFile, EDG edg, Node slicingCriterion, Set<Node> slice)
 	{
 		PdfFactory.createPdf(outputFile, edg, slicingCriterion, slice, null);
 	}
-	public static void createPdf(File outputFile, EDG edg, Node slicingCriterion, List<Node> slice, Map<EdgeInfo.Type, Boolean> edgeFlags)
+	public static void createPdf(File outputFile, EDG edg, Node slicingCriterion, Set<Node> slice, Map<Edge.Type, Boolean> edgeFlags)
 	{
 		final File dotOutputFile = PdfFactory.getTempDotFile();
 

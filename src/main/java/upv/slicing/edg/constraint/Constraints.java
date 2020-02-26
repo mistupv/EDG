@@ -7,8 +7,8 @@ import java.util.Stack;
 public class Constraints {
 	public enum Type {Node, Edge}
 
-	protected final Set<NodeConstraint> nodeConstraints = new HashSet<NodeConstraint>();
-	protected final Stack<EdgeConstraint> edgeConstraints = new Stack<EdgeConstraint>();
+	protected final Set<NodeConstraint> nodeConstraints = new HashSet<>();
+	protected final Stack<EdgeConstraint> edgeConstraints = new Stack<>();
 
 	public Set<NodeConstraint> getNodeConstraints()
 	{

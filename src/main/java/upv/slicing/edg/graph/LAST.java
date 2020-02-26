@@ -1,133 +1,136 @@
 package upv.slicing.edg.graph;
 
-import upv.slicing.edg.graphlib.Arrow;
-import upv.slicing.edg.graphlib.Graph;
-import upv.slicing.edg.graphlib.Vertex;
+import java.util.Set;
+import java.util.stream.Collectors;
 
-import java.util.Comparator;
-import java.util.LinkedList;
-import java.util.List;
-
-public class LAST
-{
-	/*****************/
-	/***** Nodes *****/
-	/*****************/
-	protected Graph<NodeInfo, EdgeInfo> graph = new Graph<NodeInfo, EdgeInfo>();
-	
-	public Node getRootNode()
-	{
-		return (Node) this.graph.getRootVertex();
-	}
-	public List<Node> getNodes()
-	{
-		final List<Node> nodes = new LinkedList<Node>();
-		final List<Vertex<NodeInfo, EdgeInfo>> verticies = this.graph.getVerticies();
-
-		for (Vertex<NodeInfo, EdgeInfo> vertex : verticies)
-			nodes.add((Node) vertex);
-
-		return nodes;
-	}
-	public List<Edge> getEdges()
-	{
-		final List<Edge> edges = new LinkedList<Edge>();
-		final List<Arrow<NodeInfo, EdgeInfo>> arrows = this.graph.getArrows();
-
-		for (Arrow<NodeInfo, EdgeInfo> arrow : arrows)
-			edges.add((Edge) arrow);
-
-		return edges;
-	}
-
-	public void setRootNode(Node node)
-	{
-		this.graph.setRootVertex(node);
-	}
-
+/**
+ * A labelled AST graph. The AST itself is kept in a copy within, and can
+ * be accessed via {@link #structuralOutgoingEdgesOf(Node)} and {@link #structuralIncomingEdgesOf(Node)}.
+ */
+public class LAST extends GraphWithRoot {
+	/** @see #addVertex(Node) */
 	public boolean addNode(Node node)
 	{
-		return this.graph.addVertex(node);
+		return addVertex(node);
 	}
-	public boolean addEdge(Node from, Node to, int cost, EdgeInfo data) throws IllegalArgumentException
+
+	/**
+	 * Adds a node to the graph. Nodes are kept in a set, so it must be unique within the graph.
+	 * @param node The node to be added.
+	 * @return True if the node has been added.
+	 * @throws NullPointerException If the argument is null.
+	 */
+	@Override
+	public boolean addVertex(Node node)
 	{
-		final Edge e = new Edge(from, to, cost, data);
-
-		if (data.getType() == EdgeInfo.Type.Structural)
-			this.graph.addEdgeAndStructural(e);
-		return this.graph.addEdge(e);
+		return super.addVertex(node);
 	}
 
-	public boolean addEdge(Edge e)
+	/** Add an edge to the graph. If the type is Structural, then it will also be
+	 * added to the AST representation of the program. */
+	public boolean addEdge(Node from, Node to, Edge.Type type)
 	{
-		return this.graph.addEdge(e);
+		final Edge e = new Edge(type);
+		if (type == Edge.Type.Structural)
+			addStructuralEdge(from, to, e);
+		return super.addEdge(from, to, e);
 	}
 
+	/** @see #addStructuralEdge(Node, Node, Edge) */
 	public boolean addStructuralEdge(Node from, Node to)
 	{
-		return this.graph.addStructural(new Edge(from, to, 0, new EdgeInfo(EdgeInfo.Type.Structural)));
+		return addStructuralEdge(from, to, new Edge(Edge.Type.Structural));
 	}
 
-	public boolean removeEDGEdge(Node from, Node to, EdgeInfo.Type edgeType)
+	/**
+	 * Adds a structural edge, representing the AST.
+	 * @return true if the Edge was added, false if from already has this Edge
+	 * @throws IllegalArgumentException if {@code from} or {@code to} are not vertices in the graph
+	 * @throws NullPointerException if {@code from} or {@code to} are null
+	 */
+	public boolean addStructuralEdge(Node from, Node to, Edge e)
 	{
-		final List<Edge> incomingEdges = to.getIncomingEdges();
-		incomingEdges.removeIf(edge -> edge.getData().getType() != edgeType);
-
-		if (incomingEdges.isEmpty())
-			return false;
-
-		for (Edge edge : incomingEdges)
-			this.graph.removeEDGEdge(edge, from, to);
-
-		return true;
+		return addEdge(from, to, new Edge.NonTraversable(e));
 	}
 
-	public boolean removeEdge(Edge edge)
+	/**
+	 * Obtain the list of structural edges that end in {@code node}.
+	 * These edges represent the AST of the code.
+	 * @see org.jgrapht.graph.AbstractGraph#incomingEdgesOf(Object)
+	 */
+	public Set<Edge> structuralIncomingEdgesOf(Node node)
 	{
-		return this.graph.removeEdge(edge, edge.getFrom(), edge.getTo());
+		return super.incomingEdgesOf(node).stream()
+				.filter(Edge.NonTraversable.class::isInstance)
+				.collect(Collectors.toSet());
 	}
 
-	public void setRemovableEdge(Node from, Node to, EdgeInfo.Type edgeType)
+	/**
+	 * Obtain the list of edges that start in {@code node}.
+	 * These edges represent the AST of the code.
+	 * @see org.jgrapht.graph.AbstractGraph#outgoingEdgesOf(Object)
+	 */
+	public Set<Edge> structuralOutgoingEdgesOf(Node node)
 	{
-		final List<Edge> incomingEdges = to.getIncomingStructuralEdges();
-		incomingEdges.removeIf(edge -> edge.getData().getType() != edgeType);
-
-		if (!incomingEdges.isEmpty())
-			for (Edge edge : incomingEdges)
-				if (edge.getFrom().equals(from))
-				{
-					from.getOutgoingEdges().remove(edge);
-					to.getIncomingEdges().remove(edge);
-					edge.mark();
-				}
+		return super.outgoingEdgesOf(node).stream()
+			.filter(Edge.NonTraversable.class::isInstance)
+			.collect(Collectors.toSet());
 	}
 
-	public boolean updateToEdge(Node from, Node to, EdgeInfo.Type edgeType, Node newTo)
+	@Override
+	public Set<Edge> incomingEdgesOf(Node node)
 	{
-		final List<Edge> incomingEdges = to.getIncomingEdges();
-		incomingEdges.removeIf(edge -> edge.getData().getType() != edgeType);
-
-		if (incomingEdges.isEmpty())
-			return false;
-		
-		for(Edge edge : incomingEdges)
-			this.graph.updateToEdge(edge, from, to, newTo);
-		
-		return true;
+		return super.incomingEdgesOf(node).stream()
+				.filter(e -> !(e instanceof Edge.NonTraversable))
+				.collect(Collectors.toSet());
 	}
-	
-	public Node findNodeByData(NodeInfo data, Comparator<NodeInfo> compare)
+
+	@Override
+	public Set<Edge> outgoingEdgesOf(Node node)
 	{
-		return (Node) this.graph.findNodeByData(data, compare);
+
+		return super.outgoingEdgesOf(node).stream()
+				.filter(e -> !(e instanceof Edge.NonTraversable))
+				.collect(Collectors.toSet());
 	}
-	public List<Node> findNodesByData(NodeInfo data, Comparator<NodeInfo> compare)
+
+	/**
+	 * Remove all edges that match the arguments from this graph.
+	 * @param from The source of the edge.
+	 * @param to The target of the edge.
+	 * @param edgeType The edge's type.
+	 * @return True if any edge has been removed from the graph.
+	 */
+	public boolean removeEDGEdge(Node from, Node to, Edge.Type edgeType)
 	{
-		final List<Node> nodes = new LinkedList<Node>();
-		final List<Vertex<NodeInfo, EdgeInfo>> verticies = this.graph.findVerticiesByData(data, compare);
+		boolean result = false;
+		for (Edge edge : outgoingEdgesOf(from))
+			if (getEdgeTarget(edge).equals(to) && edge.getType() == edgeType)
+				result |= super.removeEdge(edge);
+		return result;
+	}
 
-		for (Vertex<NodeInfo, EdgeInfo> vertex : verticies)
-			nodes.add((Node) vertex);
-
-		return nodes;
+	/**
+	 * Mark all edges that match the argument as removable and remove them from this graph.
+	 * @param from The edge's source node.
+	 * @param to The edge's target node.
+	 * @param edgeType The type of the edge.
+	 */
+	public void setRemovableEdge(Node from, Node to, Edge.Type edgeType)
+	{
+		edgeSet().parallelStream()
+				.filter(e -> getEdgeSource(e).equals(from))
+				.filter(e -> getEdgeTarget(e).equals(to))
+				.filter(e -> e.getType() != edgeType)
+				.forEach(this::removeEdge);
+		structuralIncomingEdgesOf(to).stream()
+				.filter(e -> getEdgeSource(e).equals(from) && e.getType() != edgeType)
+				.forEach(this::removeEdge);
+		for (Edge edge : structuralIncomingEdgesOf(to))
+			if (getEdgeSource(edge).equals(from) && edge.getType() != edgeType)
+			{
+				removeEdge(edge);
+				edge.mark();
+			}
 	}
 }

@@ -1,21 +1,19 @@
 package upv.slicing.edg.edge;
 
-import edg.constraint.*;
-import edg.graph.*;
 import upv.slicing.edg.constraint.*;
-import upv.slicing.edg.graph.*;
+import upv.slicing.edg.graph.EDG;
+import upv.slicing.edg.graph.Edge;
+import upv.slicing.edg.graph.Grammar;
+import upv.slicing.edg.graph.Node;
 import upv.slicing.edg.slicing.ConstrainedAlgorithm;
 import upv.slicing.edg.slicing.Phase;
 import upv.slicing.edg.traverser.EDGTraverser;
+import upv.slicing.edg.traverser.LASTTraverser;
 import upv.slicing.edg.work.NodeWork;
 import upv.slicing.edg.work.Work;
 import upv.slicing.edg.work.WorkList;
-import upv.slicing.edg.traverser.LASTTraverser;
 
-import java.util.Hashtable;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 public class SummaryEdgeGenerator extends EdgeGenerator {
 	public SummaryEdgeGenerator(EDG edg)
@@ -34,27 +32,26 @@ public class SummaryEdgeGenerator extends EdgeGenerator {
 	/************************************/
 	private void generateExternalSummaryEdges()
 	{
-		final List<Node> calls = EDGTraverser.getNodes(this.edg, NodeInfo.Type.Call);
+		final List<Node> calls = EDGTraverser.getNodes(this.edg, Node.Type.Call);
 
 		for (Node call : calls)
 		{
-			final Node calleeNode = EDGTraverser.getChild(call, NodeInfo.Type.Callee);
-			final Node calleeResultNode = EDGTraverser.getChild(calleeNode, NodeInfo.Type.Result);
-			final List<Node> inputs = EDGTraverser.getInputs(calleeResultNode, EDGTraverser.Direction.Forwards);
+			final Node calleeNode = EDGTraverser.getChild(edg, call, Node.Type.Callee);
+			final Node calleeResultNode = EDGTraverser.getChild(edg, calleeNode, Node.Type.Result);
+			final List<Node> inputs = EDGTraverser.getInputs(edg, calleeResultNode, EDGTraverser.Direction.Forwards);
 			if (!inputs.isEmpty())
 				continue;
 
-			final Node callResult = EDGTraverser.getResFromNode(call);
-			final Node arguments = EDGTraverser.getChild(call, NodeInfo.Type.Arguments);
-			final List<Node> argumentNodes = EDGTraverser.getChildren(arguments);
+			final Node callResult = EDGTraverser.getResFromNode(edg, call);
+			final Node arguments = EDGTraverser.getChild(edg, call, Node.Type.Arguments);
+			final List<Node> argumentNodes = EDGTraverser.getChildren(edg, arguments);
 
 			for (Node argumentNode : argumentNodes)
 			{
-				final Node result = EDGTraverser.getResult(argumentNode);
+				final Node result = EDGTraverser.getResult(edg, argumentNode);
 
 				if (result != null)
-					this.edg.addEdge(result, callResult, 0,
-									 new EdgeInfo(EdgeInfo.Type.Summary, AsteriskConstraint.getConstraint()));
+					this.edg.addEdge(result, callResult, new Edge(Edge.Type.Summary, AsteriskConstraint.getConstraint()));
 			}
 		}
 	}
@@ -62,12 +59,12 @@ public class SummaryEdgeGenerator extends EdgeGenerator {
 	/************************************/
 	/************* Internal *************/
 	/************************************/
-private final Map<String, Integer> ids = new Hashtable<String, Integer>();
+private final Map<String, Integer> ids = new Hashtable<>();
 	private void generateInternalSummaryEdges()
 	{
 		final List<Work> initialWorks = this.getInitialWorks();
 		final WorkList workList = new WorkList(initialWorks);
-		final ConstrainedAlgorithm slicingAlgorithm = new ConstrainedAlgorithm();
+		final ConstrainedAlgorithm slicingAlgorithm = new ConstrainedAlgorithm(edg);
 
 long worksProcessed = 0;
 		while (workList.hasMore())
@@ -90,7 +87,7 @@ if (prev != null && prev == 100000)
 System.out.println(work.getId() + " - " + work.getConstraints().getEdgeConstraints().toString());
 			final Node initialNode = work.getInitialNode();
 			
-//final int initialNodeId = initialNode.getData().getId();
+//final int initialNodeId = initialNode.getId();
 //if(initialNodeId == 48)
 //	System.out.print("");
 			final Constraints constraints = work.getConstraints();
@@ -100,12 +97,12 @@ System.out.println(work.getId() + " - " + work.getConstraints().getEdgeConstrain
 			{
 				final NodeWork nodeWork = (NodeWork) work;
 				final Node currentNode = nodeWork.getCurrentNode();
-//final int currentNodeId = currentNode.getData().getId();
+//final int currentNodeId = currentNode.getId();
 //if(currentNodeId == 228)
 //System.out.println(" Node "+currentNodeId);
 
 				// ESTO SE USA PARA EVITAR BUCLES INFINITOS AL GENERAR SUMMARIES, SE PIERDE PRECISION Y PUEDE DAR COMO RESULTADO GRAMATICAS INCOMPLETAS O INCLUSO ERRONEAS
-				if (workList.getDoneNodes().contains(currentNode) && EDGTraverser.getParent(initialNode).getData().getType() != NodeInfo.Type.Clause)
+				if (workList.getDoneNodes().contains(currentNode) && EDGTraverser.getParent(edg, initialNode).getType() != Node.Type.Clause)
 					continue;
 
 				if (isFormalIn = this.isFormalIn(currentNode, initialNode))
@@ -130,28 +127,28 @@ System.out.println(work.getId() + " - " + work.getConstraints().getEdgeConstrain
 	}
 	private List<Work> getInitialWorks()
 	{
-		final List<Work> workList = new LinkedList<Work>();
-		final List<Node> routines = EDGTraverser.getNodes(this.edg, NodeInfo.Type.Routine);
+		final List<Work> workList = new LinkedList<>();
+		final List<Node> routines = EDGTraverser.getNodes(this.edg, Node.Type.Routine);
 
 		for (Node routine : routines)
 		{
-			final List<Node> clauses = EDGTraverser.getChildren(routine);
+			final List<Node> clauses = EDGTraverser.getChildren(edg, routine);
 			
 			for (Node clause : clauses)
 			{
 				// Summary Edges for the result node
-				final Node clauseResult = EDGTraverser.getChild(clause, NodeInfo.Type.Result);
+				final Node clauseResult = EDGTraverser.getChild(edg, clause, Node.Type.Result);
 				workList.add(new NodeWork(clauseResult, clauseResult, new Constraints()));
 
 				// Summary Edges for Reference variables (Global Variables)
-				final Node clauseParameterOut = EDGTraverser.getChild(clause, NodeInfo.Type.ParameterOut);
-				final List<Edge> globalVarDefinitions = EDGTraverser
-						.getEdges(clauseParameterOut, LASTTraverser.Direction.Backwards, EdgeInfo.Type.Flow);
+				final Node clauseParameterOut = EDGTraverser.getChild(edg, clause, Node.Type.ParameterOut);
+				final Set<Edge> globalVarDefinitions = EDGTraverser
+						.getEdges(edg, clauseParameterOut, LASTTraverser.Direction.Backwards, Edge.Type.Flow);
 				for (Edge globalVarDefinition : globalVarDefinitions)
 				{
-					if (globalVarDefinition.getData().getConstraint() instanceof GlobalVariableConstraint)
+					if (globalVarDefinition.getConstraint() instanceof GlobalVariableConstraint)
 					{
-						final Node gvDefNode = globalVarDefinition.getFrom();
+						final Node gvDefNode = edg.getEdgeSource(globalVarDefinition);
 						workList.add(new NodeWork(gvDefNode, gvDefNode, new Constraints()));
 					}
 				}
@@ -161,24 +158,24 @@ System.out.println(work.getId() + " - " + work.getConstraints().getEdgeConstrain
 	}
 	private boolean isFormalIn(Node node, Node formalOutNode)
 	{
-		final Node parent = EDGTraverser.getParent(node);
-		final NodeInfo.Type nodeType = node.getData().getType();
-		final NodeInfo.Type parentType = parent == null ? null : parent.getData().getType();
-		final Node grandParent = parent == null ? null : EDGTraverser.getParent(parent);
-		final NodeInfo.Type grandParentType = grandParent == null ? null : grandParent.getData().getType();
+		final Node parent = EDGTraverser.getParent(edg, node);
+		final Node.Type nodeType = node.getType();
+		final Node.Type parentType = parent == null ? null : parent.getType();
+		final Node grandParent = parent == null ? null : EDGTraverser.getParent(edg, parent);
+		final Node.Type grandParentType = grandParent == null ? null : grandParent.getType();
 		if (parent == null)
 			return false;
-		if (nodeType != NodeInfo.Type.Parameters)
-			if (nodeType != NodeInfo.Type.Result || parentType != NodeInfo.Type.Expression ||
-				grandParentType != NodeInfo.Type.Parameters)
+		if (nodeType != Node.Type.Parameters)
+			if (nodeType != Node.Type.Result || parentType != Node.Type.Expression ||
+				grandParentType != Node.Type.Parameters)
 				return false;
 
 		// The formal in must be related to the formal out
-		final Node parameters = EDGTraverser.getAncestor(node, NodeInfo.Type.Parameters);
-		final Node clauseResult = EDGTraverser.getSibling(parameters, NodeInfo.Type.Result);
+		final Node parameters = EDGTraverser.getAncestor(edg, node, Node.Type.Parameters);
+		final Node clauseResult = EDGTraverser.getSibling(edg, parameters, Node.Type.Result);
 
 		final Node formalOutResult = EDGTraverser
-				.getResult(EDGTraverser.getAncestor(formalOutNode, NodeInfo.Type.Clause));
+				.getResult(edg, EDGTraverser.getAncestor(edg, formalOutNode, Node.Type.Clause));
 
 		return clauseResult == formalOutResult;
 	}
@@ -188,70 +185,66 @@ System.out.println(work.getId() + " - " + work.getConstraints().getEdgeConstrain
 		final GrammarConstraint grammarConstraint = new GrammarConstraint(grammar, formalIn);
 		this.edg.addProduction(grammarConstraint, constraints);
 
-		final List<Node> nodesToContinue = new LinkedList<Node>();
+		final List<Node> nodesToContinue = new LinkedList<>();
 		
-		if (formalIn.getData().getType() != NodeInfo.Type.Parameters)
+		if (formalIn.getType() != Node.Type.Parameters)
 		{
-			final List<Node> inputs = EDGTraverser.getInputs(formalIn, EDGTraverser.Direction.Backwards);
+			final List<Node> inputs = EDGTraverser.getInputs(edg, formalIn, EDGTraverser.Direction.Backwards);
 	
 			for (Node input : inputs)
 			{
-				final Node call = EDGTraverser.getAncestor(input, NodeInfo.Type.Call);
+				final Node call = EDGTraverser.getAncestor(edg, input, Node.Type.Call);
 				if (call == null)
 					continue;
 
-				final Node callResult = EDGTraverser.getSibling(call, NodeInfo.Type.Result);
-				if (EDGTraverser.getParent(formalOut).getData().getType() !=
-					NodeInfo.Type.Clause) // PART FOR GLOBAL VARIABLE'S SUMMARIES
+				final Node callResult = EDGTraverser.getSibling(edg, call, Node.Type.Result);
+				if (EDGTraverser.getParent(edg, formalOut).getType() != Node.Type.Clause) // PART FOR GLOBAL VARIABLE'S SUMMARIES
 				{
-					final List<Edge> GVOutEdges = EDGTraverser
-							.getEdges(formalOut, LASTTraverser.Direction.Forwards, EdgeInfo.Type.Flow);
+					final Set<Edge> GVOutEdges = EDGTraverser
+							.getEdges(edg, formalOut, LASTTraverser.Direction.Forwards, Edge.Type.Flow);
 					for (Edge GVOutEdge : GVOutEdges)
-						if (GVOutEdge.getData().getConstraint() instanceof GlobalVariableConstraint)
+						if (GVOutEdge.getConstraint() instanceof GlobalVariableConstraint)
 						{
-							final String varName = ((GlobalVariableConstraint) GVOutEdge.getData().getConstraint())
-									.getVariableName();
+							final String varName = ((GlobalVariableConstraint) GVOutEdge.getConstraint()).getVariableName();
 							final GlobalVariableConstraint removeConstraint = new GlobalVariableConstraint(
 									SeekingConstraint.Operation.Remove, varName);
-							final Node callNode = EDGTraverser.getSibling(callResult, NodeInfo.Type.Value);
-							final Node callArgOut = EDGTraverser.getChild(callNode, NodeInfo.Type.ArgumentOut);
-							this.edg.addEdge(input, callArgOut, 0,
-											 new EdgeInfo(EdgeInfo.Type.Summary, removeConstraint));
+							final Node callNode = EDGTraverser.getSibling(edg, callResult, Node.Type.Value);
+							final Node callArgOut = EDGTraverser.getChild(edg, callNode, Node.Type.ArgumentOut);
+							this.edg.addEdge(input, callArgOut, new Edge(Edge.Type.Summary, removeConstraint));
 						}
 				}
 				else // PART FOR FUNCTION RESULT'S SUMMARIES
-					this.edg.addEdge(input, callResult, 0, new EdgeInfo(EdgeInfo.Type.Summary, grammarConstraint));
+					this.edg.addEdge(input, callResult, new Edge(Edge.Type.Summary, grammarConstraint));
 				
 				nodesToContinue.add(callResult);
 			}
 		}
 		else
 		{
-			final Node functionClauseNode = EDGTraverser.getParent(formalIn);
-			final List<Node> inputs = EDGTraverser.getInputs(functionClauseNode, EDGTraverser.Direction.Backwards);
+			final Node functionClauseNode = EDGTraverser.getParent(edg, formalIn);
+			final List<Node> inputs = EDGTraverser.getInputs(edg, functionClauseNode, EDGTraverser.Direction.Backwards);
 			
 			for (Node input : inputs)
 			{
-				final Node call = EDGTraverser.getAncestor(input, NodeInfo.Type.Call);
+				final Node call = EDGTraverser.getAncestor(edg, input, Node.Type.Call);
 				if (call == null)
 					continue;
 				
-				final Node callResult = EDGTraverser.getSibling(call, 1);
-				if (EDGTraverser.getParent(formalOut).getData().getType() != NodeInfo.Type.Clause) // PART FOR GLOBAL VARIABLE'S SUMMARIES
-				{	final List<Edge> GVInEdges = EDGTraverser.getEdges(formalIn, LASTTraverser.Direction.Forwards, EdgeInfo.Type.Flow);
+				final Node callResult = EDGTraverser.getSibling(edg, call, 1);
+				if (EDGTraverser.getParent(edg, formalOut).getType() != Node.Type.Clause) // PART FOR GLOBAL VARIABLE'S SUMMARIES
+				{
+					final Set<Edge> GVInEdges = EDGTraverser.getEdges(edg, formalIn, LASTTraverser.Direction.Forwards, Edge.Type.Flow);
 				
-					for (Edge GVInEdge : GVInEdges)	
-						if (GVInEdge.getData().getConstraint() instanceof GlobalVariableConstraint)
+					for (Edge GVInEdge : GVInEdges)
+						if (GVInEdge.getConstraint() instanceof GlobalVariableConstraint)
 						{
-							final String varName = ((GlobalVariableConstraint) GVInEdge.getData().getConstraint())
-									.getVariableName();
+							final String varName = ((GlobalVariableConstraint) GVInEdge.getConstraint()).getVariableName();
 							final GlobalVariableConstraint letThroughConstraint = new GlobalVariableConstraint(
 									SeekingConstraint.Operation.LetThrough, varName);
-							final Node callNode = EDGTraverser.getSibling(callResult, NodeInfo.Type.Value);
-							final Node callArgOut = EDGTraverser.getChild(callNode, NodeInfo.Type.ArgumentOut);
-							final Node callArgIn = EDGTraverser.getChild(callNode, NodeInfo.Type.ArgumentIn);
-							this.edg.addEdge(callArgIn, callArgOut, 0,
-											 new EdgeInfo(EdgeInfo.Type.Flow, letThroughConstraint));
+							final Node callNode = EDGTraverser.getSibling(edg, callResult, Node.Type.Value);
+							final Node callArgOut = EDGTraverser.getChild(edg, callNode, Node.Type.ArgumentOut);
+							final Node callArgIn = EDGTraverser.getChild(edg, callNode, Node.Type.ArgumentIn);
+							this.edg.addEdge(callArgIn, callArgOut, new Edge(Edge.Type.Flow, letThroughConstraint));
 						}
 				}
 				nodesToContinue.add(callResult);
@@ -263,7 +256,7 @@ System.out.println(work.getId() + " - " + work.getConstraints().getEdgeConstrain
 	{
 		for (Node nodeToContinue : nodesToContinue)
 		{
-			final String id = nodeToContinue.getData().getId() + "";
+			final String id = nodeToContinue.getId() + "";
 			workList.repend(id);
 		}
 	}

@@ -1,10 +1,11 @@
 package upv.slicing.edg.constraint;
 
-import java.util.LinkedList;
-import java.util.List;
-
 import upv.slicing.edg.config.Config;
 import upv.slicing.edg.slicing.Phase;
+
+import java.util.Arrays;
+import java.util.LinkedList;
+import java.util.List;
 
 public abstract class Constraint
 {
@@ -15,12 +16,7 @@ public abstract class Constraint
 
 	protected List<Constraints> wrap(Constraints... constraints)
 	{
-		final List<Constraints> constraintsList = new LinkedList<Constraints>();
-
-		for (Constraints constraints0 : constraints)
-			constraintsList.add(constraints0);
-
-		return constraintsList;
+		return new LinkedList<>(Arrays.asList(constraints));
 	}
 
 	protected void check(Phase phase1, Phase phase2)

@@ -1,8 +1,8 @@
 package upv.slicing.edg.constraint;
 
+import upv.slicing.edg.graph.EDG;
 import upv.slicing.edg.graph.Edge;
 import upv.slicing.edg.graph.Node;
-import upv.slicing.edg.graph.NodeInfo;
 import upv.slicing.edg.slicing.Phase;
 import upv.slicing.edg.traverser.EDGTraverser;
 
@@ -73,38 +73,38 @@ public abstract class SeekingConstraint extends EdgeConstraint {
 		return toString;
 	}
 
-	protected List<Constraints> resolve(Phase phase, Edge edge, Constraints constraints, int productionDepth)
+	protected List<Constraints> resolve(Phase phase, EDG edg, Edge edge, Constraints constraints, int productionDepth)
 	{
 		if (this.operation == Operation.Add)
 			return super.wrap(super.push(phase, constraints));
 		if (phase.isInstanceof(Phase.Slicing))
 			return super.wrap();
 		super.check(phase, Phase.SummaryGeneration);
-		final Node to = edge.getTo();
+		final Node to = edg.getEdgeTarget(edge);
 		if (this.operation == Operation.LetThrough)
 		{
-			final Node parent = EDGTraverser.getParent(to);
-			if (parent.getData().getType() != NodeInfo.Type.Clause)
+			final Node parent = EDGTraverser.getParent(edg, to);
+			if (parent.getType() != Node.Type.Clause)
 				return super.wrap();
-			final Node result = EDGTraverser.getChild(parent, 3);
+			final Node result = EDGTraverser.getChild(edg, parent, 3);
 			if (to != result)
 				return super.wrap();
 		}
 		return super.wrap(super.push(phase, constraints));
 	}
-	protected List<Constraints> resolve(Phase phase, Edge edge, Constraints constraints, AccessConstraint topConstraint, int productionDepth)
+	protected List<Constraints> resolve(Phase phase, EDG edg, Edge edge, Constraints constraints, AccessConstraint topConstraint, int productionDepth)
 	{
 		if (this.operation == Operation.Add)
 			return super.wrap(super.push(phase, constraints));
 		return super.wrap();
 	}
-	protected List<Constraints> resolve(Phase phase, Edge edge, Constraints constraints, GrammarConstraint topConstraint, int productionDepth)
+	protected List<Constraints> resolve(Phase phase, EDG edg, Edge edge, Constraints constraints, GrammarConstraint topConstraint, int productionDepth)
 	{
 		super.check(phase, Phase.SummaryGeneration);
 
 		return super.wrap(super.push(phase, constraints));
 	}
-	protected List<Constraints> resolve(Phase phase, Edge edge, Constraints constraints, SeekingConstraint topConstraint, int productionDepth)
+	protected List<Constraints> resolve(Phase phase, EDG edg, Edge edge, Constraints constraints, SeekingConstraint topConstraint, int productionDepth)
 	{
 		if (this.cancels(topConstraint))
 			return super.wrap(super.pop(constraints));
@@ -116,7 +116,7 @@ public abstract class SeekingConstraint extends EdgeConstraint {
 
 		return super.wrap(super.push(phase, constraints));
 	}
-	protected List<Constraints> resolve(Phase phase, Edge edge, Constraints constraints, AsteriskConstraint topConstraint, int productionDepth)
+	protected List<Constraints> resolve(Phase phase, EDG edg, Edge edge, Constraints constraints, AsteriskConstraint topConstraint, int productionDepth)
 	{
 		super.check(phase, Phase.SummaryGeneration);
 

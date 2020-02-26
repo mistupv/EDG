@@ -1,84 +1,150 @@
 package upv.slicing.edg.graph;
 
-import upv.slicing.edg.graphlib.Arrow;
-import upv.slicing.edg.graphlib.Vertex;
+import upv.slicing.edg.LDASTNodeInfo;
 
-import java.util.LinkedList;
-import java.util.List;
+import java.util.Objects;
 
-public class Node extends Vertex<NodeInfo, EdgeInfo> {
-	public Node()
-	{
-		this(null, null);
+public class Node {
+	public enum Type {
+		// Module
+		Module,
+
+		// Routine
+		Routine, Clause, Parameters(true),
+
+		// Expressions
+		List, DataConstructor, DataConstructorAccess, FieldAccess,
+		Block, Operation, Equality, Pattern,
+		If, Condition(true), Then, Else,
+		Switch, Selector(true), Cases(true), Case, DefaultCase, Selectable(true),
+		Call, Callee(true), Scope(true), Name(true), Arguments(true),
+		ListComprehension, Restrictions(true), Generator, Filter, Value(true),
+		Loop, // <- DEPRECATED USED IN PHP
+		CLoop, FLoop, RLoop, Foreach, Iterator, // LOOPS
+		ExHandler, Try, Catch, Finally, CatchClause, Throw, // EXCEPTIONS
+
+		// Others
+		Body(true), Guard(true),
+		Expression(true), Result(false, true),
+		Variable, Literal,
+		Return(false, true), Break(false, true), Continue(false, true),
+		Root(true),
+		Init(true), Update(true),
+		TypeCheck, // JAVA instanceof
+		TypeTransformation,
+		Type(false, true),
+		Reference, Label,
+		ArgumentIn(true), ArgumentOut(true),
+		ParameterIn, ParameterOut,
+		Index; // To identify DataConstructorAccess Indexes
+
+		private final boolean fictitious;
+		private final boolean sliceable;
+
+		Type()
+		{
+			this(false);
+		}
+
+		Type(boolean fictitious)
+		{
+			this(fictitious, false);
+		}
+
+		Type(boolean fictitious, boolean sliceable)
+		{
+			this.fictitious = fictitious;
+			this.sliceable = sliceable;
+		}
+
+		public boolean isFictitious()
+		{
+			return fictitious;
+		}
+
+		public boolean isSliceable()
+		{
+			return sliceable;
+		}
 	}
 
-	public Node(String n)
+	private String label;
+	private final int id;
+	private final LDASTNodeInfo ldASTNodeInfo;
+	private String name;
+	private final Type type;
+
+	public Node(int id, Type type, String name, LDASTNodeInfo info)
 	{
-		this(n, null);
+		this(null, id, type, name, info);
 	}
 
-	public Node(String n, NodeInfo data)
+	public Node(String label, int id, Type type, String name, LDASTNodeInfo info)
 	{
-		super(n, data);
+		Objects.requireNonNull(type, "Type can't be null!");
+		this.label = label;
+		this.id = id;
+		this.type = type;
+		this.name = name;
+		this.ldASTNodeInfo = info;
 	}
 
-	public List<Edge> getIncomingEdges()
+	public String getLabel()
 	{
-		final List<Edge> edges = new LinkedList<Edge>();
-		final List<Arrow<NodeInfo, EdgeInfo>> arrows = super.getIncomingArrows();
-
-		for (Arrow<NodeInfo, EdgeInfo> arrow : arrows)
-			edges.add((Edge) arrow);
-
-		return edges;
+		return label;
 	}
 
-	public List<Edge> getOutgoingEdges()
+	public void setLabel(String label)
 	{
-		final List<Edge> edges = new LinkedList<Edge>();
-		final List<Arrow<NodeInfo, EdgeInfo>> arrows = super.getOutgoingArrows();
-
-		for (Arrow<NodeInfo, EdgeInfo> arrow : arrows)
-			edges.add((Edge) arrow);
-
-		return edges;
+		Objects.requireNonNull(label);
+		this.label = label;
 	}
 
-	public List<Edge> getIncomingStructuralEdges()
+	public String getName()
 	{
-		final List<Edge> edges = new LinkedList<Edge>();
-		final List<Arrow<NodeInfo, EdgeInfo>> arrows = super.getIncomingStructuralArrows();
-
-		for (Arrow<NodeInfo, EdgeInfo> arrow : arrows)
-			edges.add((Edge) arrow);
-
-		return edges;
+		return name;
 	}
 
-	public List<Edge> getOutgoingStructuralEdges()
+	public void setName(String name)
 	{
-		final List<Edge> edges = new LinkedList<Edge>();
-		final List<Arrow<NodeInfo, EdgeInfo>> arrows = super.getOutgoingStructuralArrows();
-
-		for (Arrow<NodeInfo, EdgeInfo> arrow : arrows)
-			edges.add((Edge) arrow);
-
-		return edges;
+		Objects.requireNonNull(name);
+		this.name = name;
 	}
 
-	public List<Edge> findEdges(Node dest)
+	public Type getType()
 	{
-		final List<Edge> edges = new LinkedList<Edge>();
-		final List<Arrow<NodeInfo, EdgeInfo>> arrows = super.findEdges(dest);
-
-		for (Arrow<NodeInfo, EdgeInfo> arrow : arrows)
-			edges.add((Edge) arrow);
-
-		return edges;
+		return type;
 	}
 
-	public void setName(String newName)
+	public int getId()
 	{
-		this.name = newName;
+		return id;
+	}
+
+	public LDASTNodeInfo getInfo()
+	{
+		return ldASTNodeInfo;
+	}
+
+	@Override
+	public String toString()
+	{
+		return String.format("Node(label=%s,id=%d,type=%s,name=%s)", label, id, type.name(), name);
+	}
+
+	@Override
+	public boolean equals(Object o)
+	{
+		if (this == o) return true;
+		if (o == null || getClass() != o.getClass()) return false;
+		Node node = (Node) o;
+		return id == node.id &&
+				type == node.type;
+	}
+
+	@Override
+	public int hashCode()
+	{
+		return Objects.hash(id, type);
 	}
 }

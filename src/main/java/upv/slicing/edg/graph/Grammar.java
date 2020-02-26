@@ -1,17 +1,17 @@
 package upv.slicing.edg.graph;
 
+import upv.slicing.edg.constraint.Constraints;
+import upv.slicing.edg.constraint.GrammarConstraint;
+
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 
-import upv.slicing.edg.constraint.Constraints;
-import upv.slicing.edg.constraint.GrammarConstraint;
-
 public class Grammar
 {
-	private final Map<Node, GrammarConstraint> grammarConstraints = new HashMap<Node, GrammarConstraint>();
-	private final Map<GrammarConstraint, List<Constraints>> grammar = new HashMap<GrammarConstraint, List<Constraints>>();
+	private final Map<Node, GrammarConstraint> grammarConstraints = new HashMap<>();
+	private final Map<GrammarConstraint, List<Constraints>> grammar = new HashMap<>();
 
 	private List<Constraints> createProductions(GrammarConstraint grammarConstraint)
 	{
@@ -19,7 +19,7 @@ public class Grammar
 
 		if (productions == null)
 		{
-			productions = new LinkedList<Constraints>();
+			productions = new LinkedList<>();
 			this.grammar.put(grammarConstraint, productions);
 		}
 

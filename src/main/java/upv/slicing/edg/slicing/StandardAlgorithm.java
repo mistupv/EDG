@@ -1,47 +1,54 @@
 package upv.slicing.edg.slicing;
 
-import java.util.Arrays;
-import java.util.LinkedList;
-import java.util.List;
-
+import upv.slicing.edg.graph.EDG;
 import upv.slicing.edg.graph.Edge;
-import upv.slicing.edg.graph.EdgeInfo;
 import upv.slicing.edg.graph.Node;
+
+import java.util.*;
 
 public class StandardAlgorithm implements SlicingAlgorithm
 {
-	public List<Node> slice(Node node)
+	protected final EDG edg;
+
+	public StandardAlgorithm(EDG edg)
 	{
-		final List<Node> slice = new LinkedList<Node>();
+		this.edg = edg;
+	}
+
+	public Set<Node> slice(Node node)
+	{
+		final Set<Node> slice = new HashSet<>();
 		if (node == null)
 			return slice;
 
 		slice.add(node);
-		this.traverse(slice, EdgeInfo.Type.Output);
-		this.traverse(slice, EdgeInfo.Type.Input);
+		this.traverse(slice, Edge.Type.Output);
+		this.traverse(slice, Edge.Type.Input);
 
 		return slice;
 	}
-	private void traverse(List<Node> slice, EdgeInfo.Type... ignoreEdgeTypes)
+
+	private void traverse(Set<Node> slice, Edge.Type... ignoreEdgeTypes)
 	{
-		final List<Node> pendingNodes = new LinkedList<Node>(slice);
-		final List<EdgeInfo.Type> listIgnoreEdgeTypes = Arrays.asList(ignoreEdgeTypes);
+		final Deque<Node> pendingNodes = new LinkedList<>(slice);
+		final Set<Edge.Type> ignoreEdgeTypesSet = new HashSet<>(Arrays.asList(ignoreEdgeTypes));
+		ignoreEdgeTypesSet.add(Edge.Type.ControlFlow);
 
 		while (!pendingNodes.isEmpty())
 		{
-			final Node pendingNode = pendingNodes.remove(0);
-			final List<Edge> incomingEdges = pendingNode.getIncomingEdges();
+			final Node pendingNode = pendingNodes.removeFirst();
+			final Set<Edge> incomingEdges = edg.incomingEdgesOf(pendingNode);
 
-			incomingEdges.removeIf(edge -> edge.getData().getType() == EdgeInfo.Type.ControlFlow);
-			incomingEdges.removeIf(edge -> listIgnoreEdgeTypes.contains(edge.getData().getType()));
+			incomingEdges.removeIf(e -> ignoreEdgeTypesSet.contains(e.getType()));
+			incomingEdges.removeIf(e -> !e.isTraversable());
 			for (Edge incomingEdge : incomingEdges)
 			{
-				final Node nodeFrom = incomingEdge.getFrom();
-				if (slice.contains(nodeFrom))
-					continue;
-
-				pendingNodes.add(nodeFrom);
-				slice.add(nodeFrom);
+				final Node nodeFrom = edg.getEdgeSource(incomingEdge);
+				if (!slice.contains(nodeFrom))
+				{
+					pendingNodes.addLast(nodeFrom);
+					slice.add(nodeFrom);
+				}
 			}
 		}
 	}
