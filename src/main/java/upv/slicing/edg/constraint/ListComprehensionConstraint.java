@@ -1,5 +1,6 @@
 package upv.slicing.edg.constraint;
 
+import upv.slicing.edg.graph.EDG;
 import upv.slicing.edg.graph.Edge;
 import upv.slicing.edg.slicing.Phase;
 
@@ -35,7 +36,7 @@ public class ListComprehensionConstraint extends AccessConstraint {
 		return new ListComprehensionConstraint(Operation.Add);
 	}
 
-	protected List<Constraints> resolve(Phase phase, Edge edge, Constraints constraints, AccessConstraint topConstraint, int productionDepth)
+	protected List<Constraints> resolve(Phase phase, EDG edg, Edge edge, Constraints constraints, AccessConstraint topConstraint, int productionDepth)
 	{
 		if (this.operation == Operation.Add)
 			return super.wrap(super.push(phase, constraints));
@@ -65,7 +66,7 @@ public class ListComprehensionConstraint extends AccessConstraint {
 		super.check(phase, Phase.SummaryGeneration);
 		return super.wrap(super.push(phase, constraints));
 	}
-	protected List<Constraints> resolve(Phase phase, Edge edge, Constraints constraints, ListComprehensionConstraint topConstraint, int productionDepth)
+	protected List<Constraints> resolve(Phase phase, EDG edg, Edge edge, Constraints constraints, ListComprehensionConstraint topConstraint, int productionDepth)
 	{
 		if (topConstraint.operation == Operation.Add && this.cancels(topConstraint))
 			return super.wrap(super.pop(constraints));

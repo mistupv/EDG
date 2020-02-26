@@ -11,7 +11,7 @@ public class NodeWork extends Work
 	{
 		super(initialNode, constraints);
 
-		this.id = currentNode.getData().getId() + "";
+		this.id = currentNode.getId() + "";
 		this.currentNode = currentNode;
 	}
 

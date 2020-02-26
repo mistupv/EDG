@@ -1,6 +1,7 @@
 package upv.slicing.edg.work;
 
 import upv.slicing.edg.constraint.Constraints;
+import upv.slicing.edg.graph.EDG;
 import upv.slicing.edg.graph.Edge;
 import upv.slicing.edg.graph.Node;
 
@@ -8,11 +9,11 @@ public class EdgeWork extends Work
 {
 	private final Edge currentEdge;
 
-	public EdgeWork(Node initialNode, Edge currentEdge, Constraints constraints)
+	public EdgeWork(EDG edg, Node initialNode, Edge currentEdge, Constraints constraints)
 	{
 		super(initialNode, constraints);
 
-		this.id = currentEdge.getFrom().getData().getId() + "->" + currentEdge.getTo().getData().getId();
+		this.id = edg.getEdgeSource(currentEdge).getId() + "->" + edg.getEdgeTarget(currentEdge).getId();
 		this.currentEdge = currentEdge;
 	}
 

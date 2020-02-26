@@ -2,8 +2,7 @@ package upv.slicing.edg.edge;
 
 import upv.slicing.edg.graph.EDG;
 import upv.slicing.edg.graph.Node;
-import upv.slicing.edg.graph.NodeInfo;
-import upv.slicing.edg.graph.VariableInfo;
+import upv.slicing.edg.graph.Variable;
 import upv.slicing.edg.traverser.EDGTraverser;
 
 import java.util.LinkedList;
@@ -33,7 +32,7 @@ public abstract class EdgeGenerator {
 
 	protected List<Node> getImplicitRestrictions(List<Node> patterns)
 	{
-		final List<Node> implicitRestrictions = new LinkedList<Node>();
+		final List<Node> implicitRestrictions = new LinkedList<>();
 
 		for (Node pattern : patterns)
 		{
@@ -46,85 +45,82 @@ public abstract class EdgeGenerator {
 	}
 	protected List<Node> getImplicitRestrictions(Node pattern)
 	{
-		final List<Node> implicitRestrictions = new LinkedList<Node>();
+		final List<Node> implicitRestrictions = new LinkedList<>();
 
-		pattern = pattern.getData().getType() == NodeInfo.Type.Expression ? EDGTraverser.getChild(pattern, 0) : pattern;
-		final NodeInfo nodeInfo = pattern.getData();
+		pattern = pattern.getType() == Node.Type.Expression ? EDGTraverser.getChild(edg, pattern, 0) : pattern;
 
-		switch (nodeInfo.getType())
+		switch (pattern.getType())
 		{
 			case Literal:
 				implicitRestrictions.add(pattern);
 				break;
 			case Variable:
-				final VariableInfo variableInfo = (VariableInfo) nodeInfo;
-				if (variableInfo.getContext() == VariableInfo.Context.Use)
+				final Variable variable = (Variable) pattern;
+				if (variable.getContext() == Variable.Context.Use)
 					implicitRestrictions.add(pattern);
 				break;
 			case List:
 			case DataConstructor:
-				final List<Node> children = EDGTraverser.getChildren(pattern);
+				final List<Node> children = EDGTraverser.getChildren(edg, pattern);
 				implicitRestrictions.add(pattern);
 				for (Node child : children)
 					implicitRestrictions.addAll(this.getImplicitRestrictions(child));
 				break;
 			default:
-				throw new RuntimeException("Node type not contemplated: " + nodeInfo.getType());
+				throw new RuntimeException("Node type not contemplated: " + pattern.getType());
 		}
 
 		return implicitRestrictions;
 	}
 	protected List<Node[]> getMatches(Node pattern, Node expression)
 	{
-		final List<Node[]> matches = new LinkedList<Node[]>();
+		final List<Node[]> matches = new LinkedList<>();
 
-		final Node patternNode = pattern.getData().getType() == NodeInfo.Type.Expression ? EDGTraverser.getChild(pattern, 0) : pattern;
-		final Node expressionNode = expression.getData().getType() == NodeInfo.Type.Expression ? EDGTraverser.getChild(expression, 0) : expression;
+		final Node patternNode = pattern.getType() == Node.Type.Expression ? EDGTraverser.getChild(edg, pattern, 0) : pattern;
+		final Node expressionNode = expression.getType() == Node.Type.Expression ? EDGTraverser.getChild(edg, expression, 0) : expression;
 
-		final NodeInfo patternData = patternNode.getData();
-		final NodeInfo expressionData = expressionNode.getData();
-		final NodeInfo.Type patternType = patternData.getType();
-		final NodeInfo.Type expressionType = expressionData.getType();
-		final String patternText = patternData.getName();
-		final String expressionText = expressionData.getName();
+		final Node.Type patternType = patternNode.getType();
+		final Node.Type expressionType = expressionNode.getType();
+		final String patternText = patternNode.getName();
+		final String expressionText = expressionNode.getName();
 
 // TODO Revisar
-		if (expressionType == NodeInfo.Type.Variable ||
-			((patternType == NodeInfo.Type.Literal) &&
-			(expressionType == NodeInfo.Type.Literal) &&
+		if (expressionType == Node.Type.Variable ||
+			((patternType == Node.Type.Literal) &&
+			(expressionType == Node.Type.Literal) &&
 			patternText.equals(expressionText)))
 			matches.add(new Node[] { patternNode, expressionNode } );
-else		if (patternType == NodeInfo.Type.Variable ||
-			((patternType == NodeInfo.Type.Literal) && (expressionType == NodeInfo.Type.Operation || expressionType == NodeInfo.Type.Call)) ||
-			(patternType == NodeInfo.Type.DataConstructor && expressionType == NodeInfo.Type.Call) ||
-			(patternType == NodeInfo.Type.List && (expressionType == NodeInfo.Type.Operation || expressionType == NodeInfo.Type.Call || expressionType == NodeInfo.Type.ListComprehension)))
+else		if (patternType == Node.Type.Variable ||
+			((patternType == Node.Type.Literal) && (expressionType == Node.Type.Operation || expressionType == Node.Type.Call)) ||
+			(patternType == Node.Type.DataConstructor && expressionType == Node.Type.Call) ||
+			(patternType == Node.Type.List && (expressionType == Node.Type.Operation || expressionType == Node.Type.Call || expressionType == Node.Type.ListComprehension)))
 		{
-			final Node result = EDGTraverser.getResult(expressionNode);
+			final Node result = EDGTraverser.getResult(edg, expressionNode);
 			if (result != null)
 				matches.add(new Node[] { patternNode, result } );
 		}
-else		if ((patternType == NodeInfo.Type.Literal || patternType == NodeInfo.Type.DataConstructor || patternType == NodeInfo.Type.List) &&
-			(expressionType == NodeInfo.Type.Case || expressionType == NodeInfo.Type.If || expressionType == NodeInfo.Type.Equality || expressionType == NodeInfo.Type.Block))
+else		if ((patternType == Node.Type.Literal || patternType == Node.Type.DataConstructor || patternType == Node.Type.List) &&
+			(expressionType == Node.Type.Case || expressionType == Node.Type.If || expressionType == Node.Type.Equality || expressionType == Node.Type.Block))
 		{
-			final Node resultRoot = EDGTraverser.getResult(expressionNode);
+			final Node resultRoot = EDGTraverser.getResult(edg, expressionNode);
 			if (resultRoot != null)
 				matches.addAll(this.getMatches(patternNode, resultRoot));
 		}
-		else if (patternType == NodeInfo.Type.Equality)
+		else if (patternType == Node.Type.Equality)
 		{
-			final Node result = EDGTraverser.getResult(patternNode);
+			final Node result = EDGTraverser.getResult(edg, patternNode);
 			if (result != null)
 				matches.addAll(this.getMatches(result, expressionNode));
 		}
 
-else		if ((patternType == NodeInfo.Type.DataConstructor || patternType == NodeInfo.Type.List) && expressionType == patternType)
+else		if ((patternType == Node.Type.DataConstructor || patternType == Node.Type.List) && expressionType == patternType)
 		{
-			final List<Node> patternNodeChildren = EDGTraverser.getChildren(patternNode);
-			final List<Node> expressionNodeChildren = EDGTraverser.getChildren(expressionNode);
+			final List<Node> patternNodeChildren = EDGTraverser.getChildren(edg, patternNode);
+			final List<Node> expressionNodeChildren = EDGTraverser.getChildren(edg, expressionNode);
 
 			if (patternNodeChildren.size() == expressionNodeChildren.size())
 			{
-				final List<Node[]> childrenMatches = new LinkedList<Node[]>();
+				final List<Node[]> childrenMatches = new LinkedList<>();
 
 				for (int childIndex = 0; childIndex < patternNodeChildren.size(); childIndex++)
 				{
@@ -145,14 +141,14 @@ else		if ((patternType == NodeInfo.Type.DataConstructor || patternType == NodeIn
 		return matches;
 	}
 
-	protected List<Node> getVariables(String id, VariableInfo.Context context, Boolean global)
+	protected List<Node> getVariables(String id, Variable.Context context, Boolean global)
 	{
-		final List<Node> variableNodes = new LinkedList<Node>();
-		final List<Node> variables = EDGTraverser.getNodes(this.edg, node -> node.getData() instanceof VariableInfo);
+		final List<Node> variableNodes = new LinkedList<>();
+		final List<Node> variables = EDGTraverser.getNodes(this.edg, node -> node instanceof Variable);
 
 		for (Node variable : variables)
 		{
-			final VariableInfo info = (VariableInfo) variable.getData();
+			final Variable info = (Variable) variable;
 			final String variableId = this.getId(variable);
 			if (id != null && !variableId.equals(id))
 				continue;
@@ -166,20 +162,20 @@ else		if ((patternType == NodeInfo.Type.DataConstructor || patternType == NodeIn
 		return variableNodes;
 	}
 	
-	protected List<Node> getVariables(String id, VariableInfo.Context context, String className, Boolean global)
+	protected List<Node> getVariables(String id, Variable.Context context, String className, Boolean global)
 	{
-		final List<Node> variableNodes = new LinkedList<Node>();
-		final List<Node> variables = EDGTraverser.getNodes(this.edg, node -> node.getData() instanceof VariableInfo);
+		final List<Node> variableNodes = new LinkedList<>();
+		final List<Node> variables = EDGTraverser.getNodes(this.edg, node -> node instanceof Variable);
 
 		for (Node variable : variables)
 		{
-			final VariableInfo info = (VariableInfo) variable.getData();
+			final Variable info = (Variable) variable;
 			final String variableId = this.getId(variable);
 			if (id != null && !variableId.equals(id))
 				continue;
-			if (context != null && context == VariableInfo.Context.Declaration && !info.isDeclaration())
+			if (context != null && context == Variable.Context.Declaration && !info.isDeclaration())
 				continue;
-			else if (context != null && context != VariableInfo.Context.Declaration && info.getContext() != context)
+			else if (context != null && context != Variable.Context.Declaration && info.getContext() != context)
 				continue;
 			if (global != null && info.isGlobal() != global)
 				continue;
@@ -193,10 +189,10 @@ else		if ((patternType == NodeInfo.Type.DataConstructor || patternType == NodeIn
 	
 	protected String getId(Node variable)
 	{
-		if (!(variable.getData() instanceof VariableInfo))
+		if (!(variable instanceof Variable))
 			throw new RuntimeException("The node is not a variable");
 
-		final VariableInfo variableInfo = (VariableInfo) variable.getData();
+		final Variable variableInfo = (Variable) variable;
 		return variableInfo.getName();
 	}
 	protected boolean sameVariables(String id1, String id2)

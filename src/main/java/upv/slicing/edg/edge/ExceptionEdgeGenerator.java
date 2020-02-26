@@ -3,9 +3,8 @@ package upv.slicing.edg.edge;
 import upv.slicing.edg.constraint.ExceptionConstraint;
 import upv.slicing.edg.constraint.SeekingConstraint.Operation;
 import upv.slicing.edg.graph.EDG;
-import upv.slicing.edg.graph.EdgeInfo;
+import upv.slicing.edg.graph.Edge;
 import upv.slicing.edg.graph.Node;
-import upv.slicing.edg.graph.NodeInfo;
 import upv.slicing.edg.traverser.EDGTraverser;
 import upv.slicing.edg.traverser.LASTTraverser;
 
@@ -14,7 +13,7 @@ import java.util.List;
 
 public class ExceptionEdgeGenerator extends EdgeGenerator{
 
-	final List<Node> exceptionGeneratedClauses= new LinkedList<Node>();
+	final List<Node> exceptionGeneratedClauses = new LinkedList<>();
 	
 	public ExceptionEdgeGenerator(EDG edg)
 	{
@@ -23,51 +22,43 @@ public class ExceptionEdgeGenerator extends EdgeGenerator{
 
 	public void generate()
 	{
-		final List<Node> nodes = this.edg.getNodes();
-		boolean exception = false;
-		for (int index = 0; index < nodes.size() && !exception; index++)
-		{
-			final NodeInfo.Type nodeType = nodes.get(index).getData().getType();
-			if (nodeType == NodeInfo.Type.ExHandler)
-				exception = true;
-		}
-		if (exception)
-			this.generateExceptionEdges();
-
+		for (Node n : edg.vertexSet())
+			if (n.getType() == Node.Type.ExHandler)
+				this.generateExceptionEdges();
 	}
 	
 	private void generateExceptionEdges()
 	{
-		final List<Node> exHandlerNodes = EDGTraverser.getNodes(edg, NodeInfo.Type.ExHandler);
-		final EdgeInfo info = new EdgeInfo(EdgeInfo.Type.Exception, new ExceptionConstraint(Operation.LetThrough));
+		final List<Node> exHandlerNodes = EDGTraverser.getNodes(edg, Node.Type.ExHandler);
+		final Edge edge = new Edge(Edge.Type.Exception, new ExceptionConstraint(Operation.LetThrough));
 		
 		
 		for (Node exHandlerNode : exHandlerNodes)
 		{
-			final Node tryNode = EDGTraverser.getChild(exHandlerNode, 0);
-			final List<Node> tryNodeExpressions = EDGTraverser.getChildren(tryNode);
+			final Node tryNode = EDGTraverser.getChild(edg, exHandlerNode, 0);
+			final List<Node> tryNodeExpressions = EDGTraverser.getChildren(edg, tryNode);
 			
-			final Node lastTryNodeResult = EDGTraverser.getResult(tryNodeExpressions.get(tryNodeExpressions.size()-1));
+			final Node lastTryNodeResult = EDGTraverser.getResult(edg, tryNodeExpressions.get(tryNodeExpressions.size()-1));
 			
-			final Node catchNode = EDGTraverser.getChild(exHandlerNode, 1);
-			this.edg.addEdge(lastTryNodeResult, catchNode, 0, new EdgeInfo(EdgeInfo.Type.Exception, new ExceptionConstraint(Operation.Add)));
+			final Node catchNode = EDGTraverser.getChild(edg, exHandlerNode, 1);
+			this.edg.addEdge(lastTryNodeResult, catchNode, new Edge(Edge.Type.Exception, new ExceptionConstraint(Operation.Add)));
 			
-			final List<Node> tryCalls = EDGTraverser.getDescendants(tryNode,NodeInfo.Type.Call);
+			final List<Node> tryCalls = EDGTraverser.getDescendants(edg, tryNode, Node.Type.Call);
 			for (Node tryCall : tryCalls)
 			{
-				generate(tryCall, info);
+				generate(tryCall, edge);
 			}
 			
-//			if (child.getData().getType() != NodeInfo.Type.Return)
-//				this.edg.addEdge(child, node, 0, new EdgeInfo(EdgeInfo.Type.Exception, new ExceptionConstraint(null))); // MISSING OPERATION
-//			if (child.getData().getType() == NodeInfo.Type.Call)
+//			if (child.getType() != Node.Type.Return)
+//				this.edg.addEdge(child, node, 0, new Edge(Edge.Type.Exception, new ExceptionConstraint(null))); // MISSING OPERATION
+//			if (child.getType() == Node.Type.Call)
 //			{
 //				 final Node functionName = EDGTraverserNew.getChild(child, 0);
 //				 final List<Node> functionClauses = this.getRelatedClauses(functionName);
 //				 for (Node functionClause : functionClauses)
 //				 {	 
 //					 final Node exceptionReturn = EDGTraverserNew.getChild(child, EDGTraverserNew.getChildren(child).size() - 1);
-//					 this.edg.addEdge(functionClause, exceptionReturn, 0, new EdgeInfo(EdgeInfo.Type.Output));
+//					 this.edg.addEdge(functionClause, exceptionReturn, 0, new Edge(Edge.Type.Output));
 //					 this.generateExceptionEdges(functionClause);
 //				 }
 //			}
@@ -75,31 +66,31 @@ public class ExceptionEdgeGenerator extends EdgeGenerator{
 		}
 	}
 	
-	private void generateAssociatedFunctionStructure(Node node, EdgeInfo info)
+	private void generateAssociatedFunctionStructure(Node node, Edge edge)
 	{
-		final Node callResultNode = EDGTraverser.getSibling(node,1);
-		final List<Node> calledFunctionResults = EDGTraverser.getOutputs(callResultNode, LASTTraverser.Direction.Backwards);
+		final Node callResultNode = EDGTraverser.getSibling(edg, node,1);
+		final List<Node> calledFunctionResults = EDGTraverser.getOutputs(edg, callResultNode, LASTTraverser.Direction.Backwards);
 		for (Node functionResult : calledFunctionResults)
 		{
             if (!exceptionGeneratedClauses.contains(functionResult))
             {
                 exceptionGeneratedClauses.add(functionResult);
-                final Node functionClause = EDGTraverser.getParent(functionResult);
-                this.generate(functionClause, info);
-                this.edg.addEdge(functionResult, callResultNode, 0,
-                                 new EdgeInfo(EdgeInfo.Type.Output, new ExceptionConstraint(Operation.LetThrough)));
+                final Node functionClause = EDGTraverser.getParent(edg, functionResult);
+                this.generate(functionClause, edge);
+                this.edg.addEdge(functionResult, callResultNode,
+						new Edge(Edge.Type.Output, new ExceptionConstraint(Operation.LetThrough)));
             }
         }
     }
 
     private enum Way {Forwards, Backwards}
 
-    private List<Node> generate(Node node, EdgeInfo info)
+    private List<Node> generate(Node node, Edge edge)
     {
-        final NodeInfo.Type type = node.getData().getType();
-        final List<Node> children = EDGTraverser.getChildren(node);
+        final Node.Type type = node.getType();
+        final List<Node> children = EDGTraverser.getChildren(edg, node);
 
-        if (type != NodeInfo.Type.Break && type != NodeInfo.Type.Return)
+        if (type != Node.Type.Break && type != Node.Type.Return)
             if (children.isEmpty())
                 return this.generateSingleNode(node);
 
@@ -148,44 +139,44 @@ public class ExceptionEdgeGenerator extends EdgeGenerator{
 			case Finally:
 			case Throw:
 			case Foreach:
-				return this.generateStructure(node, Way.Forwards, info);
+				return this.generateStructure(node, Way.Forwards, edge);
 			
 			case Call:
-				return this.generateCallStructure(node, Way.Forwards, info);
+				return this.generateCallStructure(node, Way.Forwards, edge);
 				
 			case Equality:
 			case Generator:
-				return this.generateStructure(node, Way.Backwards, info);
+				return this.generateStructure(node, Way.Backwards, edge);
 
 			case Module:
-				return this.generateModuleStructure(node, info);
+				return this.generateModuleStructure(node, edge);
 
 			// CONDITIONALS
 			case If:
-				return this.generateIfStructure(node, info);
+				return this.generateIfStructure(node, edge);
 
 			case Cases:
-				return this.generateCasesStructure(node, info);
+				return this.generateCasesStructure(node, edge);
 
 			// LOOPS
 			case FLoop:
-				return this.generateFLoopStructure(node, info);
+				return this.generateFLoopStructure(node, edge);
 			case CLoop:
-				return this.generateCLoopStructure(node, info);
+				return this.generateCLoopStructure(node, edge);
 			case RLoop:
-				return this.generateRLoopStructure(node, info);
+				return this.generateRLoopStructure(node, edge);
 				
 			case ExHandler:
-				return this.generateExHandlerStructure(node, info);
+				return this.generateExHandlerStructure(node, edge);
 			case Catch:
 				
 			case Break:
 			case Return:
-				return this.generateJumpStructure(node, info);
+				return this.generateJumpStructure(node, edge);
 
 			case Continue:
 			case Try:
-				return new LinkedList<Node>();
+				return new LinkedList<>();
 
 			case Root:
 			default:
@@ -195,115 +186,113 @@ public class ExceptionEdgeGenerator extends EdgeGenerator{
 
 	private List<Node> generateSingleNode(Node node)
 	{
-		final List<Node> nodes = new LinkedList<Node>();
+		final List<Node> nodes = new LinkedList<>();
 
 		nodes.add(node);
 
 		return nodes;
 	}
 
-	private List<Node> generateStructure(Node node, Way way, EdgeInfo info)
+	private List<Node> generateStructure(Node node, Way way, Edge edge)
 	{
-		final List<Node> nodes = new LinkedList<Node>();
-		final List<Node> children = EDGTraverser.getChildren(node);
+		final List<Node> children = EDGTraverser.getChildren(edg, node);
 		final int beginIndex = way == Way.Forwards ? 0 : children.size() - 1;
 		final int endIndex = way == Way.Forwards ? children.size() - 1 : 0;
 		final int increment = way == Way.Forwards ? 1 : -1;
 		final Node firstChild = children.get(beginIndex);
 		final Node lastChild = children.get(endIndex);
-		final List<Node> lastChildResultNodes = this.generate(lastChild, info);
+		final List<Node> lastChildResultNodes = this.generate(lastChild, edge);
 
-		this.edg.addEdge(node, firstChild, 0, info);
+		this.edg.addEdge(node, firstChild, edge);
 		for (int childIndex = beginIndex; childIndex != endIndex; childIndex += increment)
 		{
 			final Node child = children.get(childIndex);
 			final Node nextChild = children.get(childIndex + increment);
-			final List<Node> resultNodes = this.generate(child, info);
+			final List<Node> resultNodes = this.generate(child, edge);
 			for (Node resultNode : resultNodes)
-				this.edg.addEdge(resultNode, nextChild, 0, info);
+				this.edg.addEdge(resultNode, nextChild, edge);
 		}
-		nodes.addAll(lastChildResultNodes);
 
-		return nodes;
+		return new LinkedList<>(lastChildResultNodes);
 	}
-	private List<Node> generateModuleStructure(Node node, EdgeInfo info)
+	private List<Node> generateModuleStructure(Node node, Edge edge)
 	{
-		final List<Node> children = EDGTraverser.getChildren(node);
-		List<Node> resultNodes = new LinkedList<Node>();
+		final List<Node> children = EDGTraverser.getChildren(edg, node);
+		List<Node> resultNodes = new LinkedList<>();
 
 		for (Node child : children)
 		{
-			final NodeInfo.Type type = child.getData().getType();
-			if (type == NodeInfo.Type.Routine)
+			final Node.Type type = child.getType();
+			if (type == Node.Type.Routine)
 				continue;
 
 			for (Node resultNode : resultNodes)
-				this.edg.addEdge(resultNode, child, 0, info);
+				this.edg.addEdge(resultNode, child, edge);
 
-			resultNodes = this.generate(child, info);
+			resultNodes = this.generate(child, edge);
 		}
 
 		return resultNodes;
 	}
-	private List<Node> generateIfStructure(Node node, EdgeInfo info)
+	private List<Node> generateIfStructure(Node node, Edge edge)
 	{
-		final List<Node> nodes = new LinkedList<Node>();
-		final Node conditionChild = EDGTraverser.getChild(node, 0);
-		final Node thenChild = EDGTraverser.getChild(node, 1);
-		final Node elseChild = EDGTraverser.getChild(node, 2);
-		final List<Node> conditionResultNodes = this.generate(conditionChild, info);
-		final List<Node> thenResultNodes = this.generate(thenChild, info);
-		final List<Node> elseResultNodes = this.generate(elseChild, info);
+		final List<Node> nodes = new LinkedList<>();
+		final Node conditionChild = EDGTraverser.getChild(edg, node, 0);
+		final Node thenChild = EDGTraverser.getChild(edg, node, 1);
+		final Node elseChild = EDGTraverser.getChild(edg, node, 2);
+		final List<Node> conditionResultNodes = this.generate(conditionChild, edge);
+		final List<Node> thenResultNodes = this.generate(thenChild, edge);
+		final List<Node> elseResultNodes = this.generate(elseChild, edge);
 
-		this.edg.addEdge(node, conditionChild, 0, info);
+		this.edg.addEdge(node, conditionChild, edge);
 		for (Node resultNode : conditionResultNodes)
 		{				
-			this.edg.addEdge(resultNode, thenChild, 0, info);
-			this.edg.addEdge(resultNode, elseChild, 0, info);
+			this.edg.addEdge(resultNode, thenChild, edge);
+			this.edg.addEdge(resultNode, elseChild, edge);
 		}
 		nodes.addAll(thenResultNodes);
 		nodes.addAll(elseResultNodes);
 
 		return nodes;
 	}
-	private List<Node> generateCasesStructure(Node node, EdgeInfo info)
+	private List<Node> generateCasesStructure(Node node, Edge edge)
 	{
-		final List<Node> nodes = new LinkedList<Node>();
-		final List<Node> children = EDGTraverser.getChildren(node);
-		final List<Node> cases = new LinkedList<Node>(children);
-		final List<Node> defaults = new LinkedList<Node>(children);
-		cases.removeIf((c) -> c.getData().getType() != NodeInfo.Type.Case);
-		defaults.removeIf((c) -> c.getData().getType() != NodeInfo.Type.DefaultCase);
+		final List<Node> nodes = new LinkedList<>();
+		final List<Node> children = EDGTraverser.getChildren(edg, node);
+		final List<Node> cases = new LinkedList<>(children);
+		final List<Node> defaults = new LinkedList<>(children);
+		cases.removeIf((c) -> c.getType() != Node.Type.Case);
+		defaults.removeIf((c) -> c.getType() != Node.Type.DefaultCase);
 		final Node defaultCase = defaults.isEmpty() ? null : defaults.get(0);
 		if (defaultCase != null)
 			cases.add(defaultCase);
 
 		final Node firstCase = cases.isEmpty() ? defaultCase : cases.get(0);
-		this.edg.addEdge(node, firstCase, 0, info);
+		this.edg.addEdge(node, firstCase, edge);
 
 		// Cases
 		for (int caseIndex = 0; caseIndex < cases.size(); caseIndex++)
 		{
 			// Current case
 			final Node _case = cases.get(caseIndex);
-			final NodeInfo.Type caseType = _case.getData().getType();
-			final Node caseSelectors = caseType == NodeInfo.Type.DefaultCase ? null : EDGTraverser.getChild(_case, 0);
-			final List<Node> caseSelectorsChildren = caseType == NodeInfo.Type.DefaultCase ? new LinkedList<Node>() : EDGTraverser.getChildren(caseSelectors);
-			final Node caseGuard = caseType == NodeInfo.Type.DefaultCase ? null : EDGTraverser.getChild(_case, 1);
-			final List<Node> caseGuardChildren = caseType == NodeInfo.Type.DefaultCase ? new LinkedList<Node>() : EDGTraverser.getChildren(caseGuard);
+			final Node.Type caseType = _case.getType();
+			final Node caseSelectors = caseType == Node.Type.DefaultCase ? null : EDGTraverser.getChild(edg, _case, 0);
+			final List<Node> caseSelectorsChildren = caseType == Node.Type.DefaultCase ? new LinkedList<>() : EDGTraverser.getChildren(edg, caseSelectors);
+			final Node caseGuard = caseType == Node.Type.DefaultCase ? null : EDGTraverser.getChild(edg, _case, 1);
+			final List<Node> caseGuardChildren = caseType == Node.Type.DefaultCase ? new LinkedList<>() : EDGTraverser.getChildren(edg, caseGuard);
 			final Node caseGuardChild = caseGuardChildren.isEmpty() ? null : caseGuardChildren.get(0);
-			final Node caseGuardResult = caseGuardChild == null ? null : EDGTraverser.getResult(caseGuardChild);
-			final List<Node> resultNodes = this.generate(_case, info);
+			final Node caseGuardResult = caseGuardChild == null ? null : EDGTraverser.getResult(edg, caseGuardChild);
+			final List<Node> resultNodes = this.generate(_case, edge);
 
 			// Next case
 			final Node nextCase = caseIndex == cases.size() - 1 ? defaultCase : cases.get(caseIndex + 1);
 			if (nextCase != null)
 			{
 				if (!caseSelectorsChildren.isEmpty())
-					this.edg.addEdge(caseGuard, nextCase, 0, info);
+					this.edg.addEdge(caseGuard, nextCase, edge);
 
 				if (caseGuardResult != null)
-					this.edg.addEdge(caseGuardResult, nextCase, 0, info);
+					this.edg.addEdge(caseGuardResult, nextCase, edge);
 			}
 			else
 			{
@@ -318,11 +307,11 @@ public class ExceptionEdgeGenerator extends EdgeGenerator{
 			final Node nextChild = childIndex == children.size() - 1 ? null : children.get(childIndex + 1);
 			if (nextChild != null)
 			{
-				final NodeInfo.Type nextChildType = nextChild.getData().getType();
-				final int bodyIndex = nextChildType == NodeInfo.Type.DefaultCase ? 0 : 2;
-				final Node nextCaseBody = EDGTraverser.getChild(nextChild, bodyIndex);
+				final Node.Type nextChildType = nextChild.getType();
+				final int bodyIndex = nextChildType == Node.Type.DefaultCase ? 0 : 2;
+				final Node nextCaseBody = EDGTraverser.getChild(edg, nextChild, bodyIndex);
 				for (Node resultNode : resultNodes)
-					this.edg.addEdge(resultNode, nextCaseBody, 0, info);
+					this.edg.addEdge(resultNode, nextCaseBody, edge);
 			}
 			else
 				nodes.addAll(resultNodes);
@@ -331,143 +320,131 @@ public class ExceptionEdgeGenerator extends EdgeGenerator{
 		return nodes;
 	}
 
-	private List<Node> generateFLoopStructure(Node node, EdgeInfo info)
+	private List<Node> generateFLoopStructure(Node node, Edge edge)
 	{
-		final Node initChild = EDGTraverser.getChild(node, NodeInfo.Type.Init);
-		final Node conditionChild = EDGTraverser.getChild(node, NodeInfo.Type.Condition);
-		final Node bodyChild = EDGTraverser.getChild(node, NodeInfo.Type.Body);
-		final Node updateChild = EDGTraverser.getChild(node, NodeInfo.Type.Update);
+		final Node initChild = EDGTraverser.getChild(edg, node, Node.Type.Init);
+		final Node conditionChild = EDGTraverser.getChild(edg, node, Node.Type.Condition);
+		final Node bodyChild = EDGTraverser.getChild(edg, node, Node.Type.Body);
+		final Node updateChild = EDGTraverser.getChild(edg, node, Node.Type.Update);
 		
-		final List<Node> nodes = new LinkedList<Node>();
-		final List<Node> initResultNodes = this.generate(initChild, info);
-		final List<Node> conditionResultNodes = this.generate(conditionChild, info);
-		final List<Node> bodyResultNodes = this.generate(bodyChild, info);
-		final List<Node> updateResultNodes = this.generate(updateChild, info);
+		final List<Node> initResultNodes = this.generate(initChild, edge);
+		final List<Node> conditionResultNodes = this.generate(conditionChild, edge);
+		final List<Node> bodyResultNodes = this.generate(bodyChild, edge);
+		final List<Node> updateResultNodes = this.generate(updateChild, edge);
 
-		this.edg.addEdge(node, initChild, 0, info);
+		this.edg.addEdge(node, initChild, edge);
 		for (Node resultNode : initResultNodes)
-			this.edg.addEdge(resultNode, conditionChild, 0, info);
+			this.edg.addEdge(resultNode, conditionChild, edge);
 
 		for (Node resultNode : conditionResultNodes)
-			this.edg.addEdge(resultNode, bodyChild, 0, info);
+			this.edg.addEdge(resultNode, bodyChild, edge);
 
 		for (Node resultNode : bodyResultNodes)
-			this.edg.addEdge(resultNode, updateChild, 0, info);
+			this.edg.addEdge(resultNode, updateChild, edge);
 
 		for (Node resultNode : updateResultNodes)
-			this.edg.addEdge(resultNode, conditionChild, 0, info);
+			this.edg.addEdge(resultNode, conditionChild, edge);
 
-		nodes.addAll(conditionResultNodes);
-		
-		return nodes;
+		return new LinkedList<>(conditionResultNodes);
 	}
-	private List<Node> generateCLoopStructure(Node node, EdgeInfo info)
+	private List<Node> generateCLoopStructure(Node node, Edge edge)
 	{
-		final List<Node> nodes = new LinkedList<Node>();
-		final Node conditionChild = EDGTraverser.getChild(node, NodeInfo.Type.Condition);
-		final Node bodyChild = EDGTraverser.getChild(node, NodeInfo.Type.Body);
-		final List<Node> conditionResultNodes = this.generate(conditionChild, info);
-		final List<Node> bodyResultNodes = this.generate(bodyChild, info);
+		final Node conditionChild = EDGTraverser.getChild(edg, node, Node.Type.Condition);
+		final Node bodyChild = EDGTraverser.getChild(edg, node, Node.Type.Body);
+		final List<Node> conditionResultNodes = this.generate(conditionChild, edge);
+		final List<Node> bodyResultNodes = this.generate(bodyChild, edge);
 
-		this.edg.addEdge(node, conditionChild, 0, info);
+		this.edg.addEdge(node, conditionChild, edge);
 		for (Node resultNode : conditionResultNodes)
-			this.edg.addEdge(resultNode, bodyChild, 0, info);
+			this.edg.addEdge(resultNode, bodyChild, edge);
 			
 		for (Node resultNode : bodyResultNodes)
-			this.edg.addEdge(resultNode, conditionChild, 0, info);
+			this.edg.addEdge(resultNode, conditionChild, edge);
 
-		nodes.addAll(conditionResultNodes);
-
-		return nodes;
+		return new LinkedList<>(conditionResultNodes);
 	}
-	private List<Node> generateRLoopStructure(Node node, EdgeInfo info)
+	private List<Node> generateRLoopStructure(Node node, Edge edge)
 	{
-		final List<Node> nodes = new LinkedList<Node>();
-		final Node bodyChild = EDGTraverser.getChild(node, NodeInfo.Type.Body);
-		final Node conditionChild = EDGTraverser.getChild(node, NodeInfo.Type.Condition);
-		final List<Node> bodyResultNodes = this.generate(bodyChild, info);
-		final List<Node> conditionResultNodes = this.generate(conditionChild, info);
+		final Node bodyChild = EDGTraverser.getChild(edg, node, Node.Type.Body);
+		final Node conditionChild = EDGTraverser.getChild(edg, node, Node.Type.Condition);
+		final List<Node> bodyResultNodes = this.generate(bodyChild, edge);
+		final List<Node> conditionResultNodes = this.generate(conditionChild, edge);
 
-		this.edg.addEdge(node, bodyChild, 0, info);
+		this.edg.addEdge(node, bodyChild, edge);
 		for (Node resultNode : bodyResultNodes)
-			this.edg.addEdge(resultNode, conditionChild, 0, info);
+			this.edg.addEdge(resultNode, conditionChild, edge);
 
 		for (Node resultNode : conditionResultNodes)
-			this.edg.addEdge(resultNode, bodyChild, 0, info);
+			this.edg.addEdge(resultNode, bodyChild, edge);
 
-		nodes.addAll(conditionResultNodes);
-
-		return nodes;
+		return new LinkedList<>(conditionResultNodes);
 	}
 	
-	private List<Node> generateExHandlerStructure(Node node, EdgeInfo info)
+	private List<Node> generateExHandlerStructure(Node node, Edge edge)
 	{
-		final List<Node> nodes = new LinkedList<Node>();
-		final Node tryChild = EDGTraverser.getChild(node, NodeInfo.Type.Try);
-		final Node catchChild = EDGTraverser.getChild(node, NodeInfo.Type.Catch);
-		final Node finallyChild = EDGTraverser.getChild(node, NodeInfo.Type.Finally);
-		final List<Node> tryResultNodes = this.generate(tryChild,info);
-		final List<Node> catchResultNodes = this.generateCatchStructure(catchChild, info);
-		final List<Node> finallyResultNodes = this.generate(finallyChild,info);
+		final Node tryChild = EDGTraverser.getChild(edg, node, Node.Type.Try);
+		final Node catchChild = EDGTraverser.getChild(edg, node, Node.Type.Catch);
+		final Node finallyChild = EDGTraverser.getChild(edg, node, Node.Type.Finally);
+		final List<Node> tryResultNodes = this.generate(tryChild,edge);
+		final List<Node> catchResultNodes = this.generateCatchStructure(catchChild, edge);
+		final List<Node> finallyResultNodes = this.generate(finallyChild,edge);
 
-		this.edg.addEdge(node, tryChild, 0, info);
+		this.edg.addEdge(node, tryChild, edge);
 		
 		for (Node resultNode : tryResultNodes)
-			this.edg.addEdge(resultNode, finallyChild, 0, info);
+			this.edg.addEdge(resultNode, finallyChild, edge);
 
-		List<Node> catchClauses = EDGTraverser.getChildren(catchChild);
+		List<Node> catchClauses = EDGTraverser.getChildren(edg, catchChild);
 		for (Node clause : catchClauses)
-			this.edg.addEdge(catchChild, clause, 0, info);
+			this.edg.addEdge(catchChild, clause, edge);
 
 		for (Node resultNode : catchResultNodes)
-			this.edg.addEdge(resultNode, finallyChild, 0, info);
+			this.edg.addEdge(resultNode, finallyChild, edge);
 
-		nodes.addAll(finallyResultNodes);
-
-		return nodes;
+		return new LinkedList<>(finallyResultNodes);
 	}
-	private List<Node> generateCatchStructure(Node node, EdgeInfo info)
+	private List<Node> generateCatchStructure(Node node, Edge edge)
 	{
-		List<Node> catchResultNodes = new LinkedList<Node>();
-		List<Node> catchClauses = EDGTraverser.getChildren(node);
+		List<Node> catchResultNodes = new LinkedList<>();
+		List<Node> catchClauses = EDGTraverser.getChildren(edg, node);
 		for (Node clause : catchClauses)
 		{
-			this.edg.addEdge(node, clause, 0, info);
-			List<Node> resultNodes = this.generate(clause, info);
+			this.edg.addEdge(node, clause, edge);
+			List<Node> resultNodes = this.generate(clause, edge);
 			catchResultNodes.addAll(resultNodes);
 		}
 		return catchResultNodes;
 	}
-	private List<Node> generateCallStructure(Node node, Way way, EdgeInfo info)
+	private List<Node> generateCallStructure(Node node, Way way, Edge edge)
 	{
-		final List<Node> resultNodes = new LinkedList<Node>();
+		final List<Node> resultNodes = new LinkedList<>();
 		
-		if (EDGTraverser.getAncestor(node, NodeInfo.Type.Try) == null)
-			resultNodes.addAll(generateStructure(node,way,info));
+		if (EDGTraverser.getAncestor(edg, node, Node.Type.Try) == null)
+			resultNodes.addAll(generateStructure(node,way,edge));
 
-		generateAssociatedFunctionStructure(node, info);
+		generateAssociatedFunctionStructure(node, edge);
 		
 		return resultNodes;
 	}
 	
-	private List<Node> generateJumpStructure(Node node, EdgeInfo info)
+	private List<Node> generateJumpStructure(Node node, Edge edge)
 	{
-		final List<Node> nodes = new LinkedList<Node>();
-		final List<Node> children = EDGTraverser.getChildren(node);
+		final List<Node> nodes = new LinkedList<>();
+		final List<Node> children = EDGTraverser.getChildren(edg, node);
 		final Node child = children.isEmpty() ? null : children.get(0);
-		final List<Node> resultNodes = child == null ? new LinkedList<Node>() : this.generate(child, info);
-		final String dstText = node.getData().getName();
+		final List<Node> resultNodes = child == null ? new LinkedList<>() : this.generate(child, edge);
+		final String dstText = node.getName();
 		final int dstId = Integer.parseInt(dstText.substring(dstText.lastIndexOf(" ") + 1));
 		final Node dstNode = EDGTraverser.getNode(this.edg, dstId);
-		final Node dstResult = EDGTraverser.getResult(dstNode);
+		final Node dstResult = EDGTraverser.getResult(edg, dstNode);
 
 		if (child != null)
-			this.edg.addEdge(node, child, 0, info);
+			this.edg.addEdge(node, child, edge);
 		else
 			resultNodes.add(node);
 		if (dstResult != null)
 			for (Node resultNode : resultNodes)
-				this.edg.addEdge(resultNode, dstResult, 0, info);
+				this.edg.addEdge(resultNode, dstResult, edge);
 
 		return nodes;
 	}

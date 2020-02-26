@@ -1,6 +1,7 @@
 package upv.slicing.edg.constraint;
 
 import upv.slicing.edg.config.Config;
+import upv.slicing.edg.graph.EDG;
 import upv.slicing.edg.graph.Edge;
 import upv.slicing.edg.graph.Grammar;
 import upv.slicing.edg.graph.Node;
@@ -40,10 +41,10 @@ public class GrammarConstraint extends EdgeConstraint {
 	}
 	public String toString()
 	{
-		final String refNodeId = this.refNode.getData().getId() + "";
-		return refNodeId;
+		return String.valueOf(refNode.getId());
 // TODO Arreglar el getHashCode del WorkList antes de descomentar esto
 /*
+		final String refNodeId = this.refNode.getId() + "";
 		final List<Constraints> productions = this.grammar.getProductions(this);
 		if (productions.isEmpty())
 			return new EmptyConstraint().toString();
@@ -61,53 +62,53 @@ public class GrammarConstraint extends EdgeConstraint {
 */
 	}
 
-	protected List<Constraints> resolve(Phase phase, Edge edge, Constraints constraints, int productionDepth)
+	protected List<Constraints> resolve(Phase phase, EDG edg, Edge edge, Constraints constraints, int productionDepth)
 	{
 		if (phase.isInstanceof(Phase.Slicing))
-			return this.resolveProductions(phase, edge, constraints, productionDepth);
+			return this.resolveProductions(phase, edg, edge, constraints, productionDepth);
 		super.check(phase, Phase.SummaryGeneration);
 		return super.wrap(super.push(phase, constraints));
 	}
-	protected List<Constraints> resolve(Phase phase, Edge edge, Constraints constraints, AccessConstraint topConstraint, int productionDepth)
+	protected List<Constraints> resolve(Phase phase, EDG edg, Edge edge, Constraints constraints, AccessConstraint topConstraint, int productionDepth)
 	{
 		if (phase.isInstanceof(Phase.Slicing))
-			return this.resolveProductions(phase, edge, constraints, productionDepth);
+			return this.resolveProductions(phase, edg, edge, constraints, productionDepth);
 		super.check(phase, Phase.SummaryGeneration);
 		return super.wrap(super.push(phase, constraints));
 	}
-	protected List<Constraints> resolve(Phase phase, Edge edge, Constraints constraints, GrammarConstraint topConstraint, int productionDepth)
+	protected List<Constraints> resolve(Phase phase, EDG edg, Edge edge, Constraints constraints, GrammarConstraint topConstraint, int productionDepth)
 	{
 		super.check(phase, Phase.SummaryGeneration);
 		return super.wrap(super.push(phase, constraints));
 	}
-	protected List<Constraints> resolve(Phase phase, Edge edge, Constraints constraints, SeekingConstraint topConstraint, int productionDepth)
+	protected List<Constraints> resolve(Phase phase, EDG edg, Edge edge, Constraints constraints, SeekingConstraint topConstraint, int productionDepth)
 	{
 		if (topConstraint.operation == SeekingConstraint.Operation.Add)
 			if (phase.isInstanceof(Phase.Slicing))
-				return this.resolveProductions(phase, edge, constraints, productionDepth);
+				return this.resolveProductions(phase, edg, edge, constraints, productionDepth);
 
 		super.check(phase, Phase.SummaryGeneration);
 		return super.wrap(super.push(phase, constraints));
 	}
-	protected List<Constraints> resolve(Phase phase, Edge edge, Constraints constraints, AsteriskConstraint topConstraint, int productionDepth)
+	protected List<Constraints> resolve(Phase phase, EDG edg, Edge edge, Constraints constraints, AsteriskConstraint topConstraint, int productionDepth)
 	{
 		super.check(phase, Phase.SummaryGeneration);
 		return super.wrap(super.push(phase, constraints));
 	}
 
-	private List<Constraints> resolveProductions(Phase phase, Edge edge, Constraints constraints, int productionDepth)
+	private List<Constraints> resolveProductions(Phase phase, EDG edg, Edge edge, Constraints constraints, int productionDepth)
 	{
 		super.check(phase, Phase.Slicing);
 		if (productionDepth == this.config.maxProductionDepth)
 			throw new StackOverflowError();
 
-		final List<Constraints> newConstraintsList = new LinkedList<Constraints>();
+		final List<Constraints> newConstraintsList = new LinkedList<>();
 		final List<Constraints> productions = this.grammar.getProductions(this);
 
 		for (Constraints production : productions)
 		{
 			final Constraints constraintsClone = (Constraints) constraints.clone();
-			final List<Constraints> pendingConstraintsList = new LinkedList<Constraints>();
+			final List<Constraints> pendingConstraintsList = new LinkedList<>();
 			pendingConstraintsList.add(constraintsClone);
 			final int productionSize = production.sizeEdgeConstraints();
 
@@ -122,12 +123,12 @@ if (!constraints.getEdgeConstraints().isEmpty())
 			for (int constraintIndex = 0; constraintIndex < productionSize; constraintIndex++)
 			{
 				final EdgeConstraint constraint = production.getEdgeConstraint(constraintIndex);
-				final List<Constraints> resolvedConstraintsList = new LinkedList<Constraints>();
+				final List<Constraints> resolvedConstraintsList = new LinkedList<>();
 
 				for (Constraints pendingConstraints : pendingConstraintsList)
 				{
 					final EdgeConstraint topConstraint = pendingConstraints.isEdgeConstraintsEmpty() ? null : pendingConstraints.peekEdgeConstraint();
-					resolvedConstraintsList.addAll(constraint.resolve(phase, edge, pendingConstraints, topConstraint, productionDepth + 1));
+					resolvedConstraintsList.addAll(constraint.resolve(phase, edg, edge, pendingConstraints, topConstraint, productionDepth + 1));
 				}
 				pendingConstraintsList.clear();
 				pendingConstraintsList.addAll(resolvedConstraintsList);

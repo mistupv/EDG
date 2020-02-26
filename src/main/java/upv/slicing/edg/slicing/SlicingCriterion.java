@@ -1,5 +1,7 @@
 package upv.slicing.edg.slicing;
 
+import upv.slicing.edg.graph.Node;
+
 public class SlicingCriterion
 {
 	protected final String archive;
@@ -56,5 +58,13 @@ public class SlicingCriterion
 	public String toString()
 	{
 		return "[" + this.archive + ", " + this.line + ", " + this.name + ", " + this.occurrence + "]";
+	}
+
+	public boolean matchesNode(Node node) {
+		return node != null
+				&& node.getInfo() != null
+				&& line == node.getInfo().getLine()
+				&& name.equals(node.getName())
+				&& archive.equals(node.getInfo().getArchive());
 	}
 }

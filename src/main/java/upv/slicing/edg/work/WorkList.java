@@ -6,8 +6,8 @@ import java.util.*;
 import java.util.Map.Entry;
 
 public class WorkList {
-	private final Map<String, Set<Work>> doneWorks = new Hashtable<String, Set<Work>>();
-	private final Map<String, Set<Work>> pendingWorks = new Hashtable<String, Set<Work>>();
+	private final Map<String, Set<Work>> doneWorks = new Hashtable<>();
+	private final Map<String, Set<Work>> pendingWorks = new Hashtable<>();
 
 	public WorkList(Work... works)
 	{
@@ -29,7 +29,7 @@ public class WorkList {
 	private Set<Node> getNodes(Map<String, Set<Work>> workMap)
 	{
 		final Collection<Set<Work>> workCollection = workMap.values();
-		final Set<Node> nodes = new HashSet<Node>();
+		final Set<Node> nodes = new HashSet<>();
 
 		for (Set<Work> workSet : workCollection)
 			for (Work work : workSet)
@@ -56,7 +56,7 @@ public class WorkList {
 
 		if (pendingWorks == null)
 		{
-			pendingWorks = new HashSet<Work>();
+			pendingWorks = new HashSet<>();
 			this.pendingWorks.put(key, pendingWorks);
 		}
 
@@ -68,7 +68,7 @@ public class WorkList {
 
 		if (doneWorks == null)
 		{
-			doneWorks = new HashSet<Work>();
+			doneWorks = new HashSet<>();
 			this.doneWorks.put(key, doneWorks);
 		}
 
@@ -124,7 +124,7 @@ public class WorkList {
 	public void repend()
 	{
 		final Set<String> keys0 = this.doneWorks.keySet();
-		final Set<String> keys = new HashSet<String>(keys0);
+		final Set<String> keys = new HashSet<>(keys0);
 
 		for (String key : keys)
 			this.repend(key);
