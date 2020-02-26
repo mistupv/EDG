@@ -13,7 +13,6 @@ import upv.slicing.edg.LASTBuilder.Where;
 import upv.slicing.edg.LASTFactory;
 import upv.slicing.edg.LDASTNodeInfo;
 import upv.slicing.edg.graph.LAST;
-import upv.slicing.edg.graph.NodeInfo;
 import upv.slicing.misc.Misc;
 
 import java.io.File;
@@ -53,7 +52,7 @@ public class JavaLASTFactory extends LASTFactory {
 	{
 		try
 		{
-			final List<ClassOrInterfaceDeclaration> classes = new LinkedList<ClassOrInterfaceDeclaration>();
+			final List<ClassOrInterfaceDeclaration> classes = new LinkedList<>();
 			final LDASTNodeInfo ldNodeInfo = new LDASTNodeInfo(this.codebase, 0, "LAST");
 
 			for (File file : files)
@@ -207,7 +206,7 @@ public class JavaLASTFactory extends LASTFactory {
 		if (parent == null)
 			return false;
 
-		final NodeInfo.Type parentType = parent.getNodeType();
+		final upv.slicing.edg.graph.Node.Type parentType = parent.getNodeType();
 		final String construction = parent.getLdASTNodeInfo().getConstruction();
 		final Where where = parent.getWhere();
 		final int index = parent.getIndex();
@@ -226,14 +225,13 @@ public class JavaLASTFactory extends LASTFactory {
 
 	private void processReturn(Object expression, Map<String, Object> info)
 	{
-		@SuppressWarnings("unchecked") final List<LASTFactory.Branch> ancestors = (List<LASTFactory.Branch>) info
-				.get("ancestors");
+		@SuppressWarnings("unchecked")
+		final Deque<LASTFactory.Branch> ancestors = (Deque<LASTFactory.Branch>) info.get("ancestors");
 
-		for (int ancestorIndex = ancestors.size() - 1; ancestorIndex >= 0; ancestorIndex--)
+		for (LASTFactory.Branch ancestor : ancestors)
 		{
-			final LASTFactory.Branch ancestor = ancestors.get(ancestorIndex);
-			final NodeInfo.Type type = ancestor.getNodeType();
-			if (type != NodeInfo.Type.If)
+			final upv.slicing.edg.graph.Node.Type type = ancestor.getNodeType();
+			if (type != upv.slicing.edg.graph.Node.Type.If)
 				continue;
 
 			final int id = ancestor.getNodeId();
@@ -313,7 +311,7 @@ public class JavaLASTFactory extends LASTFactory {
 	private void process(CallableDeclaration<?> callable, Map<String, Object> info)
 	{
 		final LASTFactory.Branch parent = (LASTFactory.Branch) info.get("parent");
-		final NodeInfo.Type parentType = parent.getNodeType();
+		final upv.slicing.edg.graph.Node.Type parentType = parent.getNodeType(); // TODO: remove full import
 		final long line = callable.getRange().get().begin.line;
 
 		switch (parentType)
@@ -469,7 +467,7 @@ public class JavaLASTFactory extends LASTFactory {
 		final long line = _return.getRange().get().begin.line;
 		final Object expression = !_return.getExpression().isPresent() ? null : this
 				.treatExpression(_return.getExpression().get(), false, false, true, line);
-		final int id = this.getJumpDestiny(info, NodeInfo.Type.Clause);
+		final int id = this.getJumpDestiny(info, upv.slicing.edg.graph.Node.Type.Clause);
 		final LDASTNodeInfo ldNodeInfo = new LDASTNodeInfo(line, "return");
 
 		super.addReturn(expression, id, ldNodeInfo);
@@ -478,8 +476,8 @@ public class JavaLASTFactory extends LASTFactory {
 	private void process(BreakStmt _break, Map<String, Object> info)
 	{
 		final long line = _break.getRange().get().begin.line;
-		final int id = this.getJumpDestiny(info, NodeInfo.Type.Switch, NodeInfo.Type.CLoop, NodeInfo.Type.RLoop,
-										   NodeInfo.Type.FLoop); // Y un break en un loop?
+		final int id = this.getJumpDestiny(info, upv.slicing.edg.graph.Node.Type.Switch, upv.slicing.edg.graph.Node.Type.CLoop, upv.slicing.edg.graph.Node.Type.RLoop,
+										   upv.slicing.edg.graph.Node.Type.FLoop); // Y un break en un loop?
 		final LDASTNodeInfo ldNodeInfo = new LDASTNodeInfo(line, "break");
 
 		super.addBreak(id, ldNodeInfo);
@@ -497,7 +495,7 @@ public class JavaLASTFactory extends LASTFactory {
 			else
 				jumpId = -1; // When the label is not found, return label -1
 		else
-			jumpId = this.getJumpDestiny(info, NodeInfo.Type.CLoop, NodeInfo.Type.RLoop, NodeInfo.Type.FLoop);
+			jumpId = this.getJumpDestiny(info, upv.slicing.edg.graph.Node.Type.CLoop, upv.slicing.edg.graph.Node.Type.RLoop, upv.slicing.edg.graph.Node.Type.FLoop);
 
 		final LDASTNodeInfo ldNodeInfo = new LDASTNodeInfo(line, "continue");
 
@@ -1098,7 +1096,7 @@ public class JavaLASTFactory extends LASTFactory {
 	private List<Object> treatExpressions(List<Expression> expressions, boolean declaration, boolean definition,
 										  boolean use, long line)
 	{
-		final List<Object> elements = new LinkedList<Object>();
+		final List<Object> elements = new LinkedList<>();
 
 		for (Expression expression : expressions)
 			elements.add(this.treatExpression(expression, declaration, definition, use, line));
@@ -1116,18 +1114,14 @@ public class JavaLASTFactory extends LASTFactory {
 		return expression;
 	}
 
-	private int getJumpDestiny(Map<String, Object> info, NodeInfo.Type... seekingTypes)
+	private int getJumpDestiny(Map<String, Object> info, upv.slicing.edg.graph.Node.Type... seekingTypes)
 	{
-		@SuppressWarnings("unchecked") final List<LASTFactory.Branch> ancestors = (List<LASTFactory.Branch>) info
-				.get("ancestors");
+		@SuppressWarnings("unchecked")
+		final Deque<LASTFactory.Branch> ancestors = (Deque<LASTFactory.Branch>) info.get("ancestors");
 
-		for (int ancestorIndex = ancestors.size() - 1; ancestorIndex >= 0; ancestorIndex--)
-		{
-			final LASTFactory.Branch ancestor = ancestors.get(ancestorIndex);
-			final NodeInfo.Type type = ancestor.getNodeType();
-
-			for (NodeInfo.Type seekingType : seekingTypes)
-				if (seekingType == type)
+		for (LASTFactory.Branch ancestor : ancestors)
+			for (upv.slicing.edg.graph.Node.Type seekingType : seekingTypes)
+				if (seekingType == ancestor.getNodeType())
 					switch (seekingType)
 					{
 						case Switch:
@@ -1143,8 +1137,6 @@ public class JavaLASTFactory extends LASTFactory {
 						default:
 							break;
 					}
-		}
-
 		throw new RuntimeException("Wrong jump instruction");
 	}
 
@@ -1251,22 +1243,21 @@ public class JavaLASTFactory extends LASTFactory {
 	}
 
 	// Variable global/local
-	private Stack<List<VariableRecord>> variableContexts = new Stack<List<VariableRecord>>();
+	private Stack<List<VariableRecord>> variableContexts = new Stack<>();
 
 
 	private void createContext()
 	{
-		final List<VariableRecord> variableContext = new LinkedList<VariableRecord>();
 		final List<VariableRecord> lastVariableContext =
-				this.variableContexts.size() == 0 ? new LinkedList<VariableRecord>() : this.variableContexts.peek();
+				this.variableContexts.size() == 0 ? new LinkedList<>() : this.variableContexts.peek();
 
-		variableContext.addAll(lastVariableContext);
+		final List<VariableRecord> variableContext = new LinkedList<>(lastVariableContext);
 		this.variableContexts.add(variableContext);
 	}
 
 	private void createNewContext()
 	{
-		this.variableContexts.add(new LinkedList<VariableRecord>());
+		this.variableContexts.add(new LinkedList<>());
 	}
 
 	private void addVariableToContext(VariableRecord record)

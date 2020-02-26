@@ -14,15 +14,18 @@ import upv.slicing.eknife.LASTFactory;
 import upv.slicing.eknife.config.Config;
 
 import java.io.File;
-import java.util.List;
+import java.util.Set;
 
 public class LASTest {
 	public static void main(String[] args)
 	{
 		final Config config = Config.getConfig();
 
-		final String className = "Test.java";
-		final SlicingCriterion slicingCriterion = new SlicingCriterion(className, 18, "z", 1); // Test.java
+		final String className = "Eval_1.java";
+//		final SlicingCriterion slicingCriterion = new SlicingCriterion(className, 18, "z", 1); // Test.java
+		final SlicingCriterion slicingCriterion = new SlicingCriterion(className, 64, "x", 1); // Eval_1.java
+//		final SlicingCriterion slicingCriterion = new SlicingCriterion(className, 13, "z", 1); // TypeTest.java
+//		final SlicingCriterion slicingCriterion = new SlicingCriterion(className, 24, "y", 1); // TypeTest.java 2
 
 //		final String className = "Test.java";
 //		final SlicingCriterion slicingCriterion = new SlicingCriterion(className, 38, "a", 1); // Test.java
@@ -45,25 +48,25 @@ public class LASTest {
 		final File outputJavaFile = new File(outputJavaPath);
 
 		final LAST last = LASTFactory.createLAST(Language.Java, sourcePath);
-		final EDG edg = EDGFactory.createEDG(last);
+		final EDG edg = new EDGFactory(last).createEDG();
 
 
 //		for (Node n : edg.getNodes())
 //		{
-//			if (n.getData().getInfo() != null && n.getData().getInfo().isExpression())
+//			if (n.getInfo().getInfo() != null && n.getInfo().getInfo().isExpression())
 //			{
-//				if (n.getData() instanceof VariableInfo)
+//				if (n.getInfo() instanceof VariableInfo)
 //				{	
-//					VariableInfo vf = (VariableInfo) n.getData();
-//					System.out.println("Node: "+n.getData().getId()+" -> "+n.getData().getType()+" Context: "+vf.getContext());
+//					VariableInfo vf = (VariableInfo) n.getInfo();
+//					System.out.println("Node: "+n.getInfo().getId()+" -> "+n.getInfo().getType()+" Context: "+vf.getContext());
 //				}
 //				else
-//					System.out.println("Node: "+n.getData().getId()+" -> "+n.getData().getType());
+//					System.out.println("Node: "+n.getInfo().getId()+" -> "+n.getInfo().getType());
 //			}
 //		}
 		final Node SC = edg.getNode(slicingCriterion);
-		final SlicingAlgorithm slicingAlgorithm = new ConstrainedAlgorithm();
-		final List<Node> slice = slicingAlgorithm.slice(SC);
+		final SlicingAlgorithm slicingAlgorithm = new ConstrainedAlgorithm(edg);
+		final Set<Node> slice = slicingAlgorithm.slice(SC);
 //		final List<Node> slice = null; //new LinkedList<Node>(); // EMPTY SLICE
 
 //		System.out.println("************************");
