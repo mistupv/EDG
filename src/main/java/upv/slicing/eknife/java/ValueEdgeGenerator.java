@@ -96,15 +96,14 @@ public class ValueEdgeGenerator {
 
 		for (Node call : calls)
 		{
-			final Node callee = LASTTraverser.getChild(call, 0);
-			final Node calleeResult = LASTTraverser.getResult(callee);
-			this.last.addEdge(calleeResult, call, 0, new EdgeInfo(EdgeInfo.Type.Value));
+			final Node callee = LASTTraverser.getChild(call, NodeInfo.Type.Callee);
+			this.last.addEdge(callee, call, 0, new EdgeInfo(EdgeInfo.Type.Value));
 
-			final Node nameNode = LASTTraverser.getChild(callee, 1);
+			final Node nameNode = LASTTraverser.getChild(callee, NodeInfo.Type.Name);
 			final Node name = LASTTraverser.getChild(nameNode, 0);
-			this.last.addEdge(name, calleeResult, 0, new EdgeInfo(EdgeInfo.Type.Value));
+			this.last.addEdge(name, callee, 0, new EdgeInfo(EdgeInfo.Type.Value));
 
-			final Node scopeNode = LASTTraverser.getChild(callee, 0);
+			final Node scopeNode = LASTTraverser.getChild(callee, NodeInfo.Type.Scope);
 			final List<Node> scopeChildren = LASTTraverser.getChildren(scopeNode);
 			if (!scopeChildren.isEmpty())
 			{

@@ -925,7 +925,10 @@ public class JavaLASTFactory extends LASTFactory {
 		}
 
 		final LDASTNodeInfo ldNodeInfo = new LDASTNodeInfo(line, true, "var", info);
-		super.addVariable(name, false, true, true, global, ldNodeInfo);
+// 		super.addVariable(name, false, true, true, global, ldNodeInfo);
+
+		// Variables sueltas son usos, no definiciones y usos. Esto afecta a llamadas con objetos (b.foo() define b? Esto habrá que analizarlo y generar nodos en funcion de ello)
+		super.addVariable(name, false, false, true, global, ldNodeInfo);
 	}
 
 	private void process(SimpleName simpleName)
