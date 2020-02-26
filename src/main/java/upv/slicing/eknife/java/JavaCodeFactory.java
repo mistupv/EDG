@@ -16,8 +16,7 @@ import com.github.javaparser.printer.Printable;
 import upv.slicing.edg.LDASTNodeInfo;
 import upv.slicing.edg.graph.EDG;
 import upv.slicing.edg.graph.Node;
-import upv.slicing.edg.graph.NodeInfo;
-import upv.slicing.edg.graph.VariableInfo;
+import upv.slicing.edg.graph.Variable;
 import upv.slicing.edg.traverser.EDGTraverser;
 import upv.slicing.misc.Misc;
 
@@ -32,7 +31,7 @@ public class JavaCodeFactory {
 	{
 		JavaCodeFactory.createJavaFile(outputFile, edg, null);
 	}
-	public static void createJavaFile(File outputFile, EDG edg, List<Node> slice)
+	public static void createJavaFile(File outputFile, EDG edg, Set<Node> slice)
 	{
 		final JavaCodeFactory javaFactory = new JavaCodeFactory(edg, slice);
 		final CompilationUnit cu = javaFactory.generate();
@@ -48,12 +47,12 @@ public class JavaCodeFactory {
 	/************************************************************ OBJECT ************************************************************/
 	/********************************************************************************************************************************/
 	private final EDG edg;
-	private final List<Node> slice;
+	private final Set<Node> slice;
 	private boolean funundef = false;
 	//	private boolean returnRequired = false;
-	private final Stack<Context> context = new Stack<Context>();
+	private final Stack<Context> context = new Stack<>();
 
-	private JavaCodeFactory(EDG edg, List<Node> slice)
+	private JavaCodeFactory(EDG edg, Set<Node> slice)
 	{
 		this.edg = edg;
 		this.slice = slice;
@@ -65,7 +64,7 @@ public class JavaCodeFactory {
 		final Node root = this.edg.getRootNode();
 
 		// Modules
-		final List<Node> modules = EDGTraverser.getChildren(root);
+		final List<Node> modules = EDGTraverser.getChildren(edg, root);
 		for (Node module : modules)
 		{
 			if (this.slice != null && !this.slice.contains(module))
@@ -81,19 +80,17 @@ public class JavaCodeFactory {
 	@SuppressWarnings("unchecked")
 	private void parseModule(CompilationUnit cu, Node module)
 	{
-		final String moduleName = module.getData().getName();
+		final String moduleName = module.getName();
 		final ClassOrInterfaceDeclaration clazz = cu.addClass(moduleName);
 
-		//NodeList<ClassOrInterfaceType> extendedTypes = (NodeList<ClassOrInterfaceType>) module.getData().getInfo().getInfo()[0];
+		//NodeList<ClassOrInterfaceType> extendedTypes = (NodeList<ClassOrInterfaceType>) module.getInfo().getInfo()[0];
 		// TODO ENCONTRAR UNA SOLUCION MEJOR
-		String extendedTypes0 = (String) module.getData().getInfo()
-											   .getInfo()[0]; // Si hay mas de un extends no funcionara, solo vale para extends de 1 clase
-		NodeList<ClassOrInterfaceType> extendedTypes = new NodeList<ClassOrInterfaceType>();
+		String extendedTypes0 = (String) module.getInfo().getInfo()[0]; // Si hay mas de un extends no funcionara, solo vale para extends de 1 clase
+		NodeList<ClassOrInterfaceType> extendedTypes = new NodeList<>();
 		if (!extendedTypes0.equals(""))
 			extendedTypes.add(new ClassOrInterfaceType(extendedTypes0));
 
-		NodeList<ClassOrInterfaceType> implementedTypes = (NodeList<ClassOrInterfaceType>) module.getData().getInfo()
-																								 .getInfo()[1];
+		NodeList<ClassOrInterfaceType> implementedTypes = (NodeList<ClassOrInterfaceType>) module.getInfo().getInfo()[1];
 
 		clazz.setExtendedTypes(extendedTypes);
 		clazz.setImplementedTypes(implementedTypes);
@@ -102,7 +99,7 @@ public class JavaCodeFactory {
 	}
 	private void parseMembers(ClassOrInterfaceDeclaration clazz, Node module)
 	{
-		final List<Node> members = EDGTraverser.getChildren(module);
+		final List<Node> members = EDGTraverser.getChildren(edg, module);
 
 		this.funundef = false;
 		for (Node member : members)
@@ -111,7 +108,7 @@ public class JavaCodeFactory {
 				continue;
 
 			// TODO No pasar el clazz en las llamadas
-			if (member.getData().getType() != NodeInfo.Type.Routine)
+			if (member.getType() != Node.Type.Routine)
 				this.parseGlobalVariable(clazz, member);
 			else
 				this.parseRoutine(clazz, member);
@@ -124,14 +121,14 @@ public class JavaCodeFactory {
 	@SuppressWarnings("unchecked")
 	private void parseGlobalVariable(ClassOrInterfaceDeclaration clazz, Node globalVariable)
 	{
-		final NodeList<VariableDeclarator> variableDeclarators = new NodeList<VariableDeclarator>();
-		final NodeInfo.Type nodeType = globalVariable.getData().getType();
+		final NodeList<VariableDeclarator> variableDeclarators = new NodeList<>();
+		final Node.Type nodeType = globalVariable.getType();
 		final Node expression =
-				nodeType == NodeInfo.Type.Expression ? EDGTraverser.getChild(globalVariable, 0) : globalVariable;
+				nodeType == Node.Type.Expression ? EDGTraverser.getChild(edg, globalVariable, 0) : globalVariable;
 		final VariableDeclarator variableDeclarator = this.getVariableDeclarator(expression);
-		final Node variable = (expression.getData().getType() == NodeInfo.Type.Equality) ?
-				EDGTraverser.getChild(EDGTraverser.getChild(expression, 0), 0) : expression;
-		final LDASTNodeInfo ldNodeInfo = variable.getData().getInfo();
+		final Node variable = (expression.getType() == Node.Type.Equality) ?
+				EDGTraverser.getChild(edg, EDGTraverser.getChild(edg, expression, 0), 0) : expression;
+		final LDASTNodeInfo ldNodeInfo = variable.getInfo();
 		final EnumSet<Modifier> modifiers = (EnumSet<Modifier>) ldNodeInfo.getInfo()[0];
 
 		variableDeclarators.add(variableDeclarator);
@@ -141,32 +138,32 @@ public class JavaCodeFactory {
 	private void parseRoutine(ClassOrInterfaceDeclaration clazz, Node routine)
 	{
 		final Node clause = EDGTraverser
-				.getChild(routine, 0); // If there are multiple clauses (Erlang) this is not correct
-		final Node parametersNode = EDGTraverser.getChild(clause, NodeInfo.Type.Parameters);
-		final Node body = EDGTraverser.getChild(clause, NodeInfo.Type.Body);
-		final Type returnType = (Type) routine.getData().getInfo().getInfo()[1];
+				.getChild(edg, routine, 0); // If there are multiple clauses (Erlang) this is not correct
+		final Node parametersNode = EDGTraverser.getChild(edg, clause, Node.Type.Parameters);
+		final Node body = EDGTraverser.getChild(edg, clause, Node.Type.Body);
+		final Type returnType = (Type) routine.getInfo().getInfo()[1];
 		final boolean returnRequired = !(returnType instanceof VoidType);
 
-		context.push(new Context(routine.getData().getType(), returnType, returnRequired));
+		context.push(new Context(routine.getType(), returnType, returnRequired));
 
 		// Callable declaration
-		final String name = routine.getData().getName();
+		final String name = routine.getName();
 		final CallableDeclaration<?> callableDeclaration = name.equals("<constructor>") ? this
 				.parseConstructor(clazz, routine) : this.parseMethod(clazz, routine);
 
 		// Parameters
 		final NodeWithParameters<?> nodeWithParameters = (NodeWithParameters<?>) callableDeclaration;
-		final List<Node> parametersChildren = EDGTraverser.getChildren(parametersNode);
+		final List<Node> parametersChildren = EDGTraverser.getChildren(edg, parametersNode);
 		for (Node parameter : parametersChildren)
 			// This would not be necessary if Result nodes were not linked to parent with marked edges in order to generate a readable .dot file
-			if (parameter.getData().getType() != NodeInfo.Type.Result)
+			if (parameter.getType() != Node.Type.Result)
 				nodeWithParameters.addParameter(this.parseParameter(parameter));
 
 		// Statements
-		final BlockStmt blockStmt = callableDeclaration instanceof NodeWithBlockStmt ? ((NodeWithBlockStmt<?>) callableDeclaration)
-				.getBody() : ((NodeWithOptionalBlockStmt<?>) callableDeclaration).getBody().get();
-		final List<Node> bodyChildren = EDGTraverser.getChildren(body);
-//		final List<Statement> statements = this.parseStatements(bodyChildren, false);
+		final BlockStmt blockStmt = callableDeclaration instanceof NodeWithBlockStmt ?
+				((NodeWithBlockStmt<?>) callableDeclaration).getBody() :
+				((NodeWithOptionalBlockStmt<?>) callableDeclaration).getBody().get();
+		final List<Node> bodyChildren = EDGTraverser.getChildren(edg, body);
 		final List<Statement> statements = this.parseStatements(bodyChildren, false);
 
 		if (context.peek().returnReq)
@@ -182,10 +179,9 @@ public class JavaCodeFactory {
 	}
 	private CallableDeclaration<?> parseMethod(ClassOrInterfaceDeclaration clazz, Node routine)
 	{
-		final NodeInfo nodeInfo = routine.getData();
-		final LDASTNodeInfo ldNodeInfo = nodeInfo.getInfo();
-		final String name = nodeInfo.getName();
-		@SuppressWarnings({ "unchecked", "rawtypes" })
+		final LDASTNodeInfo ldNodeInfo = routine.getInfo();
+		final String name = routine.getName();
+		@SuppressWarnings("rawtypes")
 		final Modifier[] modifiers = (Modifier[]) ((EnumSet) ldNodeInfo.getInfo()[0]).toArray(new Modifier[0]);
 		final Type type = (Type) ldNodeInfo.getInfo()[1];
 		final MethodDeclaration methodDeclaration = clazz.addMethod(name, modifiers);
@@ -196,8 +192,8 @@ public class JavaCodeFactory {
 	}
 	private CallableDeclaration<?> parseConstructor(ClassOrInterfaceDeclaration clazz, Node routine)
 	{
-		final LDASTNodeInfo ldNodeInfo = routine.getData().getInfo();
-		@SuppressWarnings({ "unchecked", "rawtypes" })
+		final LDASTNodeInfo ldNodeInfo = routine.getInfo();
+		@SuppressWarnings("rawtypes")
 		final Modifier[] modifiers = (Modifier[]) ((EnumSet) ldNodeInfo.getInfo()[0]).toArray(new Modifier[0]);
 		final ConstructorDeclaration constructorDeclaration = clazz.addConstructor(modifiers);
 
@@ -205,11 +201,10 @@ public class JavaCodeFactory {
 	}
 	private Parameter parseParameter(Node parameter)
 	{
-		final NodeInfo nodeInfo = parameter.getData();
-		final LDASTNodeInfo ldNodeInfo = nodeInfo.getInfo();
+		final LDASTNodeInfo ldNodeInfo = parameter.getInfo();
 		final Type type = this.slice != null && !this.slice.contains(parameter) ? new ClassOrInterfaceType(
 				"Object") : (Type) ldNodeInfo.getInfo()[0];
-		final String name = this.slice != null && !this.slice.contains(parameter) ? "sliced" : nodeInfo.getName();
+		final String name = this.slice != null && !this.slice.contains(parameter) ? "sliced" : parameter.getName();
 
 		return new Parameter(type, name);
 	}
@@ -217,11 +212,11 @@ public class JavaCodeFactory {
 	// Statement
 	private List<Statement> parseStatements(List<Node> nodes, boolean transformUnused)
 	{
-		final List<Statement> statementsList = new LinkedList<Statement>();
+		final List<Statement> statementsList = new LinkedList<>();
 
 		for (Node node : nodes)
 		{
-			if (node.getData().getType() == NodeInfo.Type.Result)
+			if (node.getType() == Node.Type.Result)
 				continue;
 			if (!transformUnused && this.slice != null && !this.slice.contains(node) &&
 				!mayContentInternalSliceCode(node))
@@ -240,7 +235,7 @@ public class JavaCodeFactory {
 
 	private List<Statement> parseStatements(List<Node> nodes, boolean transformUnused, boolean returnReq)
 	{
-		final List<Statement> statementsList = new LinkedList<Statement>();
+		final List<Statement> statementsList = new LinkedList<>();
 
 		for (Node node : nodes)
 		{
@@ -260,10 +255,10 @@ public class JavaCodeFactory {
 
 		if (this.slice != null && !this.slice.contains(statement) && !mayContentInternalSliceCode(statement))
 			// Hay que poner returns en las calls a funciones
-			if (statement.getData().getType() != NodeInfo.Type.Return)
+			if (statement.getType() != Node.Type.Return)
 				return new EmptyStmt();
 
-		final NodeInfo.Type statementType = statement.getData().getType();
+		final Node.Type statementType = statement.getType();
 
 		switch (statementType)
 		{
@@ -297,21 +292,21 @@ public class JavaCodeFactory {
 	private Statement parseIf(Node _if)
 	{
 		// Condition
-		final Node conditionNode = EDGTraverser.getChild(_if, NodeInfo.Type.Condition);
-		final Node condition = EDGTraverser.getChild(conditionNode, 0);
+		final Node conditionNode = EDGTraverser.getChild(edg, _if, Node.Type.Condition);
+		final Node condition = EDGTraverser.getChild(edg, conditionNode, 0);
 		final Expression conditionExpression = this.parseExpression(condition);
 
 		// Then
-		final Node then = EDGTraverser.getChild(_if, NodeInfo.Type.Then);
-		final List<Node> thenChildren = EDGTraverser.getChildren(then);
+		final Node then = EDGTraverser.getChild(edg, _if, Node.Type.Then);
+		final List<Node> thenChildren = EDGTraverser.getChildren(edg, then);
 		final List<Statement> thenStatements = this.parseStatements(thenChildren, false);
 		final BlockStmt thenBlock = new BlockStmt();
 		for (Statement thenStatement : thenStatements)
 			thenBlock.addStatement(thenStatement);
 
 		// Else
-		final Node _else = EDGTraverser.getChild(_if, NodeInfo.Type.Else);
-		final List<Node> elseChildren = EDGTraverser.getChildren(_else);
+		final Node _else = EDGTraverser.getChild(edg, _if, Node.Type.Else);
+		final List<Node> elseChildren = EDGTraverser.getChildren(edg, _else);
 		final List<Statement> elseStatements = this.parseStatements(elseChildren, false);
 
 		if (elseStatements.isEmpty()) // Avoid generating an empty Else block
@@ -326,14 +321,14 @@ public class JavaCodeFactory {
 	private Statement parseSwitch(Node _switch)
 	{
 		// Selector
-		final Node selectors = EDGTraverser.getChild(_switch, NodeInfo.Type.Selector);
-		final Node selectorNode = EDGTraverser.getChild(selectors, 0);
+		final Node selectors = EDGTraverser.getChild(edg, _switch, Node.Type.Selector);
+		final Node selectorNode = EDGTraverser.getChild(edg, selectors, 0);
 		final Expression selector = this.parseExpression(selectorNode);
 
 		// Cases
-		final Node cases = EDGTraverser.getChild(_switch, NodeInfo.Type.Cases);
-		final List<Node> casesChildren = EDGTraverser.getChildren(cases);
-		final NodeList<SwitchEntryStmt> entries = new NodeList<SwitchEntryStmt>();
+		final Node cases = EDGTraverser.getChild(edg, _switch, Node.Type.Cases);
+		final List<Node> casesChildren = EDGTraverser.getChildren(edg, cases);
+		final NodeList<SwitchEntryStmt> entries = new NodeList<>();
 		final List<Statement> statements = this.parseStatements(casesChildren, false);
 		for (Statement statement : statements)
 			entries.add((SwitchEntryStmt) statement);
@@ -343,18 +338,17 @@ public class JavaCodeFactory {
 	private Statement parseCase(Node _case)
 	{
 		// Label
-		final Node selectable = EDGTraverser.getChild(_case, NodeInfo.Type.Selectable);
-		final List<Node> selectablesChildren = EDGTraverser.getChildren(selectable);
+		final Node selectable = EDGTraverser.getChild(edg, _case, Node.Type.Selectable);
+		final List<Node> selectablesChildren = EDGTraverser.getChildren(edg, selectable);
 		final Node selectableNode = selectablesChildren.get(0);
 		final Expression label = this.parseExpression(selectableNode);
 
 		// Statements
-		final Node body = EDGTraverser.getChild(_case, NodeInfo.Type.Body);
-		final List<Node> bodyChildren = EDGTraverser.getChildren(body);
-		final NodeList<Statement> statements = new NodeList<Statement>();
+		final Node body = EDGTraverser.getChild(edg, _case, Node.Type.Body);
+		final List<Node> bodyChildren = EDGTraverser.getChildren(edg, body);
+		final NodeList<Statement> statements = new NodeList<>();
 		final List<Statement> statements0 = this.parseStatements(bodyChildren, false);
-		for (Statement statement : statements0)
-			statements.add(statement);
+		statements.addAll(statements0);
 
 		return new SwitchEntryStmt(label, statements);
 	}
@@ -363,14 +357,14 @@ public class JavaCodeFactory {
 	private Statement parseCLoop(Node loop)
 	{
 		// Condition
-		final Node condition = EDGTraverser.getChild(loop, 0);
-		final List<Node> conditionChildren = EDGTraverser.getChildren(condition);
+		final Node condition = EDGTraverser.getChild(edg, loop, 0);
+		final List<Node> conditionChildren = EDGTraverser.getChildren(edg, condition);
 		final Node conditionNode = conditionChildren.get(0);
 		final Expression conditionExpression = this.parseExpression(conditionNode);
 
 		// Body
-		final Node body = EDGTraverser.getChild(loop, 1);
-		final List<Node> bodyChildren = EDGTraverser.getChildren(body);
+		final Node body = EDGTraverser.getChild(edg, loop, 1);
+		final List<Node> bodyChildren = EDGTraverser.getChildren(edg, body);
 		final List<Statement> bodyStatements = this.parseStatements(bodyChildren, false);
 		final BlockStmt bodyBlock = new BlockStmt();
 		for (Statement bodyStatement : bodyStatements)
@@ -382,18 +376,18 @@ public class JavaCodeFactory {
 	private Statement parseRLoop(Node loop)
 	{
 		// Body
-		final Node body = EDGTraverser.getChild(loop, 0);
+		final Node body = EDGTraverser.getChild(edg, loop, 0);
 //final Node body = EDGTraverserNew.getChild(loop, 1);
-		final List<Node> bodyChildren = EDGTraverser.getChildren(body);
+		final List<Node> bodyChildren = EDGTraverser.getChildren(edg, body);
 		final List<Statement> bodyStatements = this.parseStatements(bodyChildren, false);
 		final BlockStmt bodyBlock = new BlockStmt();
 		for (Statement bodyStatement : bodyStatements)
 			bodyBlock.addStatement(bodyStatement);
 
 		// Condition
-		final Node condition = EDGTraverser.getChild(loop, 1);
+		final Node condition = EDGTraverser.getChild(edg, loop, 1);
 //final Node condition = EDGTraverserNew.getChild(loop, 0);
-		final List<Node> conditionChildren = EDGTraverser.getChildren(condition);
+		final List<Node> conditionChildren = EDGTraverser.getChildren(edg, condition);
 		final Node conditionNode = conditionChildren.get(0);
 		final Expression conditionExpression = this.parseExpression(conditionNode);
 
@@ -403,26 +397,26 @@ public class JavaCodeFactory {
 	private Statement parseFLoop(Node loop)
 	{
 		// Initialization
-		final Node initialization = EDGTraverser.getChild(loop, 0);
-		final List<Node> initializationChildren = EDGTraverser.getChildren(initialization);
-		final NodeList<Expression> initBlock = new NodeList<Expression>();
+		final Node initialization = EDGTraverser.getChild(edg, loop, 0);
+		final List<Node> initializationChildren = EDGTraverser.getChildren(edg, initialization);
+		final NodeList<Expression> initBlock = new NodeList<>();
 		initBlock.addAll(this.parseExpressions(initializationChildren, false));
 
 		// Condition
-		final Node condition = EDGTraverser.getChild(loop, 1);
-		final List<Node> conditionChildren = EDGTraverser.getChildren(condition);
+		final Node condition = EDGTraverser.getChild(edg, loop, 1);
+		final List<Node> conditionChildren = EDGTraverser.getChildren(edg, condition);
 		final Node conditionNode = conditionChildren.get(0);
 		final Expression conditionExpression = this.parseExpression(conditionNode);
 
 		// Update
-		final Node update = EDGTraverser.getChild(loop, 3);
-		final List<Node> updateChildren = EDGTraverser.getChildren(update);
-		final NodeList<Expression> updateBlock = new NodeList<Expression>();
+		final Node update = EDGTraverser.getChild(edg, loop, 3);
+		final List<Node> updateChildren = EDGTraverser.getChildren(edg, update);
+		final NodeList<Expression> updateBlock = new NodeList<>();
 		updateBlock.addAll(this.parseExpressions(updateChildren, false));
 
 		// Body
-		final Node body = EDGTraverser.getChild(loop, 2);
-		final List<Node> bodyChildren = EDGTraverser.getChildren(body);
+		final Node body = EDGTraverser.getChild(edg, loop, 2);
+		final List<Node> bodyChildren = EDGTraverser.getChildren(edg, body);
 		final List<Statement> bodyStatements = this.parseStatements(bodyChildren, false);
 		final BlockStmt bodyBlock = new BlockStmt();
 		for (Statement bodyStatement : bodyStatements)
@@ -433,15 +427,15 @@ public class JavaCodeFactory {
 
 	private Statement parseForeach(Node foreach)
 	{
-		final Node iterator = EDGTraverser.getChild(foreach, 0);
-		final Node generator = EDGTraverser.getChild(iterator, 0);
-		final Node variableDeclaration = EDGTraverser.getChild(generator, 0);
-		final Node iterable = EDGTraverser.getChild(generator, 1);
+		final Node iterator = EDGTraverser.getChild(edg, foreach, 0);
+		final Node generator = EDGTraverser.getChild(edg, iterator, 0);
+		final Node variableDeclaration = EDGTraverser.getChild(edg, generator, 0);
+		final Node iterable = EDGTraverser.getChild(edg, generator, 1);
 		final Expression variableDeclarationExpr = this.parseExpression(variableDeclaration);
 		final Expression iterableExpr = this.parseExpression(iterable);
 
-		final Node body = EDGTraverser.getChild(foreach, 1);
-		final List<Node> bodyChildren = EDGTraverser.getChildren(body);
+		final Node body = EDGTraverser.getChild(edg, foreach, 1);
+		final List<Node> bodyChildren = EDGTraverser.getChildren(edg, body);
 		final List<Statement> bodyStatements = this.parseStatements(bodyChildren, false);
 		final BlockStmt bodyBlock = new BlockStmt();
 		for (Statement bodyStatement : bodyStatements)
@@ -456,12 +450,12 @@ public class JavaCodeFactory {
 	private Statement parseExHandler(Node exHandler)
 	{
 		// Try
-		final Node tryNode = EDGTraverser.getChild(exHandler, 0);
+		final Node tryNode = EDGTraverser.getChild(edg, exHandler, 0);
 		final BlockStmt tryBlock0 = this.parseBlockStatements(tryNode);
 		final BlockStmt tryBlock = tryBlock0 == null ? new BlockStmt() : tryBlock0;
 
 		// Catch
-		final Node catchNode = EDGTraverser.getChild(exHandler, 1);
+		final Node catchNode = EDGTraverser.getChild(edg, exHandler, 1);
 		final NodeList<CatchClause> catchClauses = (NodeList<CatchClause>) this.parseCatch(catchNode);
 		if (catchClauses.isEmpty())
 			catchClauses
@@ -469,7 +463,7 @@ public class JavaCodeFactory {
 										 new BlockStmt()));
 
 		// Finally
-		final Node finallyNode = EDGTraverser.getChild(exHandler, 2);
+		final Node finallyNode = EDGTraverser.getChild(edg, exHandler, 2);
 		final BlockStmt finallyBlock = this.parseBlockStatements(finallyNode);
 
 		return new TryStmt(tryBlock, catchClauses, finallyBlock);
@@ -477,18 +471,18 @@ public class JavaCodeFactory {
 
 	private List<CatchClause> parseCatch(Node _catch)
 	{
-		final List<Node> clauses = EDGTraverser.getChildren(_catch);
-		final List<CatchClause> catchClauses = new NodeList<CatchClause>();
+		final List<Node> clauses = EDGTraverser.getChildren(edg, _catch);
+		final List<CatchClause> catchClauses = new NodeList<>();
 		for (Node clause : clauses)
 		{
 			if (this.slice != null && !this.slice.contains(clause))
 				continue;
 
-			final Node parameters = EDGTraverser.getChild(clause, 0);
-			final Node parameter = EDGTraverser.getChild(parameters, 0);
+			final Node parameters = EDGTraverser.getChild(edg, clause, 0);
+			final Node parameter = EDGTraverser.getChild(edg, parameters, 0);
 			final Parameter parameter0 = this.parseParameter(parameter);
 
-			final Node body = EDGTraverser.getChild(clause, 2);
+			final Node body = EDGTraverser.getChild(edg, clause, 2);
 			final BlockStmt bodyBlock0 = this.parseBlockStatements(body);
 			final BlockStmt bodyBlock = bodyBlock0 == null ? new BlockStmt() : bodyBlock0;
 
@@ -499,7 +493,7 @@ public class JavaCodeFactory {
 
 	private Statement parseThrow(Node _throw)
 	{
-		final Node throwExpressionNode = EDGTraverser.getChild(_throw, 0);
+		final Node throwExpressionNode = EDGTraverser.getChild(edg, _throw, 0);
 		final Expression throwExpression = this.parseExpression(throwExpressionNode);
 		return new ThrowStmt(throwExpression);
 	}
@@ -519,7 +513,7 @@ public class JavaCodeFactory {
 			}
 		}
 
-		final List<Node> returnChildren = EDGTraverser.getChildren(_return);
+		final List<Node> returnChildren = EDGTraverser.getChildren(edg, _return);
 		if (returnChildren.isEmpty())
 			return new ReturnStmt();
 
@@ -536,7 +530,7 @@ public class JavaCodeFactory {
 		if (this.slice != null && !this.slice.contains(blockRoot))
 			return null;
 
-		final List<Node> bodyChildren = EDGTraverser.getChildren(blockRoot);
+		final List<Node> bodyChildren = EDGTraverser.getChildren(edg, blockRoot);
 		final List<Statement> bodyStatements = this.parseStatements(bodyChildren, false);
 		final BlockStmt bodyBlock = new BlockStmt();
 		for (Statement bodyStatement : bodyStatements)
@@ -547,11 +541,11 @@ public class JavaCodeFactory {
 	// Expressions
 	private List<Expression> parseExpressions(List<Node> nodes, boolean transformUnused)
 	{
-		final List<Expression> expressionsList = new LinkedList<Expression>();
+		final List<Expression> expressionsList = new LinkedList<>();
 
 		for (Node node : nodes)
 		{
-			if (node.getData().getType() == NodeInfo.Type.Result)
+			if (node.getType() == Node.Type.Result)
 				continue;
 			if (!transformUnused && this.slice != null && !this.slice.contains(node) &&
 				!mayContentInternalSliceCode(node))
@@ -572,7 +566,7 @@ public class JavaCodeFactory {
 		if (this.slice != null && !this.slice.contains(expression) && !mayContentInternalSliceCode(expression))
 			return null; // TEMPORAL SOLUTION
 
-		final NodeInfo.Type expressionType = expression.getData().getType();
+		final Node.Type expressionType = expression.getType();
 
 		switch (expressionType)
 		{
@@ -608,18 +602,18 @@ public class JavaCodeFactory {
 
 	private Expression parseEquality(Node equality)
 	{
-		final Node target = EDGTraverser.getChild(equality, NodeInfo.Type.Pattern);
-		final LDASTNodeInfo ldNodeInfo = target.getData().getInfo();
+		final Node target = EDGTraverser.getChild(edg, equality, Node.Type.Pattern);
+		final LDASTNodeInfo ldNodeInfo = target.getInfo();
 		final Object[] info = ldNodeInfo.getInfo();
 
-		if (target.getData().getType() == NodeInfo.Type.Variable)
+		if (target.getType() == Node.Type.Variable)
 		{
-			VariableInfo vi = (VariableInfo) target.getData();
+			Variable vi = (Variable) target;
 			if (vi.isDeclaration())
 				return this.parseDeclaration(equality);
 			return this.parseDefinition(equality);
 		} else if (info == null || info.length == 0)
-			return this.parseDefinition(equality); // TODO: RE-IMPLEMENT
+			return this.parseDefinition(equality);
 		return this.parseDeclaration(equality);
 	}
 
@@ -627,17 +621,15 @@ public class JavaCodeFactory {
 	private Expression parseDeclaration(Node declaration)
 	{
 		if (slice != null && !slice.contains(declaration))
-			return this.parseExpression(EDGTraverser.getChild(declaration, NodeInfo.Type.Value));
+			return this.parseExpression(EDGTraverser.getChild(edg, declaration, Node.Type.Value));
 
 		final NodeList<VariableDeclarator> variableDeclarators = new NodeList<VariableDeclarator>();
 		final VariableDeclarator variableDeclarator = this.getVariableDeclarator(declaration);
-		final Node variableExpression = (declaration.getData().getType() == NodeInfo.Type.Equality) ? EDGTraverser
-				.getChild(declaration, NodeInfo.Type.Pattern) : declaration;
-		//final Node variable = EDGTraverserNew.getChild(variableExpression, 0);
-		final LDASTNodeInfo ldNodeInfo = variableExpression.getData().getInfo();
+		final Node variableExpression = (declaration.getType() == Node.Type.Equality) ? EDGTraverser
+				.getChild(edg, declaration, Node.Type.Pattern) : declaration;
+		final LDASTNodeInfo ldNodeInfo = variableExpression.getInfo();
 		final EnumSet<Modifier> modifiers = (EnumSet<Modifier>) ldNodeInfo.getInfo()[0];
 
-		if (variableDeclarator != null) ;
 		variableDeclarators.add(variableDeclarator);
 
 		return new VariableDeclarationExpr(modifiers, variableDeclarators);
@@ -645,26 +637,24 @@ public class JavaCodeFactory {
 	private Expression parseDefinition(Node definition)
 	{
 		if (slice != null && !slice.contains(definition))
-			return this.parseExpression(EDGTraverser.getChild(definition, NodeInfo.Type.Value));
+			return this.parseExpression(EDGTraverser.getChild(edg, definition, Node.Type.Value));
 
-		final Node target = EDGTraverser.getChild(definition, NodeInfo.Type.Pattern);
-		final Node value = EDGTraverser.getChild(definition, NodeInfo.Type.Value);
+		final Node target = EDGTraverser.getChild(edg, definition, Node.Type.Pattern);
+		final Node value = EDGTraverser.getChild(edg, definition, Node.Type.Value);
 
 		final Expression targetExpr = this.parseExpression(target);
 		final Expression valueExpr = this.parseExpression(value);
 
-//		if (targetExpr instanceof NullLiteralExpr)
-//		{
-//			final String name = "sliced";
-//			final Type type = new ClassOrInterfaceType("Object");
-//			return new VariableDeclarationExpr(new VariableDeclarator(type, name, valueExpr));
-//		}
-		return new AssignExpr(targetExpr, valueExpr, AssignExpr.Operator.ASSIGN);
+		if (targetExpr != null && valueExpr != null)
+			return new AssignExpr(targetExpr, valueExpr, AssignExpr.Operator.ASSIGN);
+		if (targetExpr != null)
+			return targetExpr;
+		return valueExpr;
 	}
 
 	private Expression parseDataConstructor(Node dataConstructor)
 	{
-		final List<Node> elements = EDGTraverser.getChildren(dataConstructor);
+		final List<Node> elements = EDGTraverser.getChildren(edg, dataConstructor);
 		final List<Expression> expressions = this.parseExpressions(elements, true);
 
 		return new ArrayInitializerExpr(NodeList.nodeList(expressions));
@@ -681,9 +671,9 @@ public class JavaCodeFactory {
 		 * 	5) Object Creation Call
 		 * 	6) Array Creation Call
 		*/
-		final Node callee = EDGTraverser.getChild(call, NodeInfo.Type.Callee);
-		final Node scope = EDGTraverser.getChild(callee, NodeInfo.Type.Scope);
-		final Node args = EDGTraverser.getChild(call, NodeInfo.Type.Arguments);
+		final Node callee = EDGTraverser.getChild(edg, call, Node.Type.Callee);
+		final Node scope = EDGTraverser.getChild(edg, callee, Node.Type.Scope);
+		final Node args = EDGTraverser.getChild(edg, call, Node.Type.Arguments);
 
 		Expression scopeExpr = null;
 
@@ -693,7 +683,7 @@ public class JavaCodeFactory {
 
 		if (this.slice != null && this.slice.contains(scope))
 		{
-			final Node scopeValue = EDGTraverser.getChild(scope, NodeInfo.Type.Value);
+			final Node scopeValue = EDGTraverser.getChild(edg, scope, Node.Type.Value);
 			scopeExpr = this.parseExpression(scopeValue);
 
 			// Case 2
@@ -701,29 +691,29 @@ public class JavaCodeFactory {
 				return scopeExpr;
 		}
 
-		final Node name = EDGTraverser.getChild(callee, NodeInfo.Type.Name);
+		final Node name = EDGTraverser.getChild(edg, callee, Node.Type.Name);
 		// Case 3 (slice == null NOT CONSIDERED) TODO: Broke all the parts in the slice in different statements
 		if (this.slice == null || !this.slice.contains(name))
 			return scopeExpr; // ERROR
 
-		final Node nameValue = EDGTraverser.getChild(name, NodeInfo.Type.Value);
-		final String nameText = nameValue.getData().getName();
+		final Node nameValue = EDGTraverser.getChild(edg, name, Node.Type.Value);
+		final String nameText = nameValue.getName();
 
 		final NodeList<Expression> argumentsList = new NodeList<>();
-		final List<Node> argumentsChildren = EDGTraverser.getChildren(args);
+		final List<Node> argumentsChildren = EDGTraverser.getChildren(edg, args);
 		argumentsList.addAll(this.parseExpressions(argumentsChildren, true)); // Fill the sliced arguments with "null"
 
 		switch(nameText)
 		{
 			case "<constructor>": // Case 5
-				final String scopeText = EDGTraverser.getChild(scope, NodeInfo.Type.Value).getData().getName();
+				final String scopeText = EDGTraverser.getChild(edg, scope, Node.Type.Value).getName();
 				return new ObjectCreationExpr(scopeExpr, new ClassOrInterfaceType(scopeText), argumentsList);
 
 			case "<arrayConstructor>": // Case 6
-				final String scopeText0 = EDGTraverser.getChild(scope, NodeInfo.Type.Value).getData().getName();
+				final String scopeText0 = EDGTraverser.getChild(edg, scope, Node.Type.Value).getName();
 				final ClassOrInterfaceType type = new ClassOrInterfaceType(scopeText0);
 				return new ArrayCreationExpr(type, (NodeList<ArrayCreationLevel>) EDGTraverser
-						.getChild(name, 0).getData().getInfo().getInfo()[0], null); // TODO: MMMM... (¬.¬)
+						.getChild(edg, name, 0).getInfo().getInfo()[0], null); // TODO: MMMM... (¬.¬)
 			default: // Case 4
 				return new MethodCallExpr(scopeExpr, new SimpleName(nameText), argumentsList);
 		}
@@ -736,7 +726,7 @@ public class JavaCodeFactory {
 			return null;
 
 		final NodeList<Expression> argumentsList = new NodeList<Expression>();
-		final List<Node> argumentsChildren = EDGTraverser.getChildren(argsNode);
+		final List<Node> argumentsChildren = EDGTraverser.getChildren(edg, argsNode);
 		argumentsList.addAll(this.parseExpressions(argumentsChildren, false)); // Discard sliced arguments
 
 		if (argumentsList.size() != 0)
@@ -746,31 +736,29 @@ public class JavaCodeFactory {
 
 	private Expression parseOperation(Node operation) // TODO: This should return List<Expression>
 	{
-		final String sign = operation.getData().getName();
-		final List<Node> operands = EDGTraverser.getChildren(operation);
-		operands.removeIf(node -> node.getData().getType() == NodeInfo.Type.Result);
+		final String sign = operation.getName();
+		final List<Node> operands = EDGTraverser.getChildren(edg, operation);
+		operands.removeIf(node -> node.getType() == Node.Type.Result);
 		final Node expression = operands.get(0);
 		final Expression firstExpression = this.parseExpression(expression);
 		switch (operands.size())
 		{
 			case 1:
 				final UnaryExpr.Operator[] unaryOperators = UnaryExpr.Operator.values();
-				final boolean isPostfix = (boolean) operation.getData().getInfo().getInfo()[0];
+				final boolean isPostfix = (boolean) operation.getInfo().getInfo()[0];
 				final Printable unaryOperator = this.getOperator(unaryOperators, sign, isPostfix);
-				return new UnaryExpr(firstExpression, (UnaryExpr.Operator) unaryOperator);
+				if (firstExpression != null)
+					return new UnaryExpr(firstExpression, (UnaryExpr.Operator) unaryOperator);
+				return null;
 			case 2:
 				final Expression secondExpression = this.parseExpression(operands.get(1));
 				final Printable[] binaryOperators = BinaryExpr.Operator.values();
 				final Printable binaryOperator0 = this.getOperator(binaryOperators, sign);
 				final BinaryExpr.Operator binaryOperator = (BinaryExpr.Operator) binaryOperator0;
-				final Expression firstExpression0 = this
-						.isEnclosedExpr(firstExpression, binaryOperator, true) ? new EnclosedExpr(
-						firstExpression) : firstExpression;
-				final Expression secondExpression0 = this
-						.isEnclosedExpr(secondExpression, binaryOperator, false) ? new EnclosedExpr(
-						secondExpression) : secondExpression;
-				if (firstExpression == null && secondExpression == null)
-					return null;
+				final Expression firstExpression0 = isEnclosedExpr(firstExpression, binaryOperator, true) ?
+						new EnclosedExpr(firstExpression) : firstExpression;
+				final Expression secondExpression0 = isEnclosedExpr(secondExpression, binaryOperator, false) ?
+						new EnclosedExpr(secondExpression) : secondExpression;
 				if (firstExpression != null && secondExpression != null)
 					return new BinaryExpr(firstExpression0, secondExpression0, binaryOperator);
 				if (firstExpression != null)
@@ -783,8 +771,7 @@ public class JavaCodeFactory {
 
 	private Expression parseReference(Node reference)
 	{
-		final NodeInfo nodeInfo = reference.getData();
-		final String value = nodeInfo.getName();
+		final String value = reference.getName();
 
 		switch (value)
 		{
@@ -800,13 +787,16 @@ public class JavaCodeFactory {
 	// ADDED TYPE EXPRESSIONS
 	private Expression parseInstanceOf(Node instanceOf)
 	{
-		final Node expression = EDGTraverser.getChild(instanceOf, 0);
-		final Node type = EDGTraverser.getChild(instanceOf, 1);
-//		final Node type = EDGTraverserNew.getChild(typeExpr, 0);
+		final Node expression = EDGTraverser.getChild(edg, instanceOf, 0);
+		final Node type = EDGTraverser.getChild(edg, instanceOf, 1);
 
 		final Expression instanceExpr = this.parseExpression(expression);
-		final Type instanceType = this.parseType(
-				type); // InstanceOf only accepts object types and array types, it is not applicable to Primitive Types
+		// InstanceOf only accepts object types and array types, it is not applicable to Primitive Types
+		final Type instanceType = this.parseType(type);
+
+		if (instanceExpr == null)
+			return null;
+
 		if (instanceType instanceof ClassOrInterfaceType)
 			return new InstanceOfExpr(instanceExpr, (ClassOrInterfaceType) instanceType);
 		return new InstanceOfExpr(instanceExpr, (ArrayType) instanceType);
@@ -814,30 +804,32 @@ public class JavaCodeFactory {
 
 	private Expression parseCastExpr(Node cast)
 	{
-		final Node type = EDGTraverser.getChild(cast, 0);
-//		final Node type = EDGTraverserNew.getChild(typeExpr, 0);
-		final Node expression = EDGTraverser.getChild(cast, 1);
+		final Node type = EDGTraverser.getChild(edg, cast, 0);
+		final Node expression = EDGTraverser.getChild(edg, cast, 1);
 
 		final Expression castExpr = this.parseExpression(expression);
+		if (castExpr == null)
+			return null;
+
 		final Type castType = this.parseType(type);
 		final CastExpr finalCast = new CastExpr(castType, castExpr);
 
-		final boolean isEnclosedExpr = (boolean) cast.getData().getInfo().getInfo()[0];
+		final boolean isEnclosedExpr = (boolean) cast.getInfo().getInfo()[0];
 		return isEnclosedExpr ? new EnclosedExpr(finalCast) : finalCast;
 	}
 
 	private Type parseType(Node type)
 	{
-		if (type.getData().getInfo().getInfo().length != 0)
+		if (type.getInfo().getInfo().length != 0)
 		{
 			if (this.slice != null && !this.slice.contains(type))
 				return new PrimitiveType();
 			else
 			{    // DIRIA QUE ESTO NUNCA SE EJECUTA
-				Object info = type.getData().getInfo().getInfo()[0];
+				Object info = type.getInfo().getInfo()[0];
 				if (info.equals("arrayType"))
 
-					return new ArrayType(new ClassOrInterfaceType(type.getData().getName()));
+					return new ArrayType(new ClassOrInterfaceType(type.getName()));
 				else if (info instanceof PrimitiveType.Primitive)
 					return new PrimitiveType((Primitive) info);
 				else
@@ -847,49 +839,56 @@ public class JavaCodeFactory {
 		} else if (this.slice != null && !this.slice.contains(type))
 			return new ClassOrInterfaceType("Object");
 		else
-			return new ClassOrInterfaceType(type.getData().getName());
+			return new ClassOrInterfaceType(type.getName());
 	}
 
 	private Expression parseDataConstructorAccess(Node dataConstructorAccess)
 	{
-		final Node dataConstructor = EDGTraverser.getChild(dataConstructorAccess, NodeInfo.Type.Variable);
-		final Node access = EDGTraverser.getChild(dataConstructorAccess, NodeInfo.Type.Index);
+		final Node dataConstructor = EDGTraverser.getChild(edg, dataConstructorAccess, Node.Type.Variable);
+		final Node access = EDGTraverser.getChild(edg, dataConstructorAccess, Node.Type.Index);
 
 		final Expression dataConstructorExpr = this.parseExpression(dataConstructor);
 		final Expression accessExpr = this.parseExpression(access);
 
-		return new ArrayAccessExpr(dataConstructorExpr, accessExpr);
+		if (dataConstructorExpr != null && accessExpr != null)
+			return new ArrayAccessExpr(dataConstructorExpr, accessExpr);
+		if (dataConstructorExpr != null)
+			return dataConstructorExpr;
+		return accessExpr;
 	}
 
 	private Expression parseFieldAccess(Node fieldAccess)
 	{
-		final Node scope = EDGTraverser.getChild(fieldAccess, 0);
-		final Node name = EDGTraverser.getChild(fieldAccess, 1);
+		final Node scope = EDGTraverser.getChild(edg, fieldAccess, 0);
+		final Node name = EDGTraverser.getChild(edg, fieldAccess, 1);
 
 		final Expression scopeExpr = this.parseExpression(scope);
 		final Expression nameExpr = this.parseExpression(name);
 
-		return new FieldAccessExpr(scopeExpr, nameExpr.toString());
-
+		if (scopeExpr != null && nameExpr != null)
+			return new FieldAccessExpr(scopeExpr, nameExpr.toString());
+		if (scopeExpr != null)
+			return scopeExpr;
+		return nameExpr;
 	}
 
 	private Expression parseTernary(Node _if)
 	{
 		// Condition
-		final Node condition = EDGTraverser.getChild(_if, NodeInfo.Type.Condition);
-		final Node conditionNode = EDGTraverser.getChild(condition, 0);
+		final Node condition = EDGTraverser.getChild(edg, _if, Node.Type.Condition);
+		final Node conditionNode = EDGTraverser.getChild(edg, condition, 0);
 		final Expression conditionExpression = this.parseExpression(conditionNode);
 
 		// Then
-		final Node thenNode = EDGTraverser.getChild(_if, NodeInfo.Type.Then);
-		final Node thenReturn = EDGTraverser.getChild(thenNode, 0);
-		final Node then = EDGTraverser.getChild(thenReturn, 0);
+		final Node thenNode = EDGTraverser.getChild(edg, _if, Node.Type.Then);
+		final Node thenReturn = EDGTraverser.getChild(edg, thenNode, 0);
+		final Node then = EDGTraverser.getChild(edg, thenReturn, 0);
 		final Expression thenExpression = this.parseExpression(then);
 
 		// Else
-		final Node elseNode = EDGTraverser.getChild(_if, NodeInfo.Type.Else);
-		final Node elseReturn = EDGTraverser.getChild(elseNode, 0);
-		final Node _else = EDGTraverser.getChild(elseReturn, 0);
+		final Node elseNode = EDGTraverser.getChild(edg, _if, Node.Type.Else);
+		final Node elseReturn = EDGTraverser.getChild(edg, elseNode, 0);
+		final Node _else = EDGTraverser.getChild(edg, elseReturn, 0);
 		final Expression elseExpression = this.parseExpression(_else);
 
 		return new ConditionalExpr(conditionExpression, thenExpression, elseExpression);
@@ -898,7 +897,7 @@ public class JavaCodeFactory {
 	// Variables & literals
 	private Expression parseVariable(Node variable)
 	{
-		final VariableInfo info = (VariableInfo) variable.getData();
+		final Variable info = (Variable) variable;
 		if (info.isDeclaration())
 			return this.parseDeclaration(variable);
 
@@ -907,9 +906,8 @@ public class JavaCodeFactory {
 	}
 	private Expression parseLiteral(Node literal)
 	{
-		final NodeInfo nodeInfo = literal.getData();
-		final LDASTNodeInfo ldNodeInfo = nodeInfo.getInfo();
-		final String value = nodeInfo.getName();
+		final LDASTNodeInfo ldNodeInfo = literal.getInfo();
+		final String value = literal.getName();
 		final String construction = ldNodeInfo.getConstruction();
 
 		switch (construction)
@@ -941,32 +939,29 @@ public class JavaCodeFactory {
 	// Auxiliaries
 	private VariableDeclarator getVariableDeclarator(Node declaration)
 	{
-		final Node variableExpression = (declaration.getData().getType() == NodeInfo.Type.Equality) ? EDGTraverser
-				.getChild(declaration, 0) : declaration;
-		final Node initializerNode = (declaration.getData().getType() == NodeInfo.Type.Equality) ? EDGTraverser
-				.getChild(declaration, 1) : null;
+		final Node variableExpression = (declaration.getType() == Node.Type.Equality) ? EDGTraverser
+				.getChild(edg, declaration, 0) : declaration;
+		final Node initializerNode = (declaration.getType() == Node.Type.Equality) ? EDGTraverser
+				.getChild(edg, declaration, 1) : null;
 		Expression initializer = this.slice != null && !this.slice.contains(initializerNode) ? null : this
 				.parseExpression(initializerNode);
 
 		if (initializer == null)
 		{
-			final Node variable = (variableExpression.getData().getType() ==
-								   NodeInfo.Type.Variable) ? variableExpression : EDGTraverser
-					.getChild(variableExpression, 0);
-			final LDASTNodeInfo ldNodeInfo = variable.getData().getInfo();
+			final Node variable = (variableExpression.getType() == Node.Type.Variable) ? variableExpression : EDGTraverser
+					.getChild(edg, variableExpression, 0);
+			final LDASTNodeInfo ldNodeInfo = variable.getInfo();
 			final Type varType = (Type) ldNodeInfo.getInfo()[1];
 			if (varType instanceof PrimitiveType || initializerNode == null)
 				initializer = null;
 			else
-				initializer = new ObjectCreationExpr(null, (ClassOrInterfaceType) varType, new NodeList<Expression>());
+				initializer = new ObjectCreationExpr(null, (ClassOrInterfaceType) varType, new NodeList<>());
 		}
 
-		final Node variable = (variableExpression.getData().getType() ==
-							   NodeInfo.Type.Variable) ? variableExpression : EDGTraverser
-				.getChild(variableExpression, 0);
+		final Node variable = (variableExpression.getType() == Node.Type.Variable) ? variableExpression : EDGTraverser
+				.getChild(edg, variableExpression, 0);
 		//final Node variable = EDGTraverserNew.getChild(variableExpression, 0);
 
-		final NodeInfo nodeInfo = variable.getData();
 		if (this.slice != null && !this.slice.contains(variable))
 		{
 			final String name = "sliced";
@@ -974,16 +969,16 @@ public class JavaCodeFactory {
 			return new VariableDeclarator(type, name, initializer);
 		}
 
-		final LDASTNodeInfo ldNodeInfo = nodeInfo.getInfo();
+		final LDASTNodeInfo ldNodeInfo = variable.getInfo();
 		final Type type = (Type) ldNodeInfo.getInfo()[1];
-		final String name = nodeInfo.getName();
+		final String name = variable.getName();
 
 		return new VariableDeclarator(type, name, initializer);
 	}
 	private MethodDeclaration createFunundef()
 	{
 		final MethodDeclaration funundef;
-		final NodeList<Parameter> parameters = new NodeList<Parameter>();
+		final NodeList<Parameter> parameters = new NodeList<>();
 
 		parameters.add(new Parameter(new ClassOrInterfaceType("Object..."), "params"));
 		funundef = new MethodDeclaration(EnumSet.of(Modifier.PRIVATE, Modifier.STATIC), "funundef", new VoidType(), parameters);
@@ -996,7 +991,7 @@ public class JavaCodeFactory {
 		for (Printable operator : operators)
 			if (operator.asString().equals(sign))
 				return operator;
-		return null;
+		throw new IllegalArgumentException("Invalid operator: " + sign);
 	}
 
 	private Printable getOperator(UnaryExpr.Operator[] operators, String sign, Boolean isPostfix)
@@ -1004,7 +999,7 @@ public class JavaCodeFactory {
 		for (UnaryExpr.Operator operator : operators)
 			if (operator.asString().equals(sign) && operator.isPostfix() == isPostfix)
 				return operator;
-		return null;
+		throw new IllegalArgumentException("Invalid operator: " + sign);
 	}
 
 	private boolean isEnclosedExpr(Expression expr, BinaryExpr.Operator operator, boolean isLeftExpr)
@@ -1079,13 +1074,13 @@ public class JavaCodeFactory {
 		if (ctx.returnReq)
 		{
 			ctx.trueBranches++;
-			if (ctx.nodeType == NodeInfo.Type.If && ctx.trueBranches == 2)
+			if (ctx.nodeType == Node.Type.If && ctx.trueBranches == 2)
 			{
 				ctx.returned();
 				final Context ifContext = context.pop();
 				final Context previousContext = context.peek();
 
-				if (previousContext.nodeType != NodeInfo.Type.If)
+				if (previousContext.nodeType != Node.Type.If)
 					previousContext.returned();
 				else if (previousContext.trueBranches == 1)
 					previousContext.returned();
@@ -1098,12 +1093,12 @@ public class JavaCodeFactory {
 	}
 
 	private static class Context {
-		private final NodeInfo.Type nodeType;
+		private final Node.Type nodeType;
 		private final Type returnType;
 		private boolean returnReq;
 		private int trueBranches = 0;
 
-		public Context(NodeInfo.Type nodeType, Type returnType, boolean returnReq)
+		public Context(Node.Type nodeType, Type returnType, boolean returnReq)
 		{
 			this.nodeType = nodeType;
 			this.returnType = returnType;
@@ -1118,7 +1113,7 @@ public class JavaCodeFactory {
 
 	private boolean mayContentInternalSliceCode(Node node)
 	{
-		switch (node.getData().getType())
+		switch (node.getType())
 		{
 			case Operation:
 			case Equality:
