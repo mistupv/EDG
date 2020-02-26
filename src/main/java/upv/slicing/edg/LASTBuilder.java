@@ -1,6 +1,5 @@
 package upv.slicing.edg;
 
-import edg.graph.*;
 import upv.slicing.edg.traverser.LASTTraverser;
 import upv.slicing.edg.graph.*;
 
@@ -225,10 +224,10 @@ public class LASTBuilder {
 	{
 		final Node parent = LASTBuilder.getParentNode(last, parentId, where);
 		final Node call = LASTBuilder.addNode(last, parent, NodeInfo.Type.Call, "call", info);  
-		final Node callee = LASTBuilder.addNode(last, call, NodeInfo.Type.Callee, "callee", null);
+		final Node callee = LASTBuilder.addNode(last, call, NodeInfo.Type.Callee, "callee", info);
 		LASTBuilder.addNode(last, callee, NodeInfo.Type.Scope, "scope", null);
 		LASTBuilder.addNode(last, callee, NodeInfo.Type.Name, "name", null);
-		LASTBuilder.addNode(last, callee, NodeInfo.Type.Result, "result", null);
+//		LASTBuilder.addNode(last, callee, NodeInfo.Type.Result, "result", null);
 		LASTBuilder.addNode(last, call, NodeInfo.Type.ArgumentIn, "argsIn", null);
 		LASTBuilder.addNode(last, call, NodeInfo.Type.Arguments, "arguments", null);
 		LASTBuilder.addNode(last, call, NodeInfo.Type.ArgumentOut, "argsOut", null);

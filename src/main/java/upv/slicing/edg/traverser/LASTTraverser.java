@@ -1,6 +1,5 @@
 package upv.slicing.edg.traverser;
 
-import edg.graph.*;
 import upv.slicing.edg.graph.*;
 
 import java.util.LinkedList;
@@ -247,6 +246,7 @@ public class LASTTraverser {
 
 			case Variable:
 				return getResFromNode(node);
+
 			//return getVarResult(node, siblings);
 			// Last child
 			case Clause:
@@ -278,6 +278,10 @@ public class LASTTraverser {
 
 	public static Node getResFromNode(Node node)
 	{
+		// If the node is not an expression its result is itself (e.g. VarDeclarations in Java)
+		if (!node.getData().getInfo().isExpression())
+			return node;
+
 		Set<Node> next = ControlFlowTraverser.step(node, ControlFlowTraverser.Direction.Forwards);
 		if (next.size() == 1)
 			return next.iterator().next();

@@ -49,7 +49,7 @@ public class EDGTraverser extends LASTTraverser
                     case Name:
                         return EDGTraverser.getChild(node, 1);
                     case Result:
-                        return EDGTraverser.getChild(node, 2);
+                        return EDGTraverser.getResFromNode(node);
                 }
                 break;
             case If:
@@ -143,6 +143,8 @@ public class EDGTraverser extends LASTTraverser
                         return EDGTraverser.getChild(node, 1);
                 }
                 break;
+            case Scope:
+            case Name:
             case Expression:
             case Literal:
                 switch (type)
@@ -152,10 +154,18 @@ public class EDGTraverser extends LASTTraverser
                     case Result:
                         return EDGTraverser.getChild(node, 1);
                 }
+            case Equality:
+                switch (type)
+                {
+                    case Pattern:
+                        return EDGTraverser.getChild(node, 0);
+                    case Value:
+                        return EDGTraverser.getChild(node, 1);
+                }
             default:
                 break;
         }
-        return null;
+        throw new IllegalStateException("Parent-Child combination not considered: " + nodeType + ", " + type);
     }
 
     public static Node getSibling(Node node, NodeInfo.Type type)

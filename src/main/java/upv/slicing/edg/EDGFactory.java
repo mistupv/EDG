@@ -7,10 +7,9 @@ import upv.slicing.edg.edge.ControlEdgeGenerator;
 import upv.slicing.edg.edge.FlowEdgeGenerator;
 import upv.slicing.edg.edge.InterproceduralEdgeGenerator;
 import upv.slicing.edg.edge.SummaryEdgeGenerator;
-import edg.graph.*;
 import upv.slicing.edg.traverser.EDGTraverser;
-import upv.slicing.edg.traverser.LASTTraverser;
 import upv.slicing.edg.graph.*;
+import upv.slicing.edg.traverser.LASTTraverser;
 
 import java.util.List;
 
@@ -38,11 +37,35 @@ public class EDGFactory {
 	}
 	private static void transformExpressionNodes()
 	{
-		final List<Node> expressionNodes = EDGTraverser
-				.getNodes(edg, node -> node.getData().getInfo() != null && node.getData().getInfo().isExpression());
+		final List<Node> expressionNodes = EDGTraverser.getNodes(edg, node -> node.getData().getInfo() != null &&
+				node.getData().getInfo().isExpression());
 		for (Node expression : expressionNodes)
 			createThreeNodeStructures(expression);
+
+		// TODO : When structural false edges are implemented, move this to LASTBuilder
+		edg.getNodes().stream()
+				.filter(EDGFactory::isCallNode)
+				.forEach(node -> {
+					final Node parent = LASTTraverser.getParent(node);
+					edg.removeEDGEdge(parent, node, EdgeInfo.Type.Structural);
+					edg.setRemovableEdge(parent, node, EdgeInfo.Type.Structural);
+				});
 	}
+
+	public static boolean isCallNode(Node node)
+	{
+		switch(node.getData().getType())
+		{
+			case Scope:
+			case Name:
+			case Arguments:
+			case ArgumentIn:
+				return true;
+			default:
+				return false;
+		}
+	}
+
 	private static void generateDependencies()
 	{
 		new ControlEdgeGenerator(edg).generate();
@@ -78,13 +101,11 @@ public class EDGFactory {
 		edg.addNode(result);
 
 		// Remove the Structural edges if the parent is an expression -> The hidden structural edges inside nodes remain in the graph
+
 		if (!parent.getData().isFictitious() && parent.getData().getInfo().isExpression())
 		{
-			if (!LASTTraverser.isPatternZone(node))
-			{
-				edg.removeEDGEdge(parent, node, EdgeInfo.Type.Structural);
-				edg.setRemovableEdge(parent, node, EdgeInfo.Type.Structural);
-			}
+			edg.removeEDGEdge(parent, node, EdgeInfo.Type.Structural);
+			edg.setRemovableEdge(parent, node, EdgeInfo.Type.Structural);
 		}
 
 		// Add the structural edge parent -> result to perform tree traversal (not considered for slicing)
@@ -93,14 +114,14 @@ public class EDGFactory {
 		// Modify Value Arcs
 		switch (node.getData().getType())
 		{
-			case NodeInfo.Type.DataConstructor:
+			case DataConstructor:
 				final boolean isPatternZone = EDGTraverser.isPatternZone(node);
 				if (!isPatternZone)
 				{
 					treatDataConstructorExpressions(node, result);
 					break;
 				}
-			case NodeInfo.Type.Variable: // Variables scope of a call, don't add the result node to the slice
+			case Variable: // Variables scope of a call, don't add the result node to the slice
 				// 3 levels (in case it is a casting)
 				final Node grandParent = EDGTraverser.getParent(parent);
 				final Node grandGrandParent = EDGTraverser.getParent(grandParent);

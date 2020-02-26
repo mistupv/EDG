@@ -83,7 +83,7 @@ public class NodeInfo {
 			case Selector:
 			case Cases:
 			case Selectable:
-			case Callee:
+//			case Callee:
 			case Arguments:
 			case ArgumentIn:
 			case ArgumentOut:
