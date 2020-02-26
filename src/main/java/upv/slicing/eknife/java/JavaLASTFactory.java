@@ -225,12 +225,11 @@ public class JavaLASTFactory extends LASTFactory {
 
 	private void processReturn(Object expression, Map<String, Object> info)
 	{
-		@SuppressWarnings("unchecked") final List<LASTFactory.Branch> ancestors = (List<LASTFactory.Branch>) info
-				.get("ancestors");
+		@SuppressWarnings("unchecked")
+		final Deque<LASTFactory.Branch> ancestors = (Deque<LASTFactory.Branch>) info.get("ancestors");
 
-		for (int ancestorIndex = ancestors.size() - 1; ancestorIndex >= 0; ancestorIndex--)
+		for (LASTFactory.Branch ancestor : ancestors)
 		{
-			final LASTFactory.Branch ancestor = ancestors.get(ancestorIndex);
 			final upv.slicing.edg.graph.Node.Type type = ancestor.getNodeType();
 			if (type != upv.slicing.edg.graph.Node.Type.If)
 				continue;
@@ -1117,16 +1116,12 @@ public class JavaLASTFactory extends LASTFactory {
 
 	private int getJumpDestiny(Map<String, Object> info, upv.slicing.edg.graph.Node.Type... seekingTypes)
 	{
-		@SuppressWarnings("unchecked") final List<LASTFactory.Branch> ancestors = (List<LASTFactory.Branch>) info
-				.get("ancestors");
+		@SuppressWarnings("unchecked")
+		final Deque<LASTFactory.Branch> ancestors = (Deque<LASTFactory.Branch>) info.get("ancestors");
 
-		for (int ancestorIndex = ancestors.size() - 1; ancestorIndex >= 0; ancestorIndex--)
-		{
-			final LASTFactory.Branch ancestor = ancestors.get(ancestorIndex);
-			final upv.slicing.edg.graph.Node.Type type = ancestor.getNodeType();
-
+		for (LASTFactory.Branch ancestor : ancestors)
 			for (upv.slicing.edg.graph.Node.Type seekingType : seekingTypes)
-				if (seekingType == type)
+				if (seekingType == ancestor.getNodeType())
 					switch (seekingType)
 					{
 						case Switch:
@@ -1142,8 +1137,6 @@ public class JavaLASTFactory extends LASTFactory {
 						default:
 							break;
 					}
-		}
-
 		throw new RuntimeException("Wrong jump instruction");
 	}
 
