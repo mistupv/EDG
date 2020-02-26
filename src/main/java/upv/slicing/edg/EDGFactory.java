@@ -47,10 +47,33 @@ public class EDGFactory {
 
 	private void transformExpressionNodes()
 	{
-		final List<Node> expressionNodes = EDGTraverser
-				.getNodes(edg, node -> node.getInfo() != null && node.getInfo().isExpression());
+		final List<Node> expressionNodes = EDGTraverser.getNodes(edg, node -> node.getInfo() != null &&
+				node.getInfo().isExpression());
 		for (Node expression : expressionNodes)
 			createThreeNodeStructures(expression);
+
+		// TODO : When structural false edges are implemented, move this to LASTBuilder
+		edg.vertexSet().stream()
+				.filter(EDGFactory::isCallNode)
+				.forEach(node -> {
+					final Node parent = LASTTraverser.getParent(edg, node);
+					edg.removeEDGEdge(parent, node, Edge.Type.Structural);
+					edg.setRemovableEdge(parent, node, Edge.Type.Structural);
+				});
+	}
+
+	public static boolean isCallNode(Node node)
+	{
+		switch(node.getType())
+		{
+			case Scope:
+			case Name:
+			case Arguments:
+			case ArgumentIn:
+				return true;
+			default:
+				return false;
+		}
 	}
 
 	private void generateDependencies()
@@ -84,11 +107,8 @@ public class EDGFactory {
 		// Remove the Structural edges if the parent is an expression -> The hidden structural edges inside nodes remain in the graph
 		if (!parent.getType().isFictitious() && parent.getInfo().isExpression())
 		{
-			if (!LASTTraverser.isPatternZone(last, node))
-			{
-				edg.removeEDGEdge(parent, node, Edge.Type.Structural);
-				edg.setRemovableEdge(parent, node, Edge.Type.Structural);
-			}
+			edg.removeEDGEdge(parent, node, Edge.Type.Structural);
+			edg.setRemovableEdge(parent, node, Edge.Type.Structural);
 		}
 
 		// Add the structural edge parent -> result to perform tree traversal (not considered for slicing)
@@ -98,7 +118,7 @@ public class EDGFactory {
 		switch (node.getType())
 		{
 			case DataConstructor:
-				final boolean isPatternZone = EDGTraverser.isPatternZone(last, node);
+				final boolean isPatternZone = EDGTraverser.isPatternZone(edg, node);
 				if (!isPatternZone)
 				{
 					treatDataConstructorExpressions(node, result);
@@ -106,8 +126,8 @@ public class EDGFactory {
 				}
 			case Variable: // Variables scope of a call, don't add the result node to the slice
 				// 3 levels (in case it is a casting)
-				final Node grandParent = EDGTraverser.getParent(last, parent);
-				final Node grandGrandParent = EDGTraverser.getParent(last, grandParent);
+				final Node grandParent = EDGTraverser.getParent(edg, parent);
+				final Node grandGrandParent = EDGTraverser.getParent(edg, grandParent);
 				if (parent.getType() == Node.Type.Scope ||
 						grandParent.getType() == Node.Type.Scope ||
 						grandGrandParent.getType() == Node.Type.Scope)

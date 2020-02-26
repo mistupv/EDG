@@ -254,6 +254,10 @@ public class LASTTraverser {
 
 	public static Node getResFromNode(LAST last, Node node)
 	{
+		// If the node is not an expression its result is itself (e.g. VarDeclarations in Java)
+		if (!node.getInfo().isExpression())
+			return node;
+
 		Set<Node> next = ControlFlowTraverser.step(last, node, ControlFlowTraverser.Direction.Forwards);
 		if (next.size() == 1)
 			return next.iterator().next();

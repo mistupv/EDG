@@ -43,7 +43,7 @@ public class ControlEdgeGenerator extends EdgeGenerator {
 					continue;
 
 				final List<Node> expressions = EDGTraverser.getChildren(edg, child);
-				if (expressions.size() > 1)
+				if (expressions.size() > 2)
 					throw new RuntimeException("More than one expression");
 
 				// PLANTEARSE USAR EL BREAK O HACER UNA BUSQUEDA EN LUGAR DE UN RECORRIDO

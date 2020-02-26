@@ -17,7 +17,7 @@ public class Node {
 		Block, Operation, Equality, Pattern,
 		If, Condition(true), Then, Else,
 		Switch, Selector(true), Cases(true), Case, DefaultCase, Selectable(true),
-		Call, Callee(true), Scope(true), Name(true), Arguments(true),
+		Call, Callee, Scope(true), Name(true), Arguments(true),
 		ListComprehension, Restrictions(true), Generator, Filter, Value(true),
 		Loop, // <- DEPRECATED USED IN PHP
 		CLoop, FLoop, RLoop, Foreach, Iterator, // LOOPS

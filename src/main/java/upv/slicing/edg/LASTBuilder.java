@@ -223,10 +223,10 @@ public class LASTBuilder {
 	{
 		final Node parent = LASTBuilder.getParentNode(last, parentId, where);
 		final Node call = LASTBuilder.addNode(last, parent, Node.Type.Call, "call", info);
-		final Node callee = LASTBuilder.addNode(last, call, Node.Type.Callee, "callee", null);
+		final Node callee = LASTBuilder.addNode(last, call, Node.Type.Callee, "callee", info);
 		LASTBuilder.addNode(last, callee, Node.Type.Scope, "scope", null);
 		LASTBuilder.addNode(last, callee, Node.Type.Name, "name", null);
-		LASTBuilder.addNode(last, callee, Node.Type.Result, "result", null);
+//		LASTBuilder.addNode(last, callee, Node.Type.Result, "result", null);
 		LASTBuilder.addNode(last, call, Node.Type.ArgumentIn, "argsIn", null);
 		LASTBuilder.addNode(last, call, Node.Type.Arguments, "arguments", null);
 		LASTBuilder.addNode(last, call, Node.Type.ArgumentOut, "argsOut", null);
