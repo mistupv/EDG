@@ -35,10 +35,10 @@ public class ValueEdgeGenerator {
 		for (Node equality : equalities)
 		{
 			final Node pattern = LASTTraverser.getChild(last, equality, 0);
-			final Node expression = LASTTraverser.getChild(last, equality, 1);
+			final Node value = LASTTraverser.getChild(last, equality, 1);
 
-			this.last.addEdge(expression, pattern, Edge.Type.Value);
-			this.last.addEdge(expression, equality, Edge.Type.Value);
+			this.last.addEdge(equality, pattern, Edge.Type.Value);
+			this.last.addEdge(value, equality, Edge.Type.Value);
 		}
 	}
 
