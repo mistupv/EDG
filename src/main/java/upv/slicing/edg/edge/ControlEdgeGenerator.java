@@ -4,8 +4,11 @@ import upv.slicing.edg.graph.EDG;
 import upv.slicing.edg.graph.Edge;
 import upv.slicing.edg.graph.Node;
 import upv.slicing.edg.traverser.EDGTraverser;
+import upv.slicing.edg.traverser.LASTTraverser;
 
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 public class ControlEdgeGenerator extends EdgeGenerator {
 	public ControlEdgeGenerator(EDG edg)
@@ -15,105 +18,87 @@ public class ControlEdgeGenerator extends EdgeGenerator {
 
 	public void generate()
 	{
-		this.generateBodyEdges();
-		this.generateListComprehensionEdges();
-		this.generateGuardEdges();
+		for (Node n : EDGTraverser.getNodes(edg, Node.Type.Routine))
+			analyze(n);
 	}
 
-	private void generateBodyEdges()
-	{
-		final List<Node> bodies = EDGTraverser.getNodes(this.edg, Node.Type.Body);
-		// ADDED UPDATE nodes in FOR loops, they also depend on the for condition, as it happens with body
-		bodies.addAll(EDGTraverser.getNodes(this.edg, Node.Type.Update));
+	private boolean hasControlFlowEdge(Node source, Node target) {
+		return edg.outgoingEdgesOf(source).stream()
+				.filter(e -> e.getType() == Edge.Type.ControlFlow)
+				.map(edg::getEdgeTarget)
+				.anyMatch(target::equals);
+	}
 
-		for (Node body : bodies)
-		{
-			//final int bodyIndex = EDGTraverserNew.getChildIndex(body);
-			final List<Node> children = EDGTraverser.getSiblings(edg, body);
-
-			// Node condition before node body (Doesn't work with do_while loop if we put the expressions in the appearance order 1) Body 2) Condition )
-			// for (int childIndex = 0; childIndex < bodyIndex; childIndex++)
-
-			//for (int childIndex = 0; childIndex < bodies.size(); childIndex++) // Node condition after node body (Less efficient)
-			// Node condition after node body (Less efficient)
-			for (final Node child : children)
-			{
-				final Node.Type type = child.getType();
-				if (type != Node.Type.Condition && type != Node.Type.Guard)
-					continue;
-
-				final List<Node> expressions = EDGTraverser.getChildren(edg, child);
-				if (expressions.size() > 2)
-					throw new RuntimeException("More than one expression");
-
-				// PLANTEARSE USAR EL BREAK O HACER UNA BUSQUEDA EN LUGAR DE UN RECORRIDO
-				if (expressions.isEmpty())
-					this.edg.addEdge(child, body, Edge.Type.Control);
-				else
-				{
-					final Node expression = expressions.get(0);
-					final Node resultNode = EDGTraverser.getResult(edg, expression);
-					this.edg.addEdge(resultNode, body, Edge.Type.Control);
+	public void analyze(Node method) {
+		// Add an edge from the Start to the End to generate all control dependencies
+		Set<Edge> extraEdges = new HashSet<>();
+		Node methodRes = EDGTraverser.getResFromNode(edg, method);
+		if (!hasControlFlowEdge(method, methodRes)) {
+			Edge e = new Edge(Edge.Type.ControlFlow);
+			extraEdges.add(e);
+			edg.addEdge(method, methodRes, e);
+		}
+		// Do the same for each Clause contained within this Routine.
+		for (Node n : EDGTraverser.getChildren(edg, method)) {
+			if (n.getType() == Node.Type.Clause) {
+				Node res = EDGTraverser.getResFromNode(edg, n);
+				if (!hasControlFlowEdge(n, res)) {
+					Edge e = new Edge(Edge.Type.ControlFlow);
+					extraEdges.add(e);
+					edg.addEdge(n, res, e);
 				}
 			}
 		}
-	}
-	private void generateListComprehensionEdges()
-	{
-		final List<Node> comprehensionNodes = EDGTraverser.getNodes(this.edg, Node.Type.ListComprehension);
 
-		for (Node comprehensionNode : comprehensionNodes)
-		{
-			final Node restrictionsNode = EDGTraverser.getChild(edg, comprehensionNode, 0);
-			final List<Node> restrictions = EDGTraverser.getChildren(edg, restrictionsNode);
-			final int restrictionCount = restrictions.size();
-			final Node value = EDGTraverser.getChild(edg, comprehensionNode, 1);
-
-			for (int restrictionIndex = 0; restrictionIndex < restrictionCount - 1; restrictionIndex++)
-			{
-				final Node restriction = restrictions.get(restrictionIndex);
-				final List<Node> restrictionChildren = EDGTraverser.getChildren(edg, restriction);
-				final Node restrictionLastChild = restrictionChildren.get(restrictionChildren.size() - 1);
-				final Node restrictionResult = EDGTraverser.getResult(edg, restrictionLastChild);
-				final Node nextRestriction = restrictions.get(restrictionIndex + 1);
-				this.edg.addEdge(restrictionResult, nextRestriction, Edge.Type.Control);
-
-				final Node.Type restrictionType = restriction.getType();
-				if (restrictionType != Node.Type.Generator)
+		List<Node> nodes = EDGTraverser.getDescendants(edg, method);
+		// The routine and its result should be included (are Start and End).
+		nodes.add(methodRes);
+		nodes.add(method);
+		for (Node src : nodes) {
+			for (Node dest : nodes) {
+				if (src == dest)
 					continue;
-
-				final Node generatorPattern = EDGTraverser.getChild(edg, restriction, 0);
-				final List<Node> implicitRestrictions = this.getImplicitRestrictions(generatorPattern);
-				for (Node implicitRestriction : implicitRestrictions)
-				{
-					final Node implicitRestrictionResult = EDGTraverser.getResult(edg, implicitRestriction);
-					this.edg.addEdge(implicitRestrictionResult, nextRestriction, Edge.Type.Control);
-				}
+				if (hasControlDependence(src, dest))
+					edg.addEdge(src, dest, Edge.Type.Control);
 			}
-
-			final Node lastRestriction = restrictions.get(restrictionCount - 1);
-			final List<Node> lastRestrictionChildren = EDGTraverser.getChildren(edg, lastRestriction);
-			final Node lastRestrictionLastChild = lastRestrictionChildren.get(lastRestrictionChildren.size() - 1);
-			final Node lastRestrictionResult = EDGTraverser.getResult(edg, lastRestrictionLastChild);
-			this.edg.addEdge(lastRestrictionResult, value, Edge.Type.Control);
 		}
+
+		// Remove Start --> End edge if it was added by us.
+		edg.removeAllEdges(extraEdges);
 	}
-	private void generateGuardEdges()
-	{
-		final List<Node> guards = EDGTraverser.getNodes(this.edg, Node.Type.Guard);
 
-		for (Node guard : guards)
-		{
-			final Node declarators = EDGTraverser.getSibling(edg, guard, 0);
-			final List<Node> declaratorNodes = EDGTraverser.getChildren(edg, declarators);
-			declaratorNodes.removeIf(n -> n.getType() == Node.Type.Result);
-			final List<Node> implicitRestrictions = this.getImplicitRestrictions(declaratorNodes);
-
-			for (Node implicitRestriction : implicitRestrictions)
-			{
-				final Node implicitRestrictionResult = EDGTraverser.getResult(edg, implicitRestriction);
-				this.edg.addEdge(implicitRestrictionResult, guard, Edge.Type.Control);
-			}
+	public boolean hasControlDependence(Node a, Node b) {
+		int yes = 0;
+		List<Node> list = EDGTraverser.getNodes(edg, a, LASTTraverser.Direction.Forwards, Edge.Type.ControlFlow);
+		// Nodes with less than 1 outgoing arc cannot control another node.
+		if (list.size() < 2)
+			return false;
+		for (Node n : list) {
+			if (postdominates(n, b))
+				yes++;
 		}
+		int no = list.size() - yes;
+		return yes > 0 && no > 0;
+	}
+
+	public boolean postdominates(Node a, Node b) {
+		return postdominates(a, b, new HashSet<>());
+	}
+
+	private boolean postdominates(Node a, Node b, Set<Node> visited) {
+		// Stop w/ success if a == b or a has already been visited
+		if (a.equals(b) || visited.contains(a))
+			return true;
+		List<Node> following = EDGTraverser.getNodes(edg, a, LASTTraverser.Direction.Forwards, Edge.Type.ControlFlow);
+		// Stop w/ failure if there are no edges to traverse from a
+		if (following.isEmpty())
+			return false;
+		// Find all possible paths starting from a, if ALL find b, then true, else false
+		visited.add(a);
+		for (Node next : following) {
+			if (!postdominates(next, b, visited))
+				return false;
+		}
+		return true;
 	}
 }
