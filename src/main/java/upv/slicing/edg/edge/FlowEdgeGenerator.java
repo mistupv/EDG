@@ -225,7 +225,7 @@ public class FlowEdgeGenerator extends EdgeGenerator
 		{
 			final Node clause = workList.remove(0);
 			final Node parametersNode = EDGTraverser.getChild(edg, clause, Node.Type.ParameterIn);
-			final Node clauseResult = EDGTraverser.getChild(edg, clause, Node.Type.Result);
+			final Node clauseResult = EDGTraverser.getResFromNode(edg, clause);
 			final List<Node> callResults = EDGTraverser.getOutputs(edg, clauseResult, EDGTraverser.Direction.Forwards);
 
 			final Function<ControlFlowTraverser.NodeWork<State>, Set<ControlFlowTraverser.NodeWork<State>>> newStates = nodeWork -> {
@@ -452,7 +452,8 @@ if (declarationNode != null && declarationNode != definitionNode)
 						this.edg.addEdge(definitionResultNode, useNode1, new Edge(Edge.Type.Flow, addConstraint));
 					else if (isDefinitionVariable && isUseLastNode)
 					{
-						final Node parameterOutNode = EDGTraverser.getSibling(edg, useNode, Node.Type.ParameterOut);
+						final Node clauseNode = EDGTraverser.getNodeFromRes(edg, useNode);
+						final Node parameterOutNode = EDGTraverser.getChild(edg, clauseNode, Node.Type.ParameterOut);
 						this.edg.addEdge(definitionResultNode, parameterOutNode,
 								new Edge(Edge.Type.Flow, removeConstraint));
 						final Node routineNode = EDGTraverser.getAncestor(edg, definitionNode, Node.Type.Routine);
@@ -463,7 +464,8 @@ if (declarationNode != null && declarationNode != definitionNode)
 					}
 					else if (isDefinitionCall && isUseLastNode)
 					{
-						final Node parametersNode = EDGTraverser.getSibling(edg, useNode, Node.Type.ParameterOut);
+						final Node clauseNode = EDGTraverser.getNodeFromRes(edg, useNode);
+						final Node parametersNode = EDGTraverser.getChild(edg, clauseNode, Node.Type.ParameterOut);
 						this.edg.addEdge(definitionResultNode, parametersNode,
 								new Edge(Edge.Type.Flow, letThroughConstraint));
 					}
@@ -686,7 +688,7 @@ if (declarationNode != null && declarationNode != definitionNode)
 	{
 		final Node clauseNode = EDGTraverser.getAncestor(edg, node, Node.Type.Clause);
 		if (clauseNode != null)
-			return EDGTraverser.getChild(edg, clauseNode, Node.Type.Result);
+			return EDGTraverser.getResFromNode(edg, clauseNode);
 		return EDGTraverser.getResult(edg, node);
 	}
 	private Node getArgumentsNode(Node node)

@@ -37,7 +37,7 @@ public class SummaryEdgeGenerator extends EdgeGenerator {
 		for (Node call : calls)
 		{
 			final Node calleeNode = EDGTraverser.getChild(edg, call, Node.Type.Callee);
-			final Node calleeResultNode = EDGTraverser.getChild(edg, calleeNode, Node.Type.Result);
+			final Node calleeResultNode = EDGTraverser.getResFromNode(edg, calleeNode);
 			final List<Node> inputs = EDGTraverser.getInputs(edg, calleeResultNode, EDGTraverser.Direction.Forwards);
 			if (!inputs.isEmpty())
 				continue;
@@ -133,11 +133,12 @@ System.out.println(work.getId() + " - " + work.getConstraints().getEdgeConstrain
 		for (Node routine : routines)
 		{
 			final List<Node> clauses = EDGTraverser.getChildren(edg, routine);
+			clauses.removeIf(node -> node.getType() == Node.Type.Result);
 			
 			for (Node clause : clauses)
 			{
 				// Summary Edges for the result node
-				final Node clauseResult = EDGTraverser.getChild(edg, clause, Node.Type.Result);
+				final Node clauseResult = EDGTraverser.getResFromNode(edg, clause);
 				workList.add(new NodeWork(clauseResult, clauseResult, new Constraints()));
 
 				// Summary Edges for Reference variables (Global Variables)
@@ -171,8 +172,8 @@ System.out.println(work.getId() + " - " + work.getConstraints().getEdgeConstrain
 				return false;
 
 		// The formal in must be related to the formal out
-		final Node parameters = EDGTraverser.getAncestor(edg, node, Node.Type.Parameters);
-		final Node clauseResult = EDGTraverser.getSibling(edg, parameters, Node.Type.Result);
+		final Node clause = EDGTraverser.getAncestor(edg, node, Node.Type.Clause);
+		final Node clauseResult = EDGTraverser.getResFromNode(edg, clause);
 
 		final Node formalOutResult = EDGTraverser
 				.getResult(edg, EDGTraverser.getAncestor(edg, formalOutNode, Node.Type.Clause));
@@ -197,7 +198,7 @@ System.out.println(work.getId() + " - " + work.getConstraints().getEdgeConstrain
 				if (call == null)
 					continue;
 
-				final Node callResult = EDGTraverser.getSibling(edg, call, Node.Type.Result);
+				final Node callResult = EDGTraverser.getResFromNode(edg, call);
 				if (EDGTraverser.getParent(edg, formalOut).getType() != Node.Type.Clause) // PART FOR GLOBAL VARIABLE'S SUMMARIES
 				{
 					final Set<Edge> GVOutEdges = EDGTraverser
