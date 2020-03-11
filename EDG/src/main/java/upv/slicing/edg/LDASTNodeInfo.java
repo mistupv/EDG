@@ -4,7 +4,7 @@ import java.util.Arrays;
 
 public class LDASTNodeInfo
 {
-	private String archive;
+	private String file;
 	private String className;
 	private final long line;
 	private final String construction;
@@ -19,21 +19,21 @@ public class LDASTNodeInfo
 	{
 		this(null, null, line, expression, construction, info);
 	}
-	public LDASTNodeInfo(String archive, long line, String construction, Object... info)
+	public LDASTNodeInfo(String file, long line, String construction, Object... info)
 	{
-		this(archive, null, line, false, construction, info);
+		this(file, null, line, false, construction, info);
 	}
-	public LDASTNodeInfo(String archive, long line, boolean expression, String construction, Object... info)
+	public LDASTNodeInfo(String file, long line, boolean expression, String construction, Object... info)
 	{
-		this(archive, null, line, expression, construction, info);
+		this(file, null, line, expression, construction, info);
 	}
-	public LDASTNodeInfo(String archive, String className, long line, String construction, Object... info)
+	public LDASTNodeInfo(String file, String className, long line, String construction, Object... info)
 	{
-		this(archive, className, line, false, construction, info);
+		this(file, className, line, false, construction, info);
 	}
-	public LDASTNodeInfo(String archive, String className, long line, boolean expression, String construction, Object... info)
+	public LDASTNodeInfo(String file, String className, long line, boolean expression, String construction, Object... info)
 	{
-		this.archive = archive;
+		this.file = file;
 		this.className = className;
 		this.line = line;
 		this.construction = construction;
@@ -42,12 +42,12 @@ public class LDASTNodeInfo
 	}
 
 	public LDASTNodeInfo(LDASTNodeInfo info, boolean expression) {
-		this(info.archive, info.className, info.line, expression, info.construction, Arrays.copyOf(info.info, info.info.length));
+		this(info.file, info.className, info.line, expression, info.construction, Arrays.copyOf(info.info, info.info.length));
 	}
 
-	public String getArchive()
+	public String getFile()
 	{
-		return this.archive;
+		return this.file;
 	}
 	public String getClassName()
 	{
@@ -69,9 +69,9 @@ public class LDASTNodeInfo
 	{
 		return this.info;
 	}
-	public void setArchive(String archive)
+	public void setFile(String file)
 	{
-		this.archive = archive;
+		this.file = file;
 	}
 	public void setClassName(String className)
 	{

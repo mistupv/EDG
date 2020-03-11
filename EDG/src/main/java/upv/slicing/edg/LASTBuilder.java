@@ -370,8 +370,8 @@ public class LASTBuilder {
 	}
 	private static Node addNode(LAST last, Node parent, Node.Type type, boolean isVariable, String name, String text, LDASTNodeInfo info)
 	{
-		if (info != null && info.getArchive() == null)
-			info.setArchive(LASTBuilder.getArchive(last, parent));
+		if (info != null && info.getFile() == null)
+			info.setFile(LASTBuilder.getArchive(last, parent));
 		if (info != null && info.getClassName() == null)
 			info.setClassName(LASTBuilder.getClassName(last, parent));
 
@@ -401,9 +401,9 @@ public class LASTBuilder {
 			final LDASTNodeInfo nodeInfo = ancestor.getInfo();
 			if (nodeInfo != null)
 			{
-				final String archive = nodeInfo.getArchive();
-				if (archive != null)
-					return archive;
+				final String file = nodeInfo.getFile();
+				if (file != null)
+					return file;
 			}
 			ancestor = LASTTraverser.getParent(last, ancestor);
 		}

@@ -34,7 +34,7 @@ public class EKnife {
 		Language language = null;
 		String inputPath = null;
 		String outputPath = null;
-		String archive = null;
+		String file = null;
 		int line = 0;
 		String name = null;
 		int occurrence = 0;
@@ -83,7 +83,7 @@ public class EKnife {
 					outputPath = args[argIndex + 1];
 					break;
 				case "-ar":
-					archive = args[argIndex + 1];
+					file = args[argIndex + 1];
 					break;
 				case "-li":
 					line = Integer.parseInt(args[argIndex + 1]);
@@ -137,14 +137,14 @@ public class EKnife {
 
 		if (alledges)
 			controlFlow = control = value = flow = call = input = output = summary = true;
-		if (archive == null && inputPath != null && new File(inputPath).isFile())
-			archive = inputPath;
-		if (archive != null)
-			archive = new File(archive).getName();
+		if (file == null && inputPath != null && new File(inputPath).isFile())
+			file = inputPath;
+		if (file != null)
+			file = new File(file).getName();
 
-		if (language == null || inputPath == null || outputPath == null || archive == null || line <= 0 || name == null || occurrence <= 0)
+		if (language == null || inputPath == null || outputPath == null || file == null || line <= 0 || name == null || occurrence <= 0)
 			return null;
-		return new Object[] { language, inputPath, outputPath, archive, line, name, occurrence, dot, pdf, omitedges, controlFlow, control, value, flow, call, input, output, summary };
+		return new Object[] { language, inputPath, outputPath, file, line, name, occurrence, dot, pdf, omitedges, controlFlow, control, value, flow, call, input, output, summary };
 	}
 	private static void printHelp()
 	{
@@ -152,7 +152,7 @@ public class EKnife {
 				"  -ln <language>      To specify the target language (Java, Erlang) \n" +
 				"  -ip <file/folder>   To specify the file/folder where the source code is\n" +
 				"  -op <file/folder>   To specify the file/folder where the slice will be stored\n" +
-				"  -ar <file>          To specify the archive (relative to -ip) where the slicing criterion is\n" +
+				"  -ar <file>          To specify the file (relative to -ip) where the slicing criterion is\n" +
 				"  -li <num>           To specify the line of the slicing criterion\n" +
 				"  -na <name>          To specify the name of the slicing criterion (must be a variable)\n" +
 				"  -oc <num>           To specify the occurrence of the slicing criterion in that line\n" +
@@ -177,7 +177,7 @@ public class EKnife {
 		final String inputPath = (String) arguments[1];
 		final String outputPath = (String) arguments[2];
 		final File outputFile = new File(outputPath);
-		final String archive = (String) arguments[3];
+		final String file = (String) arguments[3];
 		final int line = (int) arguments[4];
 		final String name = (String) arguments[5];
 		final int occurrence = (int) arguments[6];
@@ -198,7 +198,7 @@ public class EKnife {
 
 		final LAST last = LASTFactory.createLAST(Language.Java, inputPath, edges);
 		final EDG edg = new EDGFactory(last).createEDG();
-		final SlicingCriterion slicingCriterion = new SlicingCriterion(archive, line, name, occurrence);
+		final SlicingCriterion slicingCriterion = new SlicingCriterion(file, line, name, occurrence);
 		final Node SC = edg.getNode(slicingCriterion);
 		final SlicingAlgorithm slicingAlgorithm = new ConstrainedAlgorithm(edg);
 		final Set<Node> slice = slicingAlgorithm.slice(SC);

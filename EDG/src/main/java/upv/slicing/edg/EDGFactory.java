@@ -94,7 +94,7 @@ public class EDGFactory {
 	{
 		// Conversion of 1 to 2 nodes & structural change
 		final LDASTNodeInfo nodeInfo = node.getInfo();
-		final LDASTNodeInfo ldNodeInfo = new LDASTNodeInfo(nodeInfo.getArchive(), nodeInfo.getClassName(),
+		final LDASTNodeInfo ldNodeInfo = new LDASTNodeInfo(nodeInfo.getFile(), nodeInfo.getClassName(),
 														   nodeInfo.getLine(), nodeInfo.getConstruction());
 
 		// Result Node

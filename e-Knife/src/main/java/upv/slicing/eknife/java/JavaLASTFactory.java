@@ -242,7 +242,7 @@ public class JavaLASTFactory extends LASTFactory {
 	// Structure
 	private void process(ClassOrInterfaceDeclaration _class)
 	{
-		final String archive = new File(this.codebase).getName();
+		final String file = new File(this.codebase).getName();
 		final long line = _class.getRange().get().begin.line;
 		final String className = _class.getNameAsString();
 		final List<BodyDeclaration<?>> members = new LinkedList<BodyDeclaration<?>>();
@@ -261,8 +261,8 @@ public class JavaLASTFactory extends LASTFactory {
 
 		final NodeList<ClassOrInterfaceType> implemented = _class.getImplementedTypes();
 
-		//final LDASTNodeInfo ldNodeInfo = new LDASTNodeInfo(archive, className + ".java", line, "class", extended, implemented);
-		final LDASTNodeInfo ldNodeInfo = new LDASTNodeInfo(archive, className, line, "class", extended0, implemented);
+		//final LDASTNodeInfo ldNodeInfo = new LDASTNodeInfo(file, className + ".java", line, "class", extended, implemented);
+		final LDASTNodeInfo ldNodeInfo = new LDASTNodeInfo(file, className, line, "class", extended0, implemented);
 
 		for (BodyDeclaration<?> member : members0)
 			if (member instanceof FieldDeclaration || member instanceof CallableDeclaration ||
@@ -970,7 +970,7 @@ public class JavaLASTFactory extends LASTFactory {
 		if (!declaration && newContextVariable0 != null)
 		{
 			final Object[] info = {newContextVariable0.varModifiers, newContextVariable0.varType};
-			ldNodeInfo = new LDASTNodeInfo(variable.ldNodeInfo.getArchive(), variable.ldNodeInfo.getClassName(),
+			ldNodeInfo = new LDASTNodeInfo(variable.ldNodeInfo.getFile(), variable.ldNodeInfo.getClassName(),
 										   variable.ldNodeInfo.getLine(), variable.ldNodeInfo.isExpression(),
 										   variable.ldNodeInfo.getConstruction(), info);
 		} else

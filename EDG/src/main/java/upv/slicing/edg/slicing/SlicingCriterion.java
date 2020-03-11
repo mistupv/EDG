@@ -4,26 +4,26 @@ import upv.slicing.edg.graph.Node;
 
 public class SlicingCriterion
 {
-	protected final String archive;
+	protected final String file;
 	protected final int line;
 	protected final String name;
 	protected final int occurrence;
 
-	public SlicingCriterion(String archive, int line, String name)
+	public SlicingCriterion(String file, int line, String name)
 	{
-		this(archive, line, name, 1);
+		this(file, line, name, 1);
 	}
-	public SlicingCriterion(String archive, int line, String name, int occurrence)
+	public SlicingCriterion(String file, int line, String name, int occurrence)
 	{
-		this.archive = archive;
+		this.file = file;
 		this.line = line;
 		this.name = name;
 		this.occurrence = occurrence;
 	}
 
-	public String getArchive()
+	public String getFile()
 	{
-		return this.archive;
+		return this.file;
 	}
 	public int getLine()
 	{
@@ -47,7 +47,7 @@ public class SlicingCriterion
 
 		final SlicingCriterion sc = (SlicingCriterion) obj;
 
-		if (!this.archive.equals(sc.archive))
+		if (!this.file.equals(sc.file))
 			return false;
 		if (this.line != sc.line)
 			return false;
@@ -57,7 +57,7 @@ public class SlicingCriterion
 	}
 	public String toString()
 	{
-		return "[" + this.archive + ", " + this.line + ", " + this.name + ", " + this.occurrence + "]";
+		return "[" + this.file + ", " + this.line + ", " + this.name + ", " + this.occurrence + "]";
 	}
 
 	public boolean matchesNode(Node node) {
@@ -65,6 +65,6 @@ public class SlicingCriterion
 				&& node.getInfo() != null
 				&& line == node.getInfo().getLine()
 				&& name.equals(node.getName())
-				&& archive.equals(node.getInfo().getArchive());
+				&& file.equals(node.getInfo().getFile());
 	}
 }
