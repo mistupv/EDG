@@ -11,7 +11,6 @@ import upv.slicing.edg.slicing.SlicingAlgorithm;
 import upv.slicing.edg.slicing.SlicingCriterion;
 import upv.slicing.eknife.EKnife.Language;
 import upv.slicing.eknife.LASTFactory;
-import upv.slicing.eknife.config.Config;
 
 import java.io.File;
 import java.util.Set;
@@ -19,8 +18,6 @@ import java.util.Set;
 public class LASTest {
 	public static void main(String[] args)
 	{
-		final Config config = Config.getConfig();
-
 		final String className = "Eval_1.java";
 //		final SlicingCriterion slicingCriterion = new SlicingCriterion(className, 18, "z", 1); // Test.java
 		final SlicingCriterion slicingCriterion = new SlicingCriterion(className, 64, "x", 1); // Eval_1.java
@@ -38,7 +35,7 @@ public class LASTest {
 //		final SlicingCriterion slicingCriterion = new SlicingCriterion(className, 10, "n", 1); // Test.java
 
 		final String codebase = "./src/test/res/carlos/";
-		final String sourcePath = config.getTestPathBenchmarks() + className; // BENCHMARK DIRECTORY (DESKTOP)
+		final String sourcePath = codebase + className; // BENCHMARK DIRECTORY (DESKTOP)
 
 		final String outputDotPath = codebase + "output.dot";
 		final String outputPdfPath = codebase + "output.pdf";

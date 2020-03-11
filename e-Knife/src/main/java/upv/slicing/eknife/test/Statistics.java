@@ -1,8 +1,8 @@
-package upv.slicing.misc.math;
+package upv.slicing.eknife.test;
 
 import java.util.List;
 
-public final class Statistics
+final class Statistics
 {
 	/********************************************************************************************************************************/
 	/************************************************************ STATIC ************************************************************/

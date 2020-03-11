@@ -1,6 +1,6 @@
 package upv.slicing.edg.constraint;
 
-import upv.slicing.edg.config.Config;
+import upv.slicing.edg.Config;
 import upv.slicing.edg.graph.EDG;
 import upv.slicing.edg.graph.Edge;
 import upv.slicing.edg.graph.Grammar;
@@ -11,7 +11,6 @@ import java.util.LinkedList;
 import java.util.List;
 
 public class GrammarConstraint extends EdgeConstraint {
-	private final Config config = Config.getConfig();
 	private final Grammar grammar;
 	private final Node refNode;
 
@@ -99,7 +98,7 @@ public class GrammarConstraint extends EdgeConstraint {
 	private List<Constraints> resolveProductions(Phase phase, EDG edg, Edge edge, Constraints constraints, int productionDepth)
 	{
 		super.check(phase, Phase.Slicing);
-		if (productionDepth == this.config.maxProductionDepth)
+		if (productionDepth == Config.MAX_PRODUCTION_DEPTH)
 			throw new StackOverflowError();
 
 		final List<Constraints> newConstraintsList = new LinkedList<>();

@@ -1,5 +1,6 @@
 package upv.slicing.edg.constraint;
 
+import upv.slicing.edg.Config;
 import upv.slicing.edg.graph.EDG;
 import upv.slicing.edg.graph.Edge;
 import upv.slicing.edg.slicing.Phase;
@@ -60,7 +61,7 @@ public abstract class EdgeConstraint extends Constraint
 	}
 	protected Constraints push(Phase phase, Constraints constraints)
 	{
-		if (phase.isInstanceof(Phase.Slicing) && constraints.sizeEdgeConstraints() == this.config.maxStackSize)
+		if (phase.isInstanceof(Phase.Slicing) && constraints.sizeEdgeConstraints() == Config.MAX_STACK_SIZE)
 			throw new StackOverflowError();
 //if (phase.isInstanceof(Phase.SummaryGeneration) && constraints.sizeEdgeConstraints() == this.config.maxStackSize)
 //	throw new StackOverflowError();

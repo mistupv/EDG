@@ -13,16 +13,16 @@ import com.github.javaparser.ast.stmt.*;
 import com.github.javaparser.ast.type.*;
 import com.github.javaparser.ast.type.PrimitiveType.Primitive;
 import com.github.javaparser.printer.Printable;
-import org.antlr.v4.runtime.misc.Utils;
 import upv.slicing.edg.LDASTNodeInfo;
 import upv.slicing.edg.graph.EDG;
 import upv.slicing.edg.graph.Node;
 import upv.slicing.edg.graph.Variable;
 import upv.slicing.edg.traverser.EDGTraverser;
 import upv.slicing.eknife.Util;
-import upv.slicing.misc.Misc;
 
 import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.PrintWriter;
 import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -44,10 +44,15 @@ public class JavaCodeFactory {
 		final CompilationUnit cu = javaFactory.generate();
 		final String text = cu.toString();
 
-// SHOW CODE IN TERMINAL
+		// SHOW CODE IN TERMINAL
 		System.out.println("\n" + text);
 
-		Misc.write(outputFile, text, false);
+		outputFile.delete();
+		try (PrintWriter writer = new PrintWriter(outputFile)) {
+			writer.print(text);
+		} catch (FileNotFoundException e) {
+			e.printStackTrace();
+		}
 	}
 
 	/********************************************************************************************************************************/

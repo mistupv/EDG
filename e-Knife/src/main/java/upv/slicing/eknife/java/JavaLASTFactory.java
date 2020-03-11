@@ -13,7 +13,7 @@ import upv.slicing.edg.LASTBuilder.Where;
 import upv.slicing.edg.LASTFactory;
 import upv.slicing.edg.LDASTNodeInfo;
 import upv.slicing.edg.graph.LAST;
-import upv.slicing.misc.Misc;
+import upv.slicing.eknife.Util;
 
 import java.io.File;
 import java.util.*;
@@ -30,9 +30,7 @@ public class JavaLASTFactory extends LASTFactory {
 
 	public static LAST createLAST(String sourcePath, boolean generateArcs)
 	{
-		final File programFile = new File(sourcePath);
-		final List<File> files = programFile.isFile() ? Arrays.asList(programFile) : Misc
-				.getFiles(programFile, new String[]{".java"}, true);
+		final List<File> files = Util.getFiles(sourcePath, Set.of(".java"));
 		final JavaLASTFactory lastFactory = new JavaLASTFactory(sourcePath);
 
 		return lastFactory.createLAST(generateArcs, files);

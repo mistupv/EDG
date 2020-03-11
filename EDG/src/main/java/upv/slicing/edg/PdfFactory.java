@@ -1,36 +1,16 @@
 package upv.slicing.edg;
 
-import upv.slicing.edg.config.Config;
 import upv.slicing.edg.graph.EDG;
 import upv.slicing.edg.graph.Edge;
 import upv.slicing.edg.graph.Node;
-import upv.slicing.misc.Misc;
-import upv.slicing.misc.util.Flusher;
 
 import java.io.File;
+import java.io.IOException;
 import java.util.Map;
 import java.util.Set;
 
 public class PdfFactory
 {
-	private static final Config config = Config.getConfig();
-
-	private static File getTempDotFile()
-	{
-		final String temporaryPath = PdfFactory.config.getTemporaryPath();
-		int temporaryPathIndex = 0;
-
-		while (true)
-		{
-			final String extraDotPath = temporaryPathIndex++ > 0 ? temporaryPathIndex + "" : "";
-			final String temporaryDotPath = temporaryPath + "temp" + extraDotPath + ".dot";
-			final File temporatyDotFile = new File(temporaryDotPath);
-
-			if (!temporatyDotFile.exists())
-				return temporatyDotFile;
-		}
-	}
-
 	public static void createPdf(File outputFile, EDG edg)
 	{
 		PdfFactory.createPdf(outputFile, edg, null, null, null);
@@ -45,25 +25,33 @@ public class PdfFactory
 	}
 	public static void createPdf(File outputFile, EDG edg, Node slicingCriterion, Set<Node> slice, Map<Edge.Type, Boolean> edgeFlags)
 	{
-		final File dotOutputFile = PdfFactory.getTempDotFile();
+		final File dotOutputFile;
+		try {
+			dotOutputFile = File.createTempFile("PdfFactory-graph", ".dot");
+		} catch (IOException e) {
+			e.printStackTrace();
+			return;
+		}
 
 		DotFactory.createDot(dotOutputFile, edg, slicingCriterion, slice, edgeFlags);
 		PdfFactory.createPdf(outputFile, dotOutputFile);
-		Misc.delete(dotOutputFile);
+		dotOutputFile.delete();
 	}
+
 	public static void createPdf(File outputFile, File dotFile)
 	{
 		try
 		{
 			final String dotPath = dotFile.getAbsolutePath();
 			final String outputPath = outputFile.getAbsolutePath();
-			final String command = "dot -Tpdf \"" + dotPath + "\" > \"" + outputPath + "\"";
-			final String path = "PATH=/usr/local/bin:" + System.getenv("PATH");
-			final Runtime runtime = Runtime.getRuntime();
-			final Process process = runtime.exec(new String[] { "/bin/sh", "-c", command }, new String[] { path }, null);
+			final Process process = new ProcessBuilder()
+					.command("dot", "-Tpdf", "-o", outputPath, dotPath)
+					.inheritIO()
+					.start();
 
-			new Flusher(process).start();
-			process.waitFor();
+			int result = process.waitFor();
+			if (result != 0)
+				throw new Exception("Error generating pdf from dot file, exit code: " + result);
 		}
 		catch (Exception e)
 		{

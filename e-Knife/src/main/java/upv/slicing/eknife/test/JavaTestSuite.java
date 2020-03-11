@@ -16,17 +16,10 @@ import upv.slicing.edg.slicing.SlicingCriterion;
 import upv.slicing.eknife.CodeFactory;
 import upv.slicing.eknife.EKnife.Language;
 import upv.slicing.eknife.LASTFactory;
-import upv.slicing.eknife.config.Config;
-import upv.slicing.misc.Misc;
-import upv.slicing.misc.math.Statistics;
+import upv.slicing.eknife.Config;
 
-import java.io.File;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Set;
-import java.util.StringTokenizer;
+import java.io.*;
+import java.util.*;
 
 public class JavaTestSuite {
 
@@ -443,7 +436,7 @@ public class JavaTestSuite {
 	{
 		final String className0 = className.substring(0, className.lastIndexOf("."));
 		final File benchGenTimeFile = new File(codebase + className0 + "_GraphGeneratioTimes1000.txt");
-		Misc.delete(benchGenTimeFile);
+		benchGenTimeFile.delete();
 
 //		final double[] arrayEDG = new double[1000];
 //		final double[] arraySDG = new double[1000];
@@ -460,12 +453,20 @@ public class JavaTestSuite {
 			GraphGeneratorTimer ggt = edg.getGenerationTime();
 			double EDGTime = ggt.getGenerationEDGTime();
 
-			Misc.write(benchGenTimeFile, EDGTime + "\n", true);
+			try (PrintWriter writer = new PrintWriter(benchGenTimeFile)) {
+				writer.println(EDGTime);
+			} catch (FileNotFoundException e) {
+				e.printStackTrace();
+			}
 		}
 //		final int windowSize = 10;
 
 //		for (int i = 0; i < 1000; i++)
-//			Misc.write(benchSliceTimeFile, arrayEDG[i] + " " + arraySDG[i] + "\n", true);
+//				try (PrintWriter writer = new PrintWriter(benchSliceTimeFile)) {
+//					writer.println(arrayEDG[i] + " " + arraySDG[i]);
+//				} catch (FileNotFoundException e) {
+//					e.printStackTrace();
+//				}
 //		final double avgEDG = obtainMinimalWindowCoV(arrayEDG, windowSize);
 //		final double avgSDG = obtainMinimalWindowCoV(arraySDG, windowSize);
 
@@ -484,7 +485,7 @@ public class JavaTestSuite {
 
 		final String className0 = className.substring(0, className.lastIndexOf("."));
 		final File benchSliceTimeFile = new File(codebase + className0 + "_sliceTime.txt");
-		Misc.delete(benchSliceTimeFile);
+		benchSliceTimeFile.delete();
 
 		for (Node edgNode : edg.vertexSet())
 		{
@@ -530,7 +531,11 @@ public class JavaTestSuite {
 			}
 
 			final double avg = obtainMinimalWindowCoV(array, windowSize).getAvg();
-			Misc.write(benchSliceTimeFile, avg + "\n", true);
+			try (PrintWriter writer = new PrintWriter(benchSliceTimeFile)) {
+				writer.println(avg);
+			} catch (FileNotFoundException e) {
+				e.printStackTrace();
+			}
 //			EDGSliceTime.setCellValue(end-start);
 
 //			final List<Node> SDGSlice = slicingSDGAlgorithm.slice(edgNode); 
@@ -640,10 +645,12 @@ public class JavaTestSuite {
 
 		final List<Double> programSliceTimeValues = new LinkedList<>();
 		final File file = new File(fileSliceTimeName);
-		final List<String> lines = Misc.readLines(file);
-
-		for (String line : lines)
-			programSliceTimeValues.add(Double.parseDouble(line));
+		try (Scanner in = new Scanner(file)) {
+			while (in.hasNextLine())
+				programSliceTimeValues.add(Double.parseDouble(in.nextLine()));
+		} catch (FileNotFoundException e) {
+			e.printStackTrace();
+		}
 
 		// Calculate AVG and STD
 
@@ -657,31 +664,27 @@ public class JavaTestSuite {
 		final double[] programGenerationSDGTimeValues = new double[1000];
 
 		final File fileGeneration = new File(fileGraphGenerationName);
-		final List<String> linesGeneration = Misc.readLines(fileGeneration);
+		try (Scanner in = new Scanner(fileGeneration)) {
+			int i = 0;
 
-		int i = 0;
+			while (in.hasNextLine()) {
+				final StringTokenizer stk = new StringTokenizer(in.nextLine());
+				final String EDGTime = stk.nextToken();
 
-		for (String lineGen : linesGeneration)
-		{
-			final StringTokenizer stk = new StringTokenizer(lineGen);
+				programGenerationEDGTimeValues[i] = Double.parseDouble(EDGTime);
 
-			final String EDGTime = stk.nextToken();
-			final String SDGTime = stk.nextToken();
-
-			programGenerationEDGTimeValues[i] = Double.parseDouble(EDGTime);
-			programGenerationSDGTimeValues[i] = Double.parseDouble(SDGTime);
-
-			i++;
+				i++;
+			}
+		} catch (FileNotFoundException e) {
+			e.printStackTrace();
 		}
 
 		AvgStd EDGGen = obtainMinimalWindowCoVAccurated(programGenerationEDGTimeValues, windowSize);
 
 		AvgStd SDGGen = obtainMinimalWindowCoVAccurated(programGenerationSDGTimeValues, windowSize);
 
-		System.out
-				.println("Generation time (EDG): " + EDGGen.getAvg() + " +- " + EDGGen.getStd() + " miliseconds (ms)");
-		System.out
-				.println("Generation time (SDG): " + SDGGen.getAvg() + " +- " + SDGGen.getStd() + " miliseconds (ms)");
+		System.out.printf("Generation time (EDG): %f +- %f miliseconds (ms)\n", EDGGen.getAvg(), EDGGen.getStd());
+		System.out.printf("Generation time (SDG): %f +- %f miliseconds (ms)\n", SDGGen.getAvg(), SDGGen.getStd());
 	}
 
 	private static class BenchTest {

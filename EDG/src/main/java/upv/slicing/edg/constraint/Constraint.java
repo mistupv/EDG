@@ -1,6 +1,5 @@
 package upv.slicing.edg.constraint;
 
-import upv.slicing.edg.config.Config;
 import upv.slicing.edg.slicing.Phase;
 
 import java.util.Arrays;
@@ -9,8 +8,6 @@ import java.util.List;
 
 public abstract class Constraint
 {
-	protected final Config config = Config.getConfig();
-
 	public abstract boolean equals(Object object);
 	public abstract String toString();
 
