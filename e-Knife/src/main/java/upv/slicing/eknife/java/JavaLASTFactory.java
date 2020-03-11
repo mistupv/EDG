@@ -1,6 +1,6 @@
 package upv.slicing.eknife.java;
 
-import com.github.javaparser.JavaParser;
+import com.github.javaparser.StaticJavaParser;
 import com.github.javaparser.ast.*;
 import com.github.javaparser.ast.body.*;
 import com.github.javaparser.ast.expr.*;
@@ -56,7 +56,7 @@ public class JavaLASTFactory extends LASTFactory {
 			for (File file : files)
 			{
 				final String path = file.getAbsolutePath();
-				final CompilationUnit cu = JavaParser.parse(file);
+				final CompilationUnit cu = StaticJavaParser.parse(file);
 				final NodeList<TypeDeclaration<?>> types = cu.getTypes();
 
 				for (TypeDeclaration<?> type : types)
@@ -128,12 +128,12 @@ public class JavaLASTFactory extends LASTFactory {
 			this.process((IfStmt) element);
 		else if (element instanceof SwitchStmt)
 			this.process((SwitchStmt) element);
-		else if (element instanceof SwitchEntryStmt)
-			this.process((SwitchEntryStmt) element);
+		else if (element instanceof SwitchEntry)
+			this.process((SwitchEntry) element);
 		else if (element instanceof ObjectCreationExpr)
 			this.process((ObjectCreationExpr) element);
-		else if (element instanceof ForeachStmt)
-			this.process((ForeachStmt) element);
+		else if (element instanceof ForEachStmt)
+			this.process((ForEachStmt) element);
 		else if (element instanceof ReturnStmt)
 			this.process((ReturnStmt) element, info);
 		else if (element instanceof BreakStmt)
@@ -261,7 +261,6 @@ public class JavaLASTFactory extends LASTFactory {
 
 		final NodeList<ClassOrInterfaceType> implemented = _class.getImplementedTypes();
 
-		//final LDASTNodeInfo ldNodeInfo = new LDASTNodeInfo(file, className + ".java", line, "class", extended, implemented);
 		final LDASTNodeInfo ldNodeInfo = new LDASTNodeInfo(file, className, line, "class", extended0, implemented);
 
 		for (BodyDeclaration<?> member : members0)
@@ -277,7 +276,7 @@ public class JavaLASTFactory extends LASTFactory {
 	private void process(FieldDeclaration field, Map<String, Object> info)
 	{
 		final NodeList<VariableDeclarator> variables = field.getVariables();
-		final EnumSet<Modifier> modifiers = field.getModifiers();
+		final NodeList<Modifier> modifiers = field.getModifiers();
 
 		for (VariableDeclarator variable : variables)
 		{
@@ -318,7 +317,7 @@ public class JavaLASTFactory extends LASTFactory {
 				final String name = callable instanceof MethodDeclaration ? callable.getName()
 																					.getIdentifier() : "<constructor>";
 				final List<CallableDeclaration<?>> clauses = new LinkedList<CallableDeclaration<?>>();
-				final EnumSet<Modifier> modifiers = callable.getModifiers();
+				final NodeList<Modifier> modifiers = callable.getModifiers();
 				final Type type = callable instanceof MethodDeclaration ? ((MethodDeclaration) callable)
 						.getType() : null;
 				final LDASTNodeInfo ldNodeInfo0 = new LDASTNodeInfo(line, "callable", modifiers, type);
@@ -411,13 +410,12 @@ public class JavaLASTFactory extends LASTFactory {
 	{
 		final long line = _try.getRange().get().begin.line;
 
-		final Optional<BlockStmt> tryBlock = _try.getTryBlock();
+		final BlockStmt tryBlock = _try.getTryBlock();
 		final List<CatchClause> catchClauses = _try.getCatchClauses();
 		final Optional<BlockStmt> finallyBlock = _try.getFinallyBlock();
 
-		final List<Statement> tryStatements = tryBlock.isPresent() ? tryBlock.get()
-																			 .getStatements() : new LinkedList<Statement>();
-		// SOMETHING TODO WITH catchClauses
+		final List<Statement> tryStatements = tryBlock.getStatements();
+		// SOMETHING TO DO WITH catchClauses
 
 		final List<Statement> finallyStatements = finallyBlock.isPresent() ? finallyBlock.get()
 																						 .getStatements() : new LinkedList<Statement>();
@@ -445,7 +443,7 @@ public class JavaLASTFactory extends LASTFactory {
 		super.addThrow(expression, ldNodeInfo);
 	}
 
-	private void process(ForeachStmt foreach)
+	private void process(ForEachStmt foreach)
 	{
 		final long line = foreach.getRange().get().begin.line;
 		final VariableDeclarationExpr variableDeclaration = foreach.getVariable();
@@ -523,23 +521,22 @@ public class JavaLASTFactory extends LASTFactory {
 	{
 		final long line = _switch.getRange().get().begin.line;
 		final Expression selector = _switch.getSelector();
-		final NodeList<SwitchEntryStmt> entries = _switch.getEntries();
+		final NodeList<SwitchEntry> entries = _switch.getEntries();
 		final LDASTNodeInfo ldNodeInfo = new LDASTNodeInfo(line, "switch");
 
 		super.addSwitch(selector, entries, ldNodeInfo);
 	}
 
-	private void process(SwitchEntryStmt _case)
+	private void process(SwitchEntry _case)
 	{
 		final long line = _case.getRange().get().begin.line;
 		final NodeList<Statement> statements = _case.getStatements();
 		final LDASTNodeInfo ldNodeInfo = new LDASTNodeInfo(line, "case");
 
-		if (_case.getLabel().isPresent())
+		if (!_case.getLabels().isEmpty())
 		{
-			//final List<Expression> selectables = new LinkedList<Expression>();
-			final Expression label = _case.getLabel().get();
-			//selectables.add(label);
+			// @java: >=12 can have multiple labels in a single "case"
+			final Expression label = _case.getLabels().get(0);
 			super.addCase(label, null, statements, ldNodeInfo);
 		} else
 			super.addDefaultCase(statements, ldNodeInfo);
@@ -594,7 +591,7 @@ public class JavaLASTFactory extends LASTFactory {
 	// Expressions
 	private void process(EnclosedExpr enclosedExpr, Map<String, Object> info)
 	{
-		final Expression inner = enclosedExpr.getInner().get();
+		final Expression inner = enclosedExpr.getInner();
 		info.put("enclosed", true);
 		this.processElement(inner, info);
 	}
@@ -602,7 +599,7 @@ public class JavaLASTFactory extends LASTFactory {
 	private void process(VariableDeclarationExpr variableDeclaration)
 	{
 		final NodeList<VariableDeclarator> variables = variableDeclaration.getVariables();
-		final EnumSet<Modifier> modifiers = variableDeclaration.getModifiers();
+		final NodeList<Modifier> modifiers = variableDeclaration.getModifiers();
 
 		for (VariableDeclarator variable : variables)
 		{
@@ -672,7 +669,7 @@ public class JavaLASTFactory extends LASTFactory {
 
 			final VariableRecord newContextVariable0 = global ? this
 					.getVarByName(this.variableContexts.firstElement(), varName) : newContextVariable;
-			EnumSet<Modifier> modifiers = newContextVariable0.varModifiers;
+			NodeList<Modifier> modifiers = newContextVariable0.varModifiers;
 
 			this.createNewContext();
 			this.addVariableToContext(new VariableRecord(varName, modifiers, (Type) type));
@@ -763,7 +760,6 @@ public class JavaLASTFactory extends LASTFactory {
 	private void process(SuperExpr superExpr) // TODO: Treat super & this properly
 	{
 		final long line = superExpr.getRange().get().begin.line;
-		final Optional<Expression> classExpr = superExpr.getClassExpr(); // UNUSED
 		final LDASTNodeInfo ldNodeInfo = new LDASTNodeInfo(line, true, "reference");
 
 		super.addSuperReference("super", ldNodeInfo);
@@ -772,7 +768,6 @@ public class JavaLASTFactory extends LASTFactory {
 	private void process(ThisExpr thisExpr)
 	{
 		final long line = thisExpr.getRange().get().begin.line;
-		final Optional<Expression> classExpr = thisExpr.getClassExpr(); // UNUSED
 		final LDASTNodeInfo ldNodeInfo = new LDASTNodeInfo(line, true, "reference");
 
 		super.addSuperReference("this", ldNodeInfo);
@@ -854,13 +849,11 @@ public class JavaLASTFactory extends LASTFactory {
 		final long line = fieldAccessExpression.getRange().get().begin.line;
 		//final String value = fieldAccessExpression.toString();
 
-		final Optional<Expression> scopeExpr = fieldAccessExpression.getScope();
+		final Expression scopeExpr = fieldAccessExpression.getScope();
 		final SimpleName nameExpr = fieldAccessExpression.getName();
 
-		//final Variable scopeVar = scopeExpr.isPresent() ? new Variable(scopeExpr.get(), false, false, true, new LDASTNodeInfo(line, "var")) : null; // Correct Logic
-		final Variable scopeVar = scopeExpr.isPresent() ? new Variable(scopeExpr.get(), false, true, true,
-																	   new LDASTNodeInfo(line, true,
-																						 "var")) : null; // Patch to pick up the object declaration in a Field Access
+		// Definition has been set to true to pick up the object declaration in a field access as a declaration.
+		final Variable scopeVar = new Variable(scopeExpr, false, true, true, new LDASTNodeInfo(line, true, "var"));
 		final Variable nameVar;
 
 		if ((boolean) info.get("patternZone"))
@@ -1212,7 +1205,7 @@ public class JavaLASTFactory extends LASTFactory {
 
 	private static class VariableRecord {
 		private final String varName;
-		private final EnumSet<Modifier> varModifiers;
+		private final NodeList<Modifier> varModifiers;
 		private final Type varType;
 
 		public VariableRecord(String name, Type type)
@@ -1220,7 +1213,7 @@ public class JavaLASTFactory extends LASTFactory {
 			this(name, null, type);
 		}
 
-		public VariableRecord(String name, EnumSet<Modifier> modifiers, Type type)
+		public VariableRecord(String name, NodeList<Modifier> modifiers, Type type)
 		{
 			this.varName = name;
 			this.varModifiers = modifiers;
