@@ -26,7 +26,6 @@ import java.io.PrintWriter;
 import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 import static upv.slicing.edg.graph.Node.Type.Value;
 
