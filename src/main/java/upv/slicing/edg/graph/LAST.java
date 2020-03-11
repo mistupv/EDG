@@ -1,5 +1,7 @@
 package upv.slicing.edg.graph;
 
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -8,6 +10,10 @@ import java.util.stream.Collectors;
  * be accessed via {@link #structuralOutgoingEdgesOf(Node)} and {@link #structuralIncomingEdgesOf(Node)}.
  */
 public class LAST extends GraphWithRoot {
+
+	private Map<Node,Node> resultFromNode = new HashMap<>();
+	private Map<Node,Node> nodeFromResult = new HashMap<>();
+
 	/** @see #addVertex(Node) */
 	public boolean addNode(Node node)
 	{
@@ -132,5 +138,27 @@ public class LAST extends GraphWithRoot {
 				removeEdge(edge);
 				edge.mark();
 			}
+	}
+
+	/**
+	 * Add expression nodes and associated results to graph node-result and result-node maps.
+	 * @param node An expression node of the graph.
+	 * @param result The result of an expression node of the graph.
+	 */
+
+	public void addNodeResInfo(Node node, Node result)
+	{
+		resultFromNode.put(node, result);
+		nodeFromResult.put(result, node);
+	}
+
+	public Node getResFromNode(Node node)
+	{
+		return resultFromNode.get(node);
+	}
+
+	public Node getNodeFromRes(Node res)
+	{
+		return nodeFromResult.get(res);
 	}
 }
