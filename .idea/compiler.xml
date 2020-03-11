@@ -12,9 +12,9 @@
       </profile>
     </annotationProcessing>
     <bytecodeTargetLevel>
-      <module name="e-knife" target="1.8" />
-      <module name="EDG" target="1.8" />
-      <module name="misc" target="1.8" />
+      <module name="e-knife" target="13" />
+      <module name="EDG" target="13" />
+      <module name="misc" target="13" />
     </bytecodeTargetLevel>
   </component>
 </project>

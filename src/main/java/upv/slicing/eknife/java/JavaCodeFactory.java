@@ -13,15 +13,22 @@ import com.github.javaparser.ast.stmt.*;
 import com.github.javaparser.ast.type.*;
 import com.github.javaparser.ast.type.PrimitiveType.Primitive;
 import com.github.javaparser.printer.Printable;
+import org.antlr.v4.runtime.misc.Utils;
 import upv.slicing.edg.LDASTNodeInfo;
 import upv.slicing.edg.graph.EDG;
 import upv.slicing.edg.graph.Node;
 import upv.slicing.edg.graph.Variable;
 import upv.slicing.edg.traverser.EDGTraverser;
+import upv.slicing.eknife.Util;
 import upv.slicing.misc.Misc;
 
 import java.io.File;
 import java.util.*;
+import java.util.function.Function;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
+
+import static upv.slicing.edg.graph.Node.Type.Value;
 
 public class JavaCodeFactory {
 	/********************************************************************************************************************************/
@@ -107,10 +114,13 @@ public class JavaCodeFactory {
 			if (this.slice != null && !this.slice.contains(member))
 				continue;
 
-			// TODO No pasar el clazz en las llamadas
 			if (member.getType() != Node.Type.Routine)
-				this.parseGlobalVariable(clazz, member);
-			else
+			{
+				List<FieldDeclaration> globalVars = parseGlobalVariable(member);
+				for (FieldDeclaration globalVar : globalVars)
+					clazz.addMember(globalVar);
+			}
+			else // TODO No pasar el clazz en la llamada
 				this.parseRoutine(clazz, member);
 		}
 
@@ -119,20 +129,22 @@ public class JavaCodeFactory {
 	}
 
 	@SuppressWarnings("unchecked")
-	private void parseGlobalVariable(ClassOrInterfaceDeclaration clazz, Node globalVariable)
+	private List<FieldDeclaration> parseGlobalVariable(Node globalVariable)
 	{
 		final NodeList<VariableDeclarator> variableDeclarators = new NodeList<>();
-		final Node.Type nodeType = globalVariable.getType();
-		final Node expression =
-				nodeType == Node.Type.Expression ? EDGTraverser.getChild(edg, globalVariable, 0) : globalVariable;
-		final VariableDeclarator variableDeclarator = this.getVariableDeclarator(expression);
-		final Node variable = (expression.getType() == Node.Type.Equality) ?
-				EDGTraverser.getChild(edg, EDGTraverser.getChild(edg, expression, 0), 0) : expression;
-		final LDASTNodeInfo ldNodeInfo = variable.getInfo();
-		final EnumSet<Modifier> modifiers = (EnumSet<Modifier>) ldNodeInfo.getInfo()[0];
+		final List<Expression> variableDeclaratorExprs;
+		if (globalVariable.getType() == Node.Type.Variable)
+			variableDeclaratorExprs = parseDeclarationVariable(globalVariable);
+		else
+			// TODO: This can be a list of Expressions without any FieldDeclaration
+			variableDeclaratorExprs = parseDeclaration(globalVariable);
 
-		variableDeclarators.add(variableDeclarator);
-		clazz.addMember(new FieldDeclaration(modifiers, variableDeclarators));
+		if (variableDeclarators.isEmpty())
+			return List.of();
+
+		assert variableDeclaratorExprs.size() == 1;
+		VariableDeclarationExpr varDecExpr = (VariableDeclarationExpr) variableDeclaratorExprs.get(0);
+		return List.of(new FieldDeclaration(varDecExpr.getModifiers(), varDecExpr.getVariables()));
 	}
 
 	private void parseRoutine(ClassOrInterfaceDeclaration clazz, Node routine)
@@ -209,8 +221,13 @@ public class JavaCodeFactory {
 		return new Parameter(type, name);
 	}
 
-	// Statement
-	private List<Statement> parseStatements(List<Node> nodes, boolean transformUnused)
+	/**
+	 * Parse to javaparser a list of statements of the EDG (only those contained in the slice).
+	 * @param nodes List of statement nodes to be parsed.
+	 * @param blockRequired Flag to transform some sliced nodes to code for compilation purposes.
+	 * @return A list of javaparser statements.
+	 */
+	private List<Statement> parseStatements(List<Node> nodes, boolean blockRequired)
 	{
 		final List<Statement> statementsList = new LinkedList<>();
 
@@ -218,16 +235,15 @@ public class JavaCodeFactory {
 		{
 			if (node.getType() == Node.Type.Result)
 				continue;
-			if (!transformUnused && this.slice != null && !this.slice.contains(node) &&
-				!mayContentInternalSliceCode(node))
+			if (!blockRequired && this.slice != null && !this.slice.contains(node) &&
+				!mayContainInternalSliceCode(node))
 				continue;
 
-			Statement stmt = this.parseStatement(node);
-			if (stmt == null)
-				continue;
-			statementsList.add(stmt);
+			List<Statement> parsedList = this.parseStatement(node);
+			if (!parsedList.isEmpty())
+				statementsList.addAll(parsedList);
 		}
-		if (!nodes.isEmpty() && statementsList.isEmpty())
+		if (!nodes.isEmpty() && statementsList.isEmpty() && blockRequired)
 			statementsList.add(new EmptyStmt());
 
 		return statementsList;
@@ -242,231 +258,330 @@ public class JavaCodeFactory {
 			if (!transformUnused && this.slice != null && !this.slice.contains(node) && !returnReq)
 				continue;
 
-			statementsList.add(this.parseStatement(node));
+			List<Statement> stmtList = this.parseStatement(node);
+			if (stmtList.isEmpty())
+				continue;
+			statementsList.addAll(stmtList);
 		}
 		if (!nodes.isEmpty() && statementsList.isEmpty())
 			statementsList.add(new EmptyStmt());
 
 		return statementsList;
 	}
-
-	private Statement parseStatement(Node statement)
+	/**
+	 * Parse to javaparser a single statement of the EDG (only the parts contained in the slice).
+	 * @apiNote This method is also used to parse expressions. These expressions may result in a
+	 *  list of ExpressionStmt objects when parsed.
+	 * @param statement Statement node to be parsed.
+	 * @return A list of javaparser statements.
+	 */
+	private List<Statement> parseStatement(Node statement)
 	{
 
-		if (this.slice != null && !this.slice.contains(statement) && !mayContentInternalSliceCode(statement))
+		if (this.slice != null && !this.slice.contains(statement) && !mayContainInternalSliceCode(statement))
 			// Hay que poner returns en las calls a funciones
-			if (statement.getType() != Node.Type.Return)
-				return new EmptyStmt();
+			// if (statement.getType() != Node.Type.Return)
+				return List.of();
 
 		final Node.Type statementType = statement.getType();
+		final Function<Node, List<Statement>> parserFunc;
 
 		switch (statementType)
 		{
 			case If:
-				return this.parseIf(statement);
+				parserFunc = this::parseIf;
+				break;
 			case Switch:
-				return this.parseSwitch(statement);
+				parserFunc = this::parseSwitch;
+				break;
 			case Case:
-				return this.parseCase(statement);
+				parserFunc = this::parseCase;
+				break;
 			case CLoop:
-				return this.parseCLoop(statement);
 			case RLoop:
-				return this.parseRLoop(statement);
+				parserFunc = this::parseWhile_DoWhileLoop;
+				break;
 			case FLoop:
-				return this.parseFLoop(statement);
+				parserFunc = this::parseForLoop;
+				break;
 			case Return:
-				return this.parseReturn(statement);
+				parserFunc = this::parseReturn;
+				break;
 			case ExHandler:
-				return this.parseExHandler(statement);
+				parserFunc = this::parseExHandler;
+				break;
 			case Throw:
-				return this.parseThrow(statement);
+				parserFunc = this::parseThrow;
+				break;
 			case Foreach:
-				return this.parseForeach(statement);
+				parserFunc = this::parseForeach;
+				break;
 			default:
-				Expression e = this.parseExpression(statement);
-				if (e == null)
-					return null;
-				return new ExpressionStmt(e);
+				parserFunc = this::parseExpressionStmt;
+				break;
 		}
+
+		return parserFunc.apply(statement);
 	}
-	private Statement parseIf(Node _if)
+
+	private List<Statement> parseExpressionStmt(Node statement)
 	{
-		// Condition
+		final List<Expression> parsedExprs = this.parseExpression(statement);
+		return parsedExprs.stream().map(ExpressionStmt::new).collect(Collectors.toList());
+	}
+
+	/**
+	 * Parse to javaparser an if-then or if-then-else statement of the EDG (only the parts contained in the slice).
+	 * @param _if if-then / if-then-else statement node to be parsed.
+	 * @return A list of javaparser statements containing an if-then/if-then-else statement or
+	 * 		   a list of statements of the condition node, which are part of the slice.
+	 */
+	private List<Statement> parseIf(Node _if)
+	{
 		final Node conditionNode = EDGTraverser.getChild(edg, _if, Node.Type.Condition);
-		final Node condition = EDGTraverser.getChild(edg, conditionNode, 0);
-		final Expression conditionExpression = this.parseExpression(condition);
+		final Node conditionExprNode = EDGTraverser.getChild(edg, conditionNode, Node.Type.Value);
+		final List<Expression> conditionExpression = this.parseExpression(conditionExprNode);
 
-		// Then
-		final Node then = EDGTraverser.getChild(edg, _if, Node.Type.Then);
-		final List<Node> thenChildren = EDGTraverser.getChildren(edg, then);
+		final Node thenNode = EDGTraverser.getChild(edg, _if, Node.Type.Then);
+		final List<Node> thenChildren = EDGTraverser.getChildren(edg, thenNode);
 		final List<Statement> thenStatements = this.parseStatements(thenChildren, false);
-		final BlockStmt thenBlock = new BlockStmt();
-		for (Statement thenStatement : thenStatements)
-			thenBlock.addStatement(thenStatement);
 
-		// Else
 		final Node _else = EDGTraverser.getChild(edg, _if, Node.Type.Else);
 		final List<Node> elseChildren = EDGTraverser.getChildren(edg, _else);
 		final List<Statement> elseStatements = this.parseStatements(elseChildren, false);
 
-		if (elseStatements.isEmpty()) // Avoid generating an empty Else block
-			return new IfStmt(conditionExpression, thenBlock, null);
+		if (thenStatements.isEmpty() && elseStatements.isEmpty())
+			return conditionExpression.stream().map(ExpressionStmt::new).collect(Collectors.toList());
+
+		final BlockStmt thenBlock = new BlockStmt();
+		for (Statement thenStatement : thenStatements)
+			thenBlock.addStatement(thenStatement);
+
+		if (elseStatements.isEmpty())
+			return List.of(new IfStmt(conditionExpression.get(0), thenBlock, null));
 
 		final BlockStmt elseBlock = new BlockStmt();
 		for (Statement elseStatement : elseStatements)
 			elseBlock.addStatement(elseStatement);
 
-		return new IfStmt(conditionExpression, thenBlock, elseBlock);
+		assert conditionExpression.size() == 1;
+		return List.of(new IfStmt(conditionExpression.get(0), thenBlock, elseBlock));
 	}
-	private Statement parseSwitch(Node _switch)
+
+	/**
+	 * Parse to javaparser a switch statement of the EDG (only the parts contained in the slice).
+	 * @param _switch switch statement node to be parsed.
+	 * @return A list of javaparser statements containing a switch statement or
+	 * 		   a list of statements of the selector node, which are part of the slice.
+	 */
+	private List<Statement> parseSwitch(Node _switch)
 	{
 		// Selector
-		final Node selectors = EDGTraverser.getChild(edg, _switch, Node.Type.Selector);
-		final Node selectorNode = EDGTraverser.getChild(edg, selectors, 0);
-		final Expression selector = this.parseExpression(selectorNode);
+		final Node selectorNode = EDGTraverser.getChild(edg, _switch, Node.Type.Selector);
+		final Node selectorExprNode = EDGTraverser.getChild(edg, selectorNode, Value);
+		final List<Expression> selectorExprs = this.parseExpression(selectorExprNode);
+
+		if (slice != null && selectorExprs.isEmpty())
+			return List.of();
 
 		// Cases
 		final Node cases = EDGTraverser.getChild(edg, _switch, Node.Type.Cases);
 		final List<Node> casesChildren = EDGTraverser.getChildren(edg, cases);
-		final NodeList<SwitchEntryStmt> entries = new NodeList<>();
 		final List<Statement> statements = this.parseStatements(casesChildren, false);
+
+		if (slice != null && statements.isEmpty())
+			return selectorExprs.stream().map(ExpressionStmt::new).collect(Collectors.toList());
+
+		final NodeList<SwitchEntryStmt> entries = new NodeList<>();
 		for (Statement statement : statements)
+			if (statement instanceof SwitchEntryStmt)
 			entries.add((SwitchEntryStmt) statement);
 
-		return new SwitchStmt(selector, entries);
+		assert selectorExprs.size() == 1;
+		return List.of(new SwitchStmt(selectorExprs.get(0), entries));
 	}
-	private Statement parseCase(Node _case)
+
+	/**
+	 * Parse to javaparser a case statement (SwitchEntryStmt) inside a switch of the EDG (only the parts contained in the slice).
+	 * @param _case case statement node to be parsed.
+	 * @return A list of javaparser statements containing the case statement or
+	 * 		   a list of statements with only the selectable, which are part of the slice.
+	 */
+	private List<Statement> parseCase(Node _case)
 	{
+		if (slice != null && !slice.contains(_case))
+			return List.of();
+
 		// Label
-		final Node selectable = EDGTraverser.getChild(edg, _case, Node.Type.Selectable);
-		final List<Node> selectablesChildren = EDGTraverser.getChildren(edg, selectable);
-		final Node selectableNode = selectablesChildren.get(0);
-		final Expression label = this.parseExpression(selectableNode);
+		final Node selectableNode = EDGTraverser.getChild(edg, _case, Node.Type.Selectable);
+		final Node selectableExpr = EDGTraverser.getChild(edg, selectableNode, Node.Type.Value);
+		final List<Expression> label = this.parseExpression(selectableExpr);
 
 		// Statements
 		final Node body = EDGTraverser.getChild(edg, _case, Node.Type.Body);
 		final List<Node> bodyChildren = EDGTraverser.getChildren(edg, body);
-		final NodeList<Statement> statements = new NodeList<>();
-		final List<Statement> statements0 = this.parseStatements(bodyChildren, false);
-		statements.addAll(statements0);
+		final List<Statement> statements = this.parseStatements(bodyChildren, false);
 
-		return new SwitchEntryStmt(label, statements);
+		final NodeList<Statement> bodyStatements = new NodeList<>();
+		statements.addAll(statements);
+
+		assert label.size() == 1;
+		return List.of(new SwitchEntryStmt(label.get(0), bodyStatements));
 	}
 
-	// Different Loop Structures
-	private Statement parseCLoop(Node loop)
+	/**
+	 * Parse to javaparser a while/do_while statement of the EDG (only the parts contained in the slice).
+	 * @param loop while/do_while statement node to be parsed.
+	 * @return A list of javaparser statements containing a while/do_while statement or
+	 * 		   a list of statements of the condition node of the loop, which are part of the slice.
+	 */
+	private List<Statement> parseWhile_DoWhileLoop(Node loop)
 	{
 		// Condition
-		final Node condition = EDGTraverser.getChild(edg, loop, 0);
-		final List<Node> conditionChildren = EDGTraverser.getChildren(edg, condition);
-		final Node conditionNode = conditionChildren.get(0);
-		final Expression conditionExpression = this.parseExpression(conditionNode);
+		final Node conditionNode = EDGTraverser.getChild(edg, loop, Node.Type.Condition);
+		final Node conditionExprNode = EDGTraverser.getChild(edg, conditionNode, Node.Type.Value);
+		final List<Expression> conditionExpression = this.parseExpression(conditionExprNode);
 
 		// Body
-		final Node body = EDGTraverser.getChild(edg, loop, 1);
+		final Node body = EDGTraverser.getChild(edg, loop, Node.Type.Body);
 		final List<Node> bodyChildren = EDGTraverser.getChildren(edg, body);
 		final List<Statement> bodyStatements = this.parseStatements(bodyChildren, false);
+		if (bodyStatements.isEmpty())
+			return conditionExpression.stream().map(ExpressionStmt::new).collect(Collectors.toList());
+
 		final BlockStmt bodyBlock = new BlockStmt();
 		for (Statement bodyStatement : bodyStatements)
 			bodyBlock.addStatement(bodyStatement);
 
-		return new WhileStmt(conditionExpression, bodyBlock);
+		assert conditionExpression.size() == 1;
+		if (loop.getType() == Node.Type.CLoop)
+			return List.of(new WhileStmt(conditionExpression.get(0), bodyBlock));
+		return List.of(new DoStmt(bodyBlock, conditionExpression.get(0)));
 	}
 
-	private Statement parseRLoop(Node loop)
+	/**
+	 * Parse to javaparser a for statement of the EDG (only the parts contained in the slice).
+	 * @param loop for statement node to be parsed.
+	 * @return A list of javaparser statements containing a for statement or
+	 * 		   a list of statements of the condition, init or both nodes of the loop that are part of the slice.
+	 */
+
+	private List<Statement> parseForLoop(Node loop)
 	{
-		// Body
-		final Node body = EDGTraverser.getChild(edg, loop, 0);
-//final Node body = EDGTraverserNew.getChild(loop, 1);
-		final List<Node> bodyChildren = EDGTraverser.getChildren(edg, body);
+		final Node initNode = EDGTraverser.getChild(edg, loop, Node.Type.Init);
+		final Node conditionNode = EDGTraverser.getChild(edg, loop, Node.Type.Condition);
+		final Node bodyNode = EDGTraverser.getChild(edg, loop, Node.Type.Body);
+		final Node updateNode = EDGTraverser.getChild(edg, loop, Node.Type.Update);
+
+		if (slice != null && !slice.contains(initNode) && !slice.contains(conditionNode))
+			return List.of();
+
+		// init: N expressions or 1 variable declaration with initialization (can be multiple)
+		final List<Node> initChildren = EDGTraverser.getChildren(edg, initNode);
+		initChildren.removeIf(node -> node.getType() == Node.Type.Result);
+		final List<Expression> initExprs = this.parseExpressions(initChildren, false);
+
+		if (slice != null && slice.contains(initNode) && !slice.contains(conditionNode))
+			return initExprs.stream().map(ExpressionStmt::new).collect(Collectors.toList());
+
+		// Condition slice part
+		final List<Node> conditionChildren = EDGTraverser.getChildren(edg, conditionNode);
+		conditionChildren.removeIf(node -> node.getType() == Node.Type.Result);
+		final List<Expression> conditionExpressions = this.parseExpression(conditionNode);
+
+		// Body slice part
+		final List<Node> bodyChildren = EDGTraverser.getChildren(edg, bodyNode);
+		bodyChildren.removeIf(node -> node.getType() == Node.Type.Result);
 		final List<Statement> bodyStatements = this.parseStatements(bodyChildren, false);
-		final BlockStmt bodyBlock = new BlockStmt();
-		for (Statement bodyStatement : bodyStatements)
-			bodyBlock.addStatement(bodyStatement);
 
-		// Condition
-		final Node condition = EDGTraverser.getChild(edg, loop, 1);
-//final Node condition = EDGTraverserNew.getChild(loop, 0);
-		final List<Node> conditionChildren = EDGTraverser.getChildren(edg, condition);
-		final Node conditionNode = conditionChildren.get(0);
-		final Expression conditionExpression = this.parseExpression(conditionNode);
+		// Update slice part
+		final List<Node> updateChildren = EDGTraverser.getChildren(edg, updateNode);
+		updateChildren.removeIf(node -> node.getType() == Node.Type.Result);
+		final List<Expression> updateExpressions = this.parseExpressions(updateChildren, false);
 
-		return new DoStmt(bodyBlock, conditionExpression);
-	}
+		if (slice != null && slice.contains(conditionNode) && bodyStatements.isEmpty() && updateExpressions.isEmpty())
+			return Util.join(initExprs,conditionExpressions).stream().map(ExpressionStmt::new).collect(Collectors.toList());
 
-	private Statement parseFLoop(Node loop)
-	{
-		// Initialization
-		final Node initialization = EDGTraverser.getChild(edg, loop, 0);
-		final List<Node> initializationChildren = EDGTraverser.getChildren(edg, initialization);
+		// ForStmt structure is only required if any statement of the body or update is necessary in the slice
 		final NodeList<Expression> initBlock = new NodeList<>();
-		initBlock.addAll(this.parseExpressions(initializationChildren, false));
+		initBlock.addAll(initExprs);
 
-		// Condition
-		final Node condition = EDGTraverser.getChild(edg, loop, 1);
-		final List<Node> conditionChildren = EDGTraverser.getChildren(edg, condition);
-		final Node conditionNode = conditionChildren.get(0);
-		final Expression conditionExpression = this.parseExpression(conditionNode);
-
-		// Update
-		final Node update = EDGTraverser.getChild(edg, loop, 3);
-		final List<Node> updateChildren = EDGTraverser.getChildren(edg, update);
-		final NodeList<Expression> updateBlock = new NodeList<>();
-		updateBlock.addAll(this.parseExpressions(updateChildren, false));
-
-		// Body
-		final Node body = EDGTraverser.getChild(edg, loop, 2);
-		final List<Node> bodyChildren = EDGTraverser.getChildren(edg, body);
-		final List<Statement> bodyStatements = this.parseStatements(bodyChildren, false);
 		final BlockStmt bodyBlock = new BlockStmt();
 		for (Statement bodyStatement : bodyStatements)
 			bodyBlock.addStatement(bodyStatement);
+		if (bodyBlock.isEmpty())
+			bodyBlock.addStatement(new EmptyStmt());
 
-		return new ForStmt(initBlock, conditionExpression, updateBlock, bodyBlock);
+		final NodeList<Expression> updateBlock = new NodeList<>();
+		updateBlock.addAll(updateExpressions);
+
+		assert conditionExpressions.size() == 1;
+		return List.of(new ForStmt(initBlock, conditionExpressions.get(0), updateBlock, bodyBlock));
 	}
 
-	private Statement parseForeach(Node foreach)
+	/**
+	 * Parse to javaparser a foreach statement of the EDG (only the parts contained in the slice).
+	 * @param foreach foreach statement node to be parsed.
+	 * @return A list of javaparser statements containing a foreach statement or
+	 * 		   a list of statements of the iterable part that are part of the slice.
+	 */
+	private List<Statement> parseForeach(Node foreach)
 	{
+		// TODO: UPDATE AFTER DELETING ITERATOR NODE
 		final Node iterator = EDGTraverser.getChild(edg, foreach, 0);
 		final Node generator = EDGTraverser.getChild(edg, iterator, 0);
 		final Node variableDeclaration = EDGTraverser.getChild(edg, generator, 0);
 		final Node iterable = EDGTraverser.getChild(edg, generator, 1);
-		final Expression variableDeclarationExpr = this.parseExpression(variableDeclaration);
-		final Expression iterableExpr = this.parseExpression(iterable);
+
+		if (slice != null && !slice.contains(iterable))
+			return List.of();
+
+		final List<Expression> variableDeclarationExpr = this.parseExpression(variableDeclaration);
+		final List<Expression> iterableExpr = this.parseExpression(iterable);
+
+		if (slice != null && !slice.contains(variableDeclaration) && slice.contains(iterable))
+			return iterableExpr.stream().map(ExpressionStmt::new).collect(Collectors.toList());
 
 		final Node body = EDGTraverser.getChild(edg, foreach, 1);
 		final List<Node> bodyChildren = EDGTraverser.getChildren(edg, body);
 		final List<Statement> bodyStatements = this.parseStatements(bodyChildren, false);
+
 		final BlockStmt bodyBlock = new BlockStmt();
 		for (Statement bodyStatement : bodyStatements)
 			bodyBlock.addStatement(bodyStatement);
-		if (variableDeclarationExpr instanceof VariableDeclarationExpr)
-			return new ForeachStmt((VariableDeclarationExpr) variableDeclarationExpr, iterableExpr, bodyBlock);
 
-		throw new RuntimeException("There must be a variable declaration in the left-hand-side of an iterator");
+		if(bodyBlock.isEmpty())
+			bodyBlock.addStatement(new EmptyStmt());
+
+		assert variableDeclarationExpr.size() == 1 && iterableExpr.size() == 1;
+		return List.of(new ForeachStmt((VariableDeclarationExpr) variableDeclarationExpr.get(0), iterableExpr.get(0), bodyBlock));
 	}
 
-	// Exception Statements
-	private Statement parseExHandler(Node exHandler)
+	/** PENDING **/
+	private List<Statement> parseExHandler(Node exHandler)
 	{
 		// Try
-		final Node tryNode = EDGTraverser.getChild(edg, exHandler, 0);
-		final BlockStmt tryBlock0 = this.parseBlockStatements(tryNode);
-		final BlockStmt tryBlock = tryBlock0 == null ? new BlockStmt() : tryBlock0;
+		final Node tryNode = EDGTraverser.getChild(edg, exHandler, Node.Type.Try);
+
+		if (slice != null && !slice.contains(tryNode))
+			return List.of();
+
+		final BlockStmt tryBlock = this.parseBlockStatements(tryNode);
 
 		// Catch
-		final Node catchNode = EDGTraverser.getChild(edg, exHandler, 1);
+		final Node catchNode = EDGTraverser.getChild(edg, exHandler, Node.Type.Catch);
 		final NodeList<CatchClause> catchClauses = (NodeList<CatchClause>) this.parseCatch(catchNode);
-		if (catchClauses.isEmpty())
-			catchClauses
-					.add(new CatchClause(new Parameter(new ClassOrInterfaceType("Exception"), new SimpleName("sliced")),
-										 new BlockStmt()));
 
 		// Finally
-		final Node finallyNode = EDGTraverser.getChild(edg, exHandler, 2);
+		final Node finallyNode = EDGTraverser.getChild(edg, exHandler, Node.Type.Finally);
 		final BlockStmt finallyBlock = this.parseBlockStatements(finallyNode);
 
-		return new TryStmt(tryBlock, catchClauses, finallyBlock);
+		if (slice != null && catchClauses.isEmpty() && finallyBlock.isEmpty())
+			return tryBlock.getStatements();
+
+		if (catchClauses.isEmpty())
+			return List.of(new TryStmt(tryBlock, new NodeList<>(), finallyBlock));
+		return List.of(new TryStmt(tryBlock, catchClauses, new BlockStmt()));
 	}
 
 	private List<CatchClause> parseCatch(Node _catch)
@@ -491,14 +606,16 @@ public class JavaCodeFactory {
 		return catchClauses;
 	}
 
-	private Statement parseThrow(Node _throw)
+	private List<Statement> parseThrow(Node _throw)
 	{
 		final Node throwExpressionNode = EDGTraverser.getChild(edg, _throw, 0);
-		final Expression throwExpression = this.parseExpression(throwExpressionNode);
-		return new ThrowStmt(throwExpression);
+		final List<Expression> throwExpression = this.parseExpression(throwExpressionNode);
+
+		return List.of(new ThrowStmt(throwExpression.get(0)));
+
 	}
 
-	private Statement parseReturn(Node _return)
+	private List<Statement> parseReturn(Node _return)
 	{
 		if (this.slice != null && !this.slice.contains(_return))
 		{
@@ -509,36 +626,43 @@ public class JavaCodeFactory {
 
 				final Type type = ctx.returnType;
 				final Expression returnExpr = generateReturnExpr(type);
-				return new ReturnStmt(returnExpr);
+				return List.of(new ReturnStmt(returnExpr));
 			}
 		}
 
 		final List<Node> returnChildren = EDGTraverser.getChildren(edg, _return);
 		if (returnChildren.isEmpty())
-			return new ReturnStmt();
+			return List.of(new ReturnStmt());
 
 		final Node returnChild = returnChildren.get(0);
-		final Expression returnExpression = this.parseExpression(returnChild);
+		final List<Expression> returnExpression = this.parseExpression(returnChild);
 
 		updateReturnContext();
 
-		return new ReturnStmt(returnExpression);
+		return List.of(new ReturnStmt(returnExpression.get(0)));
 	}
 
 	private BlockStmt parseBlockStatements(Node blockRoot)
 	{
+		final BlockStmt bodyBlock = new BlockStmt();
+
 		if (this.slice != null && !this.slice.contains(blockRoot))
-			return null;
+			return bodyBlock;
 
 		final List<Node> bodyChildren = EDGTraverser.getChildren(edg, blockRoot);
 		final List<Statement> bodyStatements = this.parseStatements(bodyChildren, false);
-		final BlockStmt bodyBlock = new BlockStmt();
+
 		for (Statement bodyStatement : bodyStatements)
 			bodyBlock.addStatement(bodyStatement);
 		return bodyBlock;
 	}
 
-	// Expressions
+	/**
+	 * Parse to javaparser a list of expressions of the EDG (only those contained in the slice).
+	 * @param nodes List of statement nodes to be parsed.
+	 * @param transformUnused Flag to transform some sliced nodes to code for compilation purposes.
+	 * @return A list of javaparser expressions.
+	 */
 	private List<Expression> parseExpressions(List<Node> nodes, boolean transformUnused)
 	{
 		final List<Expression> expressionsList = new LinkedList<>();
@@ -548,59 +672,84 @@ public class JavaCodeFactory {
 			if (node.getType() == Node.Type.Result)
 				continue;
 			if (!transformUnused && this.slice != null && !this.slice.contains(node) &&
-				!mayContentInternalSliceCode(node))
+				!mayContainInternalSliceCode(node))
 				continue;
 
-			Expression parsed = this.parseExpression(node);
-			if (parsed != null)
-				expressionsList.add(parsed);
+			List<Expression> parsedList = this.parseExpression(node);
+			if (!parsedList.isEmpty())
+				expressionsList.addAll(parsedList);
+			if (parsedList.isEmpty() && transformUnused)
+				expressionsList.add(new NullLiteralExpr()); // Null for each expression not used
 		}
-		if (!nodes.isEmpty() && expressionsList.isEmpty())
-			expressionsList.add(new NullLiteralExpr());
 
 		return expressionsList;
 	}
 
-	private Expression parseExpression(Node expression)
+	/**
+	 * Parse to javaparser a single expressions of the EDG (only the parts contained in the slice).
+	 * @param expression Statement node to be parsed.
+	 * @return A list of javaparser expressions.
+	 * @throws IllegalArgumentException if the expression type is not contemplated
+	 */
+	private List<Expression> parseExpression(Node expression)
 	{
-		if (this.slice != null && !this.slice.contains(expression) && !mayContentInternalSliceCode(expression))
-			return null; // TEMPORAL SOLUTION
+		if (this.slice != null && !this.slice.contains(expression) && !mayContainInternalSliceCode(expression))
+			return Collections.emptyList();
 
 		final Node.Type expressionType = expression.getType();
+		final Function<Node, List<Expression>> parserFunc;
 
 		switch (expressionType)
 		{
 			case Equality:
-				return this.parseEquality(expression);
+				parserFunc = this::parseEquality;
+				break;
 			case Call:
-				return this.parseCall(expression);
+				parserFunc = this::parseCall;
+				break;
 			case DataConstructor:
-				return this.parseDataConstructor(expression);
+				parserFunc = this::parseDataConstructor;
+				break;
 			case Operation:
-				return this.parseOperation(expression);
+				parserFunc = this::parseOperation;
+				break;
 			case DataConstructorAccess:
-				return this.parseDataConstructorAccess(expression);
+				parserFunc = this::parseDataConstructorAccess;
+				break;
 			case FieldAccess:
-				return this.parseFieldAccess(expression);
+				parserFunc = this::parseFieldAccess;
+				break;
 			case If:
-				return this.parseTernary(expression);
+				parserFunc = this::parseTernary;
+				break;
 			case Variable:
-				return this.parseVariable(expression);
+				parserFunc = this::parseVariable;
+				break;
 			case Literal:
-				return this.parseLiteral(expression);
+				parserFunc = this::parseLiteral;
+				break;
 			// ADDED
 			case TypeCheck:
-				return this.parseInstanceOf(expression);
+				parserFunc = this::parseInstanceOf;
+				break;
 			case TypeTransformation:
-				return this.parseCastExpr(expression);
+				parserFunc = this::parseCastExpr;
+				break;
 			case Reference:
-				return this.parseReference(expression);
+				parserFunc = this::parseReference;
+				break;
 			default:
-				throw new RuntimeException("Expression type not contemplated: " + expressionType);
+				throw new IllegalArgumentException("Unexpected expression type found: " + expressionType);
 		}
+		return parserFunc.apply(expression);
 	}
 
-	private Expression parseEquality(Node equality)
+	/**
+	 * Parse to javaparser an Equality node of the EDG (only the parts contained in the slice).
+	 * @param equality Equality node to be parsed.
+	 * @return A list of javaparser expressions contained in the slice.
+	 */
+	private List<Expression> parseEquality(Node equality)
 	{
 		final Node target = EDGTraverser.getChild(edg, equality, Node.Type.Pattern);
 		final LDASTNodeInfo ldNodeInfo = target.getInfo();
@@ -612,55 +761,141 @@ public class JavaCodeFactory {
 			if (vi.isDeclaration())
 				return this.parseDeclaration(equality);
 			return this.parseDefinition(equality);
-		} else if (info == null || info.length == 0)
+		}
+		if (info == null || info.length == 0)
 			return this.parseDefinition(equality);
+
 		return this.parseDeclaration(equality);
 	}
 
+	/**
+	 * Parse to javaparser an Equality declaration node of the EDG (only the parts contained in the slice).
+	 * @param declaration Declaration node to be parsed.
+	 * @return A list of javaparser expressions inside the given node contained in the slice.
+	 */
 	@SuppressWarnings("unchecked")
-	private Expression parseDeclaration(Node declaration)
+	private List<Expression> parseDeclaration(Node declaration)
 	{
-		if (slice != null && !slice.contains(declaration))
-			return this.parseExpression(EDGTraverser.getChild(edg, declaration, Node.Type.Value));
+		final Node variableNode = EDGTraverser.getChild(edg, declaration, Node.Type.Pattern);
+		final Node initializerNode = EDGTraverser.getChild(edg, declaration, Value);
 
-		final NodeList<VariableDeclarator> variableDeclarators = new NodeList<VariableDeclarator>();
-		final VariableDeclarator variableDeclarator = this.getVariableDeclarator(declaration);
-		final Node variableExpression = (declaration.getType() == Node.Type.Equality) ? EDGTraverser
-				.getChild(edg, declaration, Node.Type.Pattern) : declaration;
-		final LDASTNodeInfo ldNodeInfo = variableExpression.getInfo();
+		final List<Expression> initializerExprs = this.parseExpression(initializerNode);
+		if (slice != null && initializerExprs.isEmpty())
+		{
+			if (slice.contains(variableNode))
+				return parseDeclarationNonEmpty(variableNode);
+			return List.of();
+		}
+
+		if (slice != null && !slice.contains(variableNode))
+			return initializerExprs;
+
+		if (slice != null && !slice.contains(declaration))
+			return Util.join(initializerExprs,parseDeclarationNonEmpty(variableNode));
+
+		final LDASTNodeInfo ldNodeInfo = variableNode.getInfo();
+		final Type type = (Type) ldNodeInfo.getInfo()[1];
+		final String name = variableNode.getName();
 		final EnumSet<Modifier> modifiers = (EnumSet<Modifier>) ldNodeInfo.getInfo()[0];
 
+		assert initializerExprs.size() == 1;
+		VariableDeclarator variableDeclarator = new VariableDeclarator(type, name, initializerExprs.get(0));
+
+		final NodeList<VariableDeclarator> variableDeclarators = new NodeList<VariableDeclarator>();
 		variableDeclarators.add(variableDeclarator);
 
-		return new VariableDeclarationExpr(modifiers, variableDeclarators);
+		return List.of(new VariableDeclarationExpr(modifiers, variableDeclarators));
 	}
-	private Expression parseDefinition(Node definition)
+	/**
+	 * Parse to javaparser a Variable declaration node of the EDG (only the parts contained in the slice).
+	 * @param declarationVariable Declaration node to be parsed.
+	 * @return A list of javaparser expressions inside the given node contained in the slice.
+	 */
+	private List<Expression> parseDeclarationVariable(Node declarationVariable)
+	{
+		final LDASTNodeInfo ldNodeInfo = declarationVariable.getInfo();
+		final Type type = (Type) ldNodeInfo.getInfo()[1];
+		final String name = declarationVariable.getName();
+		final EnumSet<Modifier> modifiers = (EnumSet<Modifier>) ldNodeInfo.getInfo()[0];
+
+		final NodeList<VariableDeclarator> variableDeclarator = new NodeList<>();
+		variableDeclarator.add(new VariableDeclarator(type, name));
+		return List.of(new VariableDeclarationExpr(modifiers, variableDeclarator));
+	}
+	/**
+	 * Parse to javaparser a Variable declaration node of the EDG (only the parts contained in the slice).
+	 * @param declaration Declaration node to be parsed.
+	 * @return A list of javaparser expressions inside the given node contained in the slice.
+	 * @apiNote This method parses variable declaration nodes and returns the single declaration if the variable
+	 * 			type is Primitive Type or an initialization with the constructor without arguments if the variable
+	 * 			type is a ClassOrInterfaceType. This would not work if the ClassOrInterfaceType has no empty constructor.
+	 */
+	private List<Expression> parseDeclarationNonEmpty(Node declaration)
+	{
+		final LDASTNodeInfo ldNodeInfo = declaration.getInfo();
+		final Type type = (Type) ldNodeInfo.getInfo()[1];
+		final String name = declaration.getName();
+		final EnumSet<Modifier> modifiers = (EnumSet<Modifier>) ldNodeInfo.getInfo()[0];
+
+		final NodeList<VariableDeclarator> variableDeclarator = new NodeList<>();
+		if (type instanceof PrimitiveType)
+			variableDeclarator.add(new VariableDeclarator(type, name));
+		else
+		{
+			final Expression initializer = new ObjectCreationExpr(null, (ClassOrInterfaceType) type, new NodeList<>());
+			variableDeclarator.add(new VariableDeclarator(type, name,initializer));
+		}
+		return List.of(new VariableDeclarationExpr(modifiers, variableDeclarator));
+	}
+
+
+	/**
+	 * Parse to javaparser a definition node of the EDG (only the parts contained in the slice).
+	 * @param definition Definition node to be parsed.
+	 * @return A list of javaparser expressions inside the given node contained in the slice.
+	 */
+	private List<Expression> parseDefinition(Node definition)
 	{
 		if (slice != null && !slice.contains(definition))
-			return this.parseExpression(EDGTraverser.getChild(edg, definition, Node.Type.Value));
+			return this.parseExpression(EDGTraverser.getChild(edg, definition, Value));
 
 		final Node target = EDGTraverser.getChild(edg, definition, Node.Type.Pattern);
-		final Node value = EDGTraverser.getChild(edg, definition, Node.Type.Value);
+		final Node value = EDGTraverser.getChild(edg, definition, Value);
 
-		final Expression targetExpr = this.parseExpression(target);
-		final Expression valueExpr = this.parseExpression(value);
+		final List<Expression> targetExprs = this.parseExpression(target);
+		final List<Expression> valueExprs = this.parseExpression(value);
 
-		if (targetExpr != null && valueExpr != null)
-			return new AssignExpr(targetExpr, valueExpr, AssignExpr.Operator.ASSIGN);
-		if (targetExpr != null)
-			return targetExpr;
-		return valueExpr;
+		if (!targetExprs.isEmpty() && !valueExprs.isEmpty())
+			return List.of(new AssignExpr(targetExprs.get(0), valueExprs.get(0), AssignExpr.Operator.ASSIGN));
+		if (!targetExprs.isEmpty())
+			return targetExprs;
+		return valueExprs;
 	}
 
-	private Expression parseDataConstructor(Node dataConstructor)
+	/**
+	 * Parse to javaparser a dataConstructor node of the EDG (only the parts contained in the slice).
+	 * Also translate to "null" all the nodes in the initialization part not needed in the slice.
+	 * Example:
+	 * 		dataContructor code  => int[2] = {1,2};
+	 * 		dataContructor slice => int[2] = {1,null};
+	 * @param dataConstructor DataConstructor node to be parsed.
+	 * @return A list of javaparser expressions inside the given node contained in the slice.
+	 */
+	private List<Expression> parseDataConstructor(Node dataConstructor)
 	{
 		final List<Node> elements = EDGTraverser.getChildren(edg, dataConstructor);
+		elements.removeIf(node -> node.getType() == Node.Type.Result);
 		final List<Expression> expressions = this.parseExpressions(elements, true);
 
-		return new ArrayInitializerExpr(NodeList.nodeList(expressions));
+		return List.of(new ArrayInitializerExpr(NodeList.nodeList(expressions)));
 	}
 
-	private Expression parseCall(Node call) // TODO: This should return List<Expression>
+	/**
+	 * Parse to javaparser a call node of the EDG (only the parts contained in the slice).
+	 * @param call Call node to be parsed.
+	 * @return A list of javaparser expressions of the given node contained in the slice.
+	 */
+	private List<Expression> parseCall(Node call)
 	{
 		/*
 		 * Possibilities:
@@ -675,16 +910,19 @@ public class JavaCodeFactory {
 		final Node scope = EDGTraverser.getChild(edg, callee, Node.Type.Scope);
 		final Node args = EDGTraverser.getChild(edg, call, Node.Type.Arguments);
 
-		Expression scopeExpr = null;
-
+		List<Expression> scopeExpr = new LinkedList<>();
+		ClassOrInterfaceType scopeType = null;
 		// Case 1
 		if (this.slice != null && !this.slice.contains(callee) && !this.slice.contains(scope))
-			return this.parseArguments(args);
+			return this.parseArguments(args, false);
 
 		if (this.slice != null && this.slice.contains(scope))
 		{
-			final Node scopeValue = EDGTraverser.getChild(edg, scope, Node.Type.Value);
-			scopeExpr = this.parseExpression(scopeValue);
+			final Node scopeValue = EDGTraverser.getChild(edg, scope, Value);
+			if (scopeValue.getType() == Node.Type.Type)
+				scopeType = (ClassOrInterfaceType) this.parseType(scopeValue);
+			else
+				scopeExpr = this.parseExpression(scopeValue);
 
 			// Case 2
 			if (!this.slice.contains(args))
@@ -692,220 +930,327 @@ public class JavaCodeFactory {
 		}
 
 		final Node name = EDGTraverser.getChild(edg, callee, Node.Type.Name);
-		// Case 3 (slice == null NOT CONSIDERED) TODO: Broke all the parts in the slice in different statements
-		if (this.slice == null || !this.slice.contains(name))
-			return scopeExpr; // ERROR
-
-		final Node nameValue = EDGTraverser.getChild(edg, name, Node.Type.Value);
-		final String nameText = nameValue.getName();
-
 		final NodeList<Expression> argumentsList = new NodeList<>();
-		final List<Node> argumentsChildren = EDGTraverser.getChildren(edg, args);
-		argumentsList.addAll(this.parseExpressions(argumentsChildren, true)); // Fill the sliced arguments with "null"
+		argumentsList.addAll(this.parseArguments(args, true));
+
+		// Case 3
+		if (this.slice == null || !this.slice.contains(name))
+			return Util.join(scopeExpr, argumentsList);
+
+		final Node nameValue = EDGTraverser.getChild(edg, name, Value);
+		final String nameText = nameValue.getName();
 
 		switch(nameText)
 		{
 			case "<constructor>": // Case 5
-				final String scopeText = EDGTraverser.getChild(edg, scope, Node.Type.Value).getName();
-				return new ObjectCreationExpr(scopeExpr, new ClassOrInterfaceType(scopeText), argumentsList);
+				return List.of(
+						new ObjectCreationExpr(
+								scopeExpr.isEmpty() ? null : scopeExpr.get(0),
+								scopeType,
+								argumentsList));
 
 			case "<arrayConstructor>": // Case 6
-				final String scopeText0 = EDGTraverser.getChild(edg, scope, Node.Type.Value).getName();
-				final ClassOrInterfaceType type = new ClassOrInterfaceType(scopeText0);
-				return new ArrayCreationExpr(type, (NodeList<ArrayCreationLevel>) EDGTraverser
-						.getChild(edg, name, 0).getInfo().getInfo()[0], null); // TODO: MMMM... (¬.¬)
+				return List.of(
+						new ArrayCreationExpr(scopeType,
+								(NodeList<ArrayCreationLevel>) EDGTraverser
+						.getChild(edg, name, 0).getInfo().getInfo()[0], // TODO: MMMM... (¬.¬)
+								null));
 			default: // Case 4
-				return new MethodCallExpr(scopeExpr, new SimpleName(nameText), argumentsList);
+				return List.of(
+						new MethodCallExpr(scopeExpr.isEmpty() ? null : scopeExpr.get(0),
+						new SimpleName(nameText), argumentsList));
 		}
 	}
 
-
-	private Expression parseArguments(Node argsNode) // TODO: This should return List<Expression>
+	/**
+	 * Parse to javaparser the arguments node of a call in the EDG (only the parts contained in the slice).
+	 * @param argsNode Arguments node to be parsed.
+	 * @param transformUnused Flag that decides if the arguments not used in the slice
+	 *                        need to be converted to null for compilation purposes.
+	 * @return A list of javaparser expressions with only the arguments contained in the slice.
+	 */
+	private List<Expression> parseArguments(Node argsNode, boolean transformUnused)
 	{
 		if (this.slice != null && !this.slice.contains(argsNode))
-			return null;
+			return List.of();
 
-		final NodeList<Expression> argumentsList = new NodeList<Expression>();
 		final List<Node> argumentsChildren = EDGTraverser.getChildren(edg, argsNode);
-		argumentsList.addAll(this.parseExpressions(argumentsChildren, false)); // Discard sliced arguments
-
-		if (argumentsList.size() != 0)
-			return argumentsList.get(0); //return argumentsList;
-		return null;
+		argumentsChildren.removeIf(node -> node.getType() == Node.Type.Result);
+		return this.parseExpressions(argumentsChildren, transformUnused); // Discard sliced arguments
 	}
 
-	private Expression parseOperation(Node operation) // TODO: This should return List<Expression>
+	/**
+	 * Parse to javaparser an operation node of the EDG (only the parts contained in the slice).
+	 * @param operation Operation node to be parsed.
+	 * @return A list of javaparser expressions of the given node contained in the slice.
+	 * @throws IllegalStateException The arity of the operation is greater that 2
+	 */
+	private List<Expression> parseOperation(Node operation)
 	{
 		final String sign = operation.getName();
 		final List<Node> operands = EDGTraverser.getChildren(edg, operation);
 		operands.removeIf(node -> node.getType() == Node.Type.Result);
-		final Node expression = operands.get(0);
-		final Expression firstExpression = this.parseExpression(expression);
+		final Node leftNode = operands.get(0);
+		final List<Expression> leftExpression = this.parseExpression(leftNode);
 		switch (operands.size())
 		{
 			case 1:
 				final UnaryExpr.Operator[] unaryOperators = UnaryExpr.Operator.values();
 				final boolean isPostfix = (boolean) operation.getInfo().getInfo()[0];
 				final Printable unaryOperator = this.getOperator(unaryOperators, sign, isPostfix);
-				if (firstExpression != null)
-					return new UnaryExpr(firstExpression, (UnaryExpr.Operator) unaryOperator);
-				return null;
+				if (!leftExpression.isEmpty())
+					return List.of(
+							new UnaryExpr(leftExpression.get(0), (UnaryExpr.Operator) unaryOperator));
+				return Collections.emptyList();
 			case 2:
-				final Expression secondExpression = this.parseExpression(operands.get(1));
 				final Printable[] binaryOperators = BinaryExpr.Operator.values();
 				final Printable binaryOperator0 = this.getOperator(binaryOperators, sign);
 				final BinaryExpr.Operator binaryOperator = (BinaryExpr.Operator) binaryOperator0;
-				final Expression firstExpression0 = isEnclosedExpr(firstExpression, binaryOperator, true) ?
-						new EnclosedExpr(firstExpression) : firstExpression;
-				final Expression secondExpression0 = isEnclosedExpr(secondExpression, binaryOperator, false) ?
-						new EnclosedExpr(secondExpression) : secondExpression;
-				if (firstExpression != null && secondExpression != null)
-					return new BinaryExpr(firstExpression0, secondExpression0, binaryOperator);
-				if (firstExpression != null)
-					return firstExpression0;
-				return secondExpression0;
+
+				final Node rightNode = operands.get(1);
+				final List<Expression> rightExpression = this.parseExpression(rightNode);
+
+				if (slice != null && slice.contains(operation))
+				{
+					final Expression leftOperator = isEnclosedExpr(leftExpression.get(0), binaryOperator, true) ?
+							new EnclosedExpr(leftExpression.get(0)) : leftExpression.get(0);
+					final Expression rightOperator = isEnclosedExpr(rightExpression.get(0), binaryOperator, false) ?
+							new EnclosedExpr(rightExpression.get(0)) : rightExpression.get(0);
+					return List.of(new BinaryExpr(leftOperator, rightOperator, binaryOperator));
+				}
+
+				if (slice != null && slice.contains(leftNode))
+				{
+					if (slice.contains(rightNode))
+						return Util.join(leftExpression,rightExpression);
+					return leftExpression;
+				}
+				return rightExpression;
+
 			default:
-				throw new RuntimeException("Operation arity not contemplated: " + operands.size());
+				throw new IllegalStateException("Operation arity not contemplated: " + operands.size());
 		}
 	}
 
-	private Expression parseReference(Node reference)
+	/**
+	 * Parse to javaparser a reference node of the EDG (this or super).
+	 * @param reference Reference node to be parsed.
+	 * @return A list of javaparser expressions with the Expression representing the reference or an empty list.
+	 * @throws IllegalArgumentException Unexpected reference name found
+	 */
+	private List<Expression> parseReference(Node reference)
 	{
+		if (slice != null && !slice.contains(reference))
+			return List.of();
+
 		final String value = reference.getName();
 
 		switch (value)
 		{
 			case "super":
-				return new SuperExpr();
+				return List.of(new SuperExpr());
 			case "this":
-				return new ThisExpr();
+				return List.of(new ThisExpr());
 			default:
-				return new NullLiteralExpr();
+				throw new IllegalArgumentException("Unexpected reference name found " + value);
 		}
 	}
 
-	// ADDED TYPE EXPRESSIONS
-	private Expression parseInstanceOf(Node instanceOf)
+	/**
+	 * Parse to javaparser a TypeCheck node of the EDG (only the parts contained in the slice).
+	 * @param instanceOf TypeCheck node to be parsed.
+	 * @return A list of javaparser expressions of the given node contained in the slice.
+	 */
+	private List<Expression> parseInstanceOf(Node instanceOf)
 	{
-		final Node expression = EDGTraverser.getChild(edg, instanceOf, 0);
-		final Node type = EDGTraverser.getChild(edg, instanceOf, 1);
+		final Node expressionNode = EDGTraverser.getChild(edg, instanceOf, Value);
+		final List<Expression> instanceExpr = this.parseExpression(expressionNode);
 
-		final Expression instanceExpr = this.parseExpression(expression);
-		// InstanceOf only accepts object types and array types, it is not applicable to Primitive Types
-		final Type instanceType = this.parseType(type);
+		if (instanceExpr.isEmpty())
+			return List.of();
 
-		if (instanceExpr == null)
-			return null;
+		final Node typeNode = EDGTraverser.getChild(edg, instanceOf, Node.Type.Type);
+		if (slice != null && !slice.contains(typeNode))
+			return instanceExpr;
 
+		final Type instanceType = this.parseType(typeNode);
 		if (instanceType instanceof ClassOrInterfaceType)
-			return new InstanceOfExpr(instanceExpr, (ClassOrInterfaceType) instanceType);
-		return new InstanceOfExpr(instanceExpr, (ArrayType) instanceType);
-	}
+			return List.of(new InstanceOfExpr(instanceExpr.get(0), (ClassOrInterfaceType) instanceType));
 
-	private Expression parseCastExpr(Node cast)
+		return List.of(new InstanceOfExpr(instanceExpr.get(0), (ArrayType) instanceType));
+	}
+	/**
+	 * Parse to javaparser a Cast Expression node of the EDG (only the parts contained in the slice).
+	 * @param cast Cast Expression node to be parsed.
+	 * @return A list of javaparser expressions of the given node contained in the slice.
+	 */
+	private List<Expression> parseCastExpr(Node cast)
 	{
-		final Node type = EDGTraverser.getChild(edg, cast, 0);
-		final Node expression = EDGTraverser.getChild(edg, cast, 1);
+		final Node typeNode = EDGTraverser.getChild(edg, cast, Node.Type.Type);
+		final Node expressionNode = EDGTraverser.getChild(edg, cast, Node.Type.Variable);
 
-		final Expression castExpr = this.parseExpression(expression);
-		if (castExpr == null)
-			return null;
+		final List<Expression> castExpr = this.parseExpression(expressionNode);
+		if (castExpr.isEmpty())
+			return List.of();
 
-		final Type castType = this.parseType(type);
-		final CastExpr finalCast = new CastExpr(castType, castExpr);
+		if (slice != null && !slice.contains(typeNode))
+			return castExpr;
 
-		final boolean isEnclosedExpr = (boolean) cast.getInfo().getInfo()[0];
-		return isEnclosedExpr ? new EnclosedExpr(finalCast) : finalCast;
+		final Type castType = this.parseType(typeNode);
+		final CastExpr castResult = new CastExpr(castType, castExpr.get(0));
+
+		if ((boolean) cast.getInfo().getInfo()[0])
+			return List.of(new EnclosedExpr(castResult));
+		return List.of(castResult);
 	}
 
+	/**
+	 * Extracts the represented type from a Type node or if the Type node is in the slice
+	 * @param type Cast Expression node to be parsed.
+	 * @return The javaparser Type of the given node or "Object" if not in the slice.
+	 */
 	private Type parseType(Node type)
 	{
 		if (type.getInfo().getInfo().length != 0)
 		{
 			if (this.slice != null && !this.slice.contains(type))
 				return new PrimitiveType();
-			else
-			{    // DIRIA QUE ESTO NUNCA SE EJECUTA
-				Object info = type.getInfo().getInfo()[0];
-				if (info.equals("arrayType"))
 
-					return new ArrayType(new ClassOrInterfaceType(type.getName()));
-				else if (info instanceof PrimitiveType.Primitive)
-					return new PrimitiveType((Primitive) info);
-				else
-					return new PrimitiveType();
-			}
+			// TODO: Comprobar esta afirmacion tan gratuita
+			// DIRIA QUE ESTO NUNCA SE EJECUTA
+			Object info = type.getInfo().getInfo()[0];
+			if (info.equals("arrayType"))
+				return new ArrayType(new ClassOrInterfaceType(type.getName()));
+			if (info instanceof PrimitiveType.Primitive)
+				return new PrimitiveType((Primitive) info);
+			return new PrimitiveType();
 
-		} else if (this.slice != null && !this.slice.contains(type))
+		}
+		if (this.slice != null && !this.slice.contains(type))
 			return new ClassOrInterfaceType("Object");
-		else
-			return new ClassOrInterfaceType(type.getName());
+		return new ClassOrInterfaceType(type.getName());
 	}
 
-	private Expression parseDataConstructorAccess(Node dataConstructorAccess)
+	/**
+	 * Parse to javaparser a DataConstructorAccess node of the EDG (only the parts contained in the slice).
+	 * @param dataConstructorAccess DataConstructorAccess node to be parsed.
+	 * @return A list of javaparser expressions inside the given node contained in the slice.
+	 */
+	private List<Expression> parseDataConstructorAccess(Node dataConstructorAccess)
 	{
-		final Node dataConstructor = EDGTraverser.getChild(edg, dataConstructorAccess, Node.Type.Variable);
-		final Node access = EDGTraverser.getChild(edg, dataConstructorAccess, Node.Type.Index);
+		final Node dataConstructorNode = EDGTraverser.getChild(edg, dataConstructorAccess, Node.Type.Variable);
+		final Node accessNode = EDGTraverser.getChild(edg, dataConstructorAccess, Node.Type.Index);
 
-		final Expression dataConstructorExpr = this.parseExpression(dataConstructor);
-		final Expression accessExpr = this.parseExpression(access);
+		final List<Expression> dataConstructorExpr = this.parseExpression(dataConstructorNode);
+		final List<Expression> accessExpr = this.parseExpression(accessNode);
 
-		if (dataConstructorExpr != null && accessExpr != null)
-			return new ArrayAccessExpr(dataConstructorExpr, accessExpr);
-		if (dataConstructorExpr != null)
+		if (dataConstructorExpr.isEmpty())
+			return accessExpr;
+		if (accessExpr.isEmpty())
 			return dataConstructorExpr;
-		return accessExpr;
+
+		if (this.slice != null && !slice.contains(dataConstructorAccess))
+			return Util.join(accessExpr, dataConstructorExpr);
+		return List.of(new ArrayAccessExpr(dataConstructorExpr.get(0), accessExpr.get(0)));
+
 	}
 
-	private Expression parseFieldAccess(Node fieldAccess)
+	/**
+	 * Parse to javaparser a FieldAccess node of the EDG (only the parts contained in the slice).
+	 * @param fieldAccess FieldAccess node to be parsed.
+	 * @return A list of javaparser expressions inside the given node contained in the slice.
+	 */
+	private List<Expression> parseFieldAccess(Node fieldAccess)
 	{
-		final Node scope = EDGTraverser.getChild(edg, fieldAccess, 0);
-		final Node name = EDGTraverser.getChild(edg, fieldAccess, 1);
+		final Node scope = EDGTraverser.getChild(edg, fieldAccess, Node.Type.Variable);
+		final Node name = EDGTraverser.getChild(edg, fieldAccess, Node.Type.Index);
 
-		final Expression scopeExpr = this.parseExpression(scope);
-		final Expression nameExpr = this.parseExpression(name);
+		final List<Expression> scopeExpr = this.parseExpression(scope);
+		final List<Expression> nameExpr = this.parseExpression(name);
 
-		if (scopeExpr != null && nameExpr != null)
-			return new FieldAccessExpr(scopeExpr, nameExpr.toString());
-		if (scopeExpr != null)
+		if (scopeExpr.isEmpty())
+			return nameExpr;
+		if (nameExpr.isEmpty())
 			return scopeExpr;
-		return nameExpr;
+		if (this.slice != null && !slice.contains(fieldAccess))
+			return Util.join(scopeExpr, nameExpr);
+		return List.of(new FieldAccessExpr(scopeExpr.get(0), nameExpr.get(0).toString()));
+
 	}
 
-	private Expression parseTernary(Node _if)
+	/**
+	 * Parse to javaparser a Ternary Expression node of the EDG (only the parts contained in the slice).
+	 * @param _if Ternary Expression node to be parsed.
+	 * @return A list of javaparser expressions inside the given node contained in the slice
+	 * 		  (the whole Ternary Expression accordingly parsed or a list of expressions in the condition part).
+	 */
+	private List<Expression> parseTernary(Node _if)
 	{
-		// Condition
 		final Node condition = EDGTraverser.getChild(edg, _if, Node.Type.Condition);
-		final Node conditionNode = EDGTraverser.getChild(edg, condition, 0);
-		final Expression conditionExpression = this.parseExpression(conditionNode);
+		final Node conditionExprNode = EDGTraverser.getChild(edg, condition, Value);
 
-		// Then
+		// TODO: Any expression in the slice inside the ternaryExpr must include the Condition node in the slice
+		if (slice != null && !slice.contains(conditionExprNode) && !mayContainInternalSliceCode(conditionExprNode))
+			return List.of();
+
 		final Node thenNode = EDGTraverser.getChild(edg, _if, Node.Type.Then);
-		final Node thenReturn = EDGTraverser.getChild(edg, thenNode, 0);
-		final Node then = EDGTraverser.getChild(edg, thenReturn, 0);
-		final Expression thenExpression = this.parseExpression(then);
+		final Node thenExprNode = EDGTraverser.getChild(edg, thenNode, 0);
 
-		// Else
 		final Node elseNode = EDGTraverser.getChild(edg, _if, Node.Type.Else);
-		final Node elseReturn = EDGTraverser.getChild(edg, elseNode, 0);
-		final Node _else = EDGTraverser.getChild(edg, elseReturn, 0);
-		final Expression elseExpression = this.parseExpression(_else);
+		final Node elseExprNode = EDGTraverser.getChild(edg, elseNode, 0);
 
-		return new ConditionalExpr(conditionExpression, thenExpression, elseExpression);
+		final List<Expression>  conditionExpressions = this.parseExpression(conditionExprNode);
+		// TODO: These two calls MUST only return ZERO or ONE expressions
+		final List<Expression> thenExpressions = this.parseExpression(thenExprNode);
+		final List<Expression> elseExpressions = this.parseExpression(elseExprNode);
+
+		if (thenExpressions.isEmpty() && elseExpressions.isEmpty())
+			return conditionExpressions;
+
+		if (thenExpressions.isEmpty())
+			return List.of(new ConditionalExpr(
+							conditionExpressions.get(0),
+							new NullLiteralExpr(),
+							elseExpressions.get(0)));
+		if (elseExpressions.isEmpty())
+			return List.of(new ConditionalExpr(
+							conditionExpressions.get(0),
+							thenExpressions.get(0),
+							new NullLiteralExpr()));
+
+		return List.of(new ConditionalExpr(
+						conditionExpressions.get(0),
+						thenExpressions.get(0),
+						elseExpressions.get(0)));
 	}
 
-	// Variables & literals
-	private Expression parseVariable(Node variable)
+	/**
+	 * Parse to javaparser a variable node of the EDG (if contained in the slice).
+	 * @param variable Variable node to be parsed.
+	 * @return A list of javaparser expressions with the variable Expression or empty.
+	 */
+	private List<Expression> parseVariable(Node variable)
 	{
+		if (slice != null && !slice.contains(variable))
+			return List.of();
+
 		final Variable info = (Variable) variable;
 		if (info.isDeclaration())
-			return this.parseDeclaration(variable);
+			return this.parseDeclarationVariable(variable);
 
 		final String value = info.getName();
-		return new NameExpr(value);
+		return List.of(new NameExpr(value));
 	}
-	private Expression parseLiteral(Node literal)
+	/**
+	 * Parse to javaparser a literal node of the EDG (if contained in the slice).
+	 * @param literal Literal node to be parsed.
+	 * @return A list of javaparser literal with the correspondent Literal expression or empty.
+	 */
+	private List<Expression> parseLiteral(Node literal)
 	{
+		if (slice != null && !slice.contains(literal))
+			return List.of();
+
 		final LDASTNodeInfo ldNodeInfo = literal.getInfo();
 		final String value = literal.getName();
 		final String construction = ldNodeInfo.getConstruction();
@@ -913,68 +1258,55 @@ public class JavaCodeFactory {
 		switch (construction)
 		{
 			case "boolean":
-				return new BooleanLiteralExpr(Boolean.parseBoolean(value));
+				return List.of(new BooleanLiteralExpr(Boolean.parseBoolean(value)));
 			case "char":
-				return new CharLiteralExpr(value);
+				return List.of(new CharLiteralExpr(value));
 			case "double":
-				return new DoubleLiteralExpr(value);
+				return List.of(new DoubleLiteralExpr(value));
 			case "int":
-				return new IntegerLiteralExpr(value);
+				return List.of(new IntegerLiteralExpr(value));
 			case "long":
-				return new LongLiteralExpr(value);
+				return List.of(new LongLiteralExpr(value));
 			case "String":
-				return new StringLiteralExpr(value);
-			case "null":
-				return new NullLiteralExpr();
+				return List.of(new StringLiteralExpr(value));
 			case "name":
-				return new NameExpr(value);
+				return List.of(new NameExpr(value));
 			case "object creation":
 			case "array creation":
-				return null;
+				return null; // TODO: CAMBIAR ESTE NULL QUE PETA TODO
 			default:
-				return new NullLiteralExpr();
+				return List.of(new NullLiteralExpr());
 		}
 	}
 
-	// Auxiliaries
-	private VariableDeclarator getVariableDeclarator(Node declaration)
-	{
-		final Node variableExpression = (declaration.getType() == Node.Type.Equality) ? EDGTraverser
-				.getChild(edg, declaration, 0) : declaration;
-		final Node initializerNode = (declaration.getType() == Node.Type.Equality) ? EDGTraverser
-				.getChild(edg, declaration, 1) : null;
-		Expression initializer = this.slice != null && !this.slice.contains(initializerNode) ? null : this
-				.parseExpression(initializerNode);
+//	/**
+//	 * Parse to javaparser a variable declaration node of the EDG (if contained in the slice).
+//	 * @param declaration Declaration node to be parsed.
+//	 * @return A javaparser VariableDeclarator item considering which parts of it are in the slice.
+//	 */
+//	private List<VariableDeclarator> getVariableDeclarator(Node declaration)
+//	{
+//		final Node variableNode = EDGTraverser.getChild(edg, declaration, Node.Type.Pattern);
+//		final Node initializerNode = EDGTraverser.getChild(edg, declaration, Value);
+//
+//		final LDASTNodeInfo ldNodeInfo = variableNode.getInfo();
+//		final Type type = (Type) ldNodeInfo.getInfo()[1];
+//		final String name = variableNode.getName();
+//
+//		if (this.slice != null && !this.slice.contains(initializerNode) && !mayContentInternalSliceCode(initializerNode))
+//		{
+//			if (type instanceof PrimitiveType)
+//				return new VariableDeclarator(type, name);
+//
+//			final Expression initializer = new ObjectCreationExpr(null, (ClassOrInterfaceType) type, new NodeList<>());
+//			return new VariableDeclarator(type, name, initializer);
+//		}
+//
+//		final Expression initializerExpr = this.parseExpression(initializerNode).get(0);
+//		return new VariableDeclarator(type, name, initializerExpr);
+//	}
 
-		if (initializer == null)
-		{
-			final Node variable = (variableExpression.getType() == Node.Type.Variable) ? variableExpression : EDGTraverser
-					.getChild(edg, variableExpression, 0);
-			final LDASTNodeInfo ldNodeInfo = variable.getInfo();
-			final Type varType = (Type) ldNodeInfo.getInfo()[1];
-			if (varType instanceof PrimitiveType || initializerNode == null)
-				initializer = null;
-			else
-				initializer = new ObjectCreationExpr(null, (ClassOrInterfaceType) varType, new NodeList<>());
-		}
 
-		final Node variable = (variableExpression.getType() == Node.Type.Variable) ? variableExpression : EDGTraverser
-				.getChild(edg, variableExpression, 0);
-		//final Node variable = EDGTraverserNew.getChild(variableExpression, 0);
-
-		if (this.slice != null && !this.slice.contains(variable))
-		{
-			final String name = "sliced";
-			final Type type = new ClassOrInterfaceType("Object");
-			return new VariableDeclarator(type, name, initializer);
-		}
-
-		final LDASTNodeInfo ldNodeInfo = variable.getInfo();
-		final Type type = (Type) ldNodeInfo.getInfo()[1];
-		final String name = variable.getName();
-
-		return new VariableDeclarator(type, name, initializer);
-	}
 	private MethodDeclaration createFunundef()
 	{
 		final MethodDeclaration funundef;
@@ -1111,13 +1443,21 @@ public class JavaCodeFactory {
 		}
 	}
 
-	private boolean mayContentInternalSliceCode(Node node)
+	private boolean mayContainInternalSliceCode(Node node)
 	{
 		switch (node.getType())
 		{
 			case Operation:
 			case Equality:
 			case Call:
+			case Condition:
+			case If:
+			case CLoop:
+			case RLoop:
+			case Foreach:
+			case FLoop:
+			case Switch:
+			case Selector:
 				return true;
 			default:
 				return false;
