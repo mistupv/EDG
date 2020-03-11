@@ -127,24 +127,14 @@ public class ValueEdgeGenerator {
 
 		for (Node routine : routines)
 		{
-			final Node routineParent = LASTTraverser.getParent(last, routine);
-			final Node.Type routineParentType = routineParent.getType();
-			if (routineParentType == Node.Type.Module)
-				continue;
-
 			final List<Node> clauses = LASTTraverser.getChildren(last, routine);
 			for (Node clause : clauses)
-			{
-				final Node clauseResult = LASTTraverser.getChild(last, clause, 3);
-				this.last.addEdge(routine, clauseResult, Edge.Type.Value);
-			}
+				this.last.addEdge(clause, routine, Edge.Type.Value);
 		}
 	}
 
-	// TYPES
 	private void generateTypeEdges()
 	{
-//		generateRawTypeEdges();
 		generateTypeCheckEdges();
 		generateTypeTransformationEdges();
 	}
