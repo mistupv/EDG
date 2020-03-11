@@ -5,7 +5,7 @@ class ifTest{
 		int y;
 		int z = 8;
 
-		if ( x = 1 < 3)
+		if ((x = 1) < 3)
 		{
 			y = 5;
 		}
