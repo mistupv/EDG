@@ -127,6 +127,12 @@ public class LASTTraverser {
 				return child;
 		return null;
 	}
+
+	public static boolean hasChild(LAST last, Node node, Node.Type type)
+	{
+		return getChild(last, node, type) != null;
+	}
+
 	public static int getChildIndex(LAST last, Node node)
 	{
 		final List<Node> siblings = getSiblings(last, node);
@@ -254,25 +260,16 @@ public class LASTTraverser {
 
 	public static Node getResFromNode(LAST last, Node node)
 	{
-		// If the node is not an expression its result is itself (e.g. VarDeclarations in Java)
 		if (!node.getInfo().isExpression())
 			return node;
-
-		Set<Node> next = ControlFlowTraverser.step(last, node, ControlFlowTraverser.Direction.Forwards);
-		if (next.size() == 1)
-			return next.iterator().next();
-		throw new RuntimeException("The next element of a variable in the CFG is only its result");
+		return last.getResFromNode(node);
 	}
 
 	public static Node getNodeFromRes(LAST last, Node resNode)
 	{
 		if (resNode.getType() != Node.Type.Result)
 			return resNode;
-
-		Set<Node> prev = ControlFlowTraverser.step(last, resNode, ControlFlowTraverser.Direction.Backwards);
-		if (prev.size() == 1)
-			return prev.iterator().next();
-		throw new RuntimeException("The previous element of a result in the CFG is only its expression");
+		return last.getNodeFromRes(resNode);
 	}
 
 	// PREVIOUS METHOD FOR DATA CONSTRUCTOR ACCESSES

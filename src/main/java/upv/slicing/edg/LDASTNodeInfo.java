@@ -1,12 +1,14 @@
 package upv.slicing.edg;
 
+import java.util.Arrays;
+
 public class LDASTNodeInfo
 {
 	private String archive;
 	private String className;
 	private final long line;
 	private final String construction;
-	private final boolean isExpression;
+	private final boolean expression;
 	private Object[] info;
 
 	public LDASTNodeInfo(long line, String construction, Object... info)
@@ -35,8 +37,12 @@ public class LDASTNodeInfo
 		this.className = className;
 		this.line = line;
 		this.construction = construction;
-		this.isExpression = expression;
+		this.expression = expression;
 		this.info = info;
+	}
+
+	public LDASTNodeInfo(LDASTNodeInfo info, boolean expression) {
+		this(info.archive, info.className, info.line, expression, info.construction, Arrays.copyOf(info.info, info.info.length));
 	}
 
 	public String getArchive()
@@ -57,7 +63,7 @@ public class LDASTNodeInfo
 	}
 	public boolean isExpression()
 	{
-		return this.isExpression;
+		return this.expression;
 	}
 	public Object[] getInfo()
 	{

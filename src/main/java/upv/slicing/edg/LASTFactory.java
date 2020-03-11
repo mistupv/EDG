@@ -83,13 +83,7 @@ public abstract class LASTFactory {
 		this.processElements(members);
 		this.branches.pop();
 	}
-
-	protected <R> void addRoutine(String name, Iterable<R> clauses, LDASTNodeInfo info)
-	{
-		final List<R> clauses0 = iterableToList(clauses);
-		this.addRoutine(name, clauses0, info);
-	}
-
+	
 	protected <R> void addRoutine(String name, List<R> clauses, LDASTNodeInfo info)
 	{
 		final Branch parent = this.branches.peek();
@@ -655,6 +649,7 @@ public abstract class LASTFactory {
 
 		branch.setWhere(Where.Iterator);
 		this.addGenerator(varDeclaration, iterableExpr, info);
+		// TODO: Body node must be inserted after inserting the generator
 		branch.setWhere(Where.Body);
 		this.processElements(bodyExpressions);
 		this.branches.pop();

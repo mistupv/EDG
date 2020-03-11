@@ -24,8 +24,6 @@ public class EDGTraverser extends LASTTraverser
                         return EDGTraverser.getChild(edg, node, 3);
                     case Body:
                         return EDGTraverser.getChild(edg, node, 4);
-                    case Result:
-                        return EDGTraverser.getChild(edg, node, 5);
                 }
                 break;
             case Call:
@@ -48,8 +46,6 @@ public class EDGTraverser extends LASTTraverser
                         return EDGTraverser.getChild(edg, node, 0);
                     case Name:
                         return EDGTraverser.getChild(edg, node, 1);
-                    case Result:
-                        return EDGTraverser.getResFromNode(edg, node);
                 }
                 break;
             case If:
@@ -133,6 +129,14 @@ public class EDGTraverser extends LASTTraverser
                         return EDGTraverser.getChild(edg, node, 1);
                 }
                 break;
+            case TypeCheck:
+                switch (type)
+                {
+                    case Variable:
+                        return EDGTraverser.getChild(edg, node, 0);
+                    case Type:
+                        return EDGTraverser.getChild(edg, node, 1);
+                }
             case FieldAccess:
             case DataConstructorAccess:
                 switch (type)
@@ -145,14 +149,14 @@ public class EDGTraverser extends LASTTraverser
                 break;
             case Scope:
             case Name:
-            case Expression:
+            case Condition:
+            case Selector:
+            case Selectable:
             case Literal:
                 switch (type)
                 {
                     case Value:
                         return EDGTraverser.getChild(edg, node, 0);
-                    case Result:
-                        return EDGTraverser.getChild(edg, node, 1);
                 }
                 break;
             case Equality:
@@ -164,6 +168,14 @@ public class EDGTraverser extends LASTTraverser
                         return EDGTraverser.getChild(edg, node, 1);
                 }
                 break;
+            case Generator:
+                switch (type)
+                {
+                    case Variable:
+                        return EDGTraverser.getChild(edg, node, 0);
+                    case Iterator:
+                        return EDGTraverser.getChild(edg, node, 1);
+                }
             default:
                 break;
         }

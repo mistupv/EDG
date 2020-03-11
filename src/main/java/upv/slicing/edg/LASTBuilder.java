@@ -44,15 +44,9 @@ public class LASTBuilder {
 		final Node parent = LASTBuilder.getParentNode(last, parentId, where);
 		final String routineName = name == null ? "routine" : "routine" + "\\n" + name;
 		final Node routine;
+		final LDASTNodeInfo expInfo = new LDASTNodeInfo(info, true);
 
-		if (parent.getType() == Node.Type.Module)
-			routine = LASTBuilder.addNode(last, parent, Node.Type.Routine, name, routineName, info);
-		else
-		{
-			final Node expression = LASTBuilder.addNode(last, parent, Node.Type.Expression, "expression", null);
-			routine = LASTBuilder.addNode(last, expression, Node.Type.Routine, name, routineName, info);
-			LASTBuilder.addNode(last, expression, Node.Type.Result, "result", null);
-		}
+		routine = LASTBuilder.addNode(last, parent, Node.Type.Routine, name, routineName, expInfo);
 
 		return routine.getId();
 	}
@@ -63,14 +57,14 @@ public class LASTBuilder {
 		if (parentType != Node.Type.Routine)
 			throw new RuntimeException("A " + parentType + " cannot contain a clause");
 
-		final Node clause = LASTBuilder.addNode(last, parent, Node.Type.Clause, "clause", info);
+		final LDASTNodeInfo expInfo = new LDASTNodeInfo(info, true);
+		final Node clause = LASTBuilder.addNode(last, parent, Node.Type.Clause, "clause", expInfo);
 		//ASTBuilder.addNode(last, clause, Node.Info.Type.Parameters, "parameters", null);
 		LASTBuilder.addNode(last, clause, Node.Type.ParameterIn, "paramIn", info);
 		LASTBuilder.addNode(last, clause, Node.Type.Parameters, "parameters", info); // ADDED info to parameters to obtain the name of the class
 		LASTBuilder.addNode(last, clause, Node.Type.ParameterOut, "paramOut", info);
 		LASTBuilder.addNode(last, clause, Node.Type.Guard, "guard", null);
 		LASTBuilder.addNode(last, clause, Node.Type.Body, "body", null);
-		LASTBuilder.addNode(last, clause, Node.Type.Result, "result", null);
 
 		return clause.getId();
 	}
@@ -261,12 +255,12 @@ public class LASTBuilder {
 	public static int addCatchClause(LAST last, int parentId, Where where, LDASTNodeInfo info)
 	{
 		final Node parent = LASTBuilder.getParentNode(last, parentId, where);
-		final Node catchClause = LASTBuilder.addNode(last, parent, Node.Type.CatchClause, "clause", info);
-		
+		final LDASTNodeInfo expInfo = new LDASTNodeInfo(info, true);
+		final Node catchClause = LASTBuilder.addNode(last, parent, Node.Type.CatchClause, "clause", expInfo);
+
 		LASTBuilder.addNode(last, catchClause, Node.Type.Parameters, "parameters", info); // ADDED info to parameters to obtain the name of the class
 		LASTBuilder.addNode(last, catchClause, Node.Type.Guard, "guard", null);
 		LASTBuilder.addNode(last, catchClause, Node.Type.Body, "body", null);
-		LASTBuilder.addNode(last, catchClause, Node.Type.Result, "result", null);
 
 		return catchClause.getId();
 	}
@@ -343,7 +337,8 @@ public class LASTBuilder {
 	{
 		final Node parent = LASTBuilder.getParentNode(last, parentId, where);
 		final Node foreach = LASTBuilder.addNode(last, parent, Node.Type.Foreach, "foreach", info);
-		
+
+		// TODO: Delete iterator in foreach structure
 		LASTBuilder.addNode(last, foreach, Node.Type.Iterator, "iterator", null);
 		LASTBuilder.addNode(last, foreach, Node.Type.Body, "body", null);
 		
@@ -599,6 +594,7 @@ public class LASTBuilder {
 			{ 
 				final String methodName = child.getName();
 				final List<Node> methodClauses = LASTTraverser.getChildren(last, child);
+				methodClauses.removeIf(n -> n.getType() != Node.Type.Clause);
 				List<Node> previousClauses = methods.get(methodName);
 				if (previousClauses != null)
 					methodClauses.addAll(previousClauses);

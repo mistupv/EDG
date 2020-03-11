@@ -38,7 +38,7 @@ public class InterproceduralEdgeGenerator extends EdgeGenerator {
 		final List<Node> possibleClauses = this.getPossibleClauses(call);
 		final List<Node> matchingClauses = this.getMatchingClauses(possibleClauses, call);
 		final Node callee = EDGTraverser.getChild(edg, call, Node.Type.Callee);
-		final Node calleeResultNode = EDGTraverser.getChild(edg, callee, Node.Type.Result);
+		final Node calleeResultNode = EDGTraverser.getResFromNode(edg, callee);
 		final Node arguments = EDGTraverser.getChild(edg, call, Node.Type.Arguments);
 		final Node argumentsIn = EDGTraverser.getChild(edg, call, Node.Type.ArgumentIn);
 		final List<Node> argumentNodes = EDGTraverser.getChildren(edg, arguments);
@@ -233,7 +233,7 @@ public class InterproceduralEdgeGenerator extends EdgeGenerator {
 	{
 		final Node callResult = EDGTraverser.getResult(edg, call);
 		final Node callee = EDGTraverser.getChild(edg, call, Node.Type.Callee);
-		final Node calleeResult = EDGTraverser.getChild(edg, callee, Node.Type.Result);
+		final Node calleeResult = EDGTraverser.getResFromNode(edg, callee);
 		final List<Node> callingFunctions = EDGTraverser.getInputs(edg, calleeResult, EDGTraverser.Direction.Forwards);
 
 		for (Node callingFunction : callingFunctions)
