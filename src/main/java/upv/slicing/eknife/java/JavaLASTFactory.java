@@ -69,7 +69,7 @@ public class JavaLASTFactory extends LASTFactory {
 			final LAST last = super.createLAST(generateArcs, classes, ldNodeInfo);
 			if (generateArcs)
 			{
-				new ControlFlowEdgeGenerator(last).generate();
+				new ControlFlowGenerator(last).generate();
 				new ValueEdgeGenerator(last).generate();
 			}
 			return last;
@@ -730,7 +730,7 @@ public class JavaLASTFactory extends LASTFactory {
 	{
 		final long line = objectCreationExpression.getRange().get().begin.line;
 		final LDASTNodeInfo ldNodeInfo = new LDASTNodeInfo(line, true, "object creation");
-		final Literal scope = new Literal(objectCreationExpression.getType().getName(), ldNodeInfo);
+		final Type scope = objectCreationExpression.getType();
 		final Literal function = new Literal(objectCreationExpression, "<constructor>", ldNodeInfo);
 		final List<Expression> arguments = objectCreationExpression.getArguments();
 
@@ -1136,7 +1136,7 @@ public class JavaLASTFactory extends LASTFactory {
 						case FLoop:
 							return ancestor.getNodeId() + 5; // Node Update after creating the FLoop node
 						case Clause:
-							return ancestor.getNodeId() + 6; // Node Result after creating the Clause node
+							return ancestor.getNodeId(); // Node Result after creating the Clause node
 						default:
 							break;
 					}
