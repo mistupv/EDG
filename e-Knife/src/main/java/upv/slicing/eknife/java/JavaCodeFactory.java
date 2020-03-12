@@ -425,7 +425,7 @@ public class JavaCodeFactory {
 		final NodeList<Statement> bodyStatements = new NodeList<>(statements);
 
 		assert label.size() == 1; // Java: this assumption breaks under Java >= 12
-		return List.of(new SwitchEntry(new NodeList<>(label.get(0)), SwitchEntry.Type.BLOCK, bodyStatements));
+		return List.of(new SwitchEntry(new NodeList<>(label.get(0)), SwitchEntry.Type.STATEMENT_GROUP, bodyStatements));
 	}
 
 	/**
