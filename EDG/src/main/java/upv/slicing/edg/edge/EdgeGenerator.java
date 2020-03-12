@@ -3,7 +3,6 @@ package upv.slicing.edg.edge;
 import upv.slicing.edg.graph.EDG;
 import upv.slicing.edg.graph.Node;
 import upv.slicing.edg.graph.Variable;
-import upv.slicing.edg.traverser.EDGTraverser;
 
 import java.util.LinkedList;
 import java.util.List;
@@ -47,7 +46,7 @@ public abstract class EdgeGenerator {
 	{
 		final List<Node> implicitRestrictions = new LinkedList<>();
 
-		pattern = pattern.getType() == Node.Type.Expression ? EDGTraverser.getChild(edg, pattern, 0) : pattern;
+		pattern = pattern.getType() == Node.Type.Expression ? edg.getChild(pattern, 0) : pattern;
 
 		switch (pattern.getType())
 		{
@@ -61,7 +60,7 @@ public abstract class EdgeGenerator {
 				break;
 			case List:
 			case DataConstructor:
-				final List<Node> children = EDGTraverser.getChildren(edg, pattern);
+				final List<Node> children = edg.getChildren(pattern);
 				implicitRestrictions.add(pattern);
 				for (Node child : children)
 					implicitRestrictions.addAll(this.getImplicitRestrictions(child));
@@ -76,8 +75,8 @@ public abstract class EdgeGenerator {
 	{
 		final List<Node[]> matches = new LinkedList<>();
 
-		final Node patternNode = pattern.getType() == Node.Type.Expression ? EDGTraverser.getChild(edg, pattern, 0) : pattern;
-		final Node expressionNode = expression.getType() == Node.Type.Expression ? EDGTraverser.getChild(edg, expression, 0) : expression;
+		final Node patternNode = pattern.getType() == Node.Type.Expression ? edg.getChild(pattern, 0) : pattern;
+		final Node expressionNode = expression.getType() == Node.Type.Expression ? edg.getChild(expression, 0) : expression;
 
 		final Node.Type patternType = patternNode.getType();
 		final Node.Type expressionType = expressionNode.getType();
@@ -95,28 +94,28 @@ else		if (patternType == Node.Type.Variable ||
 			(patternType == Node.Type.DataConstructor && expressionType == Node.Type.Call) ||
 			(patternType == Node.Type.List && (expressionType == Node.Type.Operation || expressionType == Node.Type.Call || expressionType == Node.Type.ListComprehension)))
 		{
-			final Node result = EDGTraverser.getResult(edg, expressionNode);
+			final Node result = edg.getResult(expressionNode);
 			if (result != null)
 				matches.add(new Node[] { patternNode, result } );
 		}
 else		if ((patternType == Node.Type.Literal || patternType == Node.Type.DataConstructor || patternType == Node.Type.List) &&
 			(expressionType == Node.Type.Case || expressionType == Node.Type.If || expressionType == Node.Type.Equality || expressionType == Node.Type.Block))
 		{
-			final Node resultRoot = EDGTraverser.getResult(edg, expressionNode);
+			final Node resultRoot = edg.getResult(expressionNode);
 			if (resultRoot != null)
 				matches.addAll(this.getMatches(patternNode, resultRoot));
 		}
 		else if (patternType == Node.Type.Equality)
 		{
-			final Node result = EDGTraverser.getResult(edg, patternNode);
+			final Node result = edg.getResult(patternNode);
 			if (result != null)
 				matches.addAll(this.getMatches(result, expressionNode));
 		}
 
 else		if ((patternType == Node.Type.DataConstructor || patternType == Node.Type.List) && expressionType == patternType)
 		{
-			final List<Node> patternNodeChildren = EDGTraverser.getChildren(edg, patternNode);
-			final List<Node> expressionNodeChildren = EDGTraverser.getChildren(edg, expressionNode);
+			final List<Node> patternNodeChildren = edg.getChildren(patternNode);
+			final List<Node> expressionNodeChildren = edg.getChildren(expressionNode);
 
 			if (patternNodeChildren.size() == expressionNodeChildren.size())
 			{
@@ -144,7 +143,7 @@ else		if ((patternType == Node.Type.DataConstructor || patternType == Node.Type.
 	protected List<Node> getVariables(String id, Variable.Context context, Boolean global)
 	{
 		final List<Node> variableNodes = new LinkedList<>();
-		final List<Node> variables = EDGTraverser.getNodes(this.edg, node -> node instanceof Variable);
+		final List<Node> variables = this.edg.getNodes(node -> node instanceof Variable);
 
 		for (Node variable : variables)
 		{
@@ -165,7 +164,7 @@ else		if ((patternType == Node.Type.DataConstructor || patternType == Node.Type.
 	protected List<Node> getVariables(String id, Variable.Context context, String className, Boolean global)
 	{
 		final List<Node> variableNodes = new LinkedList<>();
-		final List<Node> variables = EDGTraverser.getNodes(this.edg, node -> node instanceof Variable);
+		final List<Node> variables = this.edg.getNodes(node -> node instanceof Variable);
 
 		for (Node variable : variables)
 		{

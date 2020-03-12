@@ -2,7 +2,6 @@ package upv.slicing.edg.visitor;
 
 import upv.slicing.edg.graph.LAST;
 import upv.slicing.edg.graph.Node;
-import upv.slicing.edg.traverser.LASTTraverser;
 
 public class VoidVisitor<A> {
 	protected final LAST graph;
@@ -13,7 +12,7 @@ public class VoidVisitor<A> {
 
 	private void visitChildren(Node n, A arg)
 	{
-		for (Node child : LASTTraverser.getChildren(graph, n))
+		for (Node child : graph.getChildren(n))
 			child.accept(this, arg);
 	}
 

@@ -6,9 +6,9 @@ import upv.slicing.edg.constraint.PhaseConstraint;
 import upv.slicing.edg.constraint.SeekingConstraint;
 import upv.slicing.edg.graph.EDG;
 import upv.slicing.edg.graph.Edge;
+import upv.slicing.edg.graph.LAST;
 import upv.slicing.edg.graph.Node;
 import upv.slicing.edg.slicing.Phase;
-import upv.slicing.edg.traverser.EDGTraverser;
 
 import java.util.LinkedList;
 import java.util.List;
@@ -21,7 +21,7 @@ public class InterproceduralEdgeGenerator extends EdgeGenerator {
 
 	public void generate()
 	{
-		final List<Node> calls = EDGTraverser.getNodes(this.edg, Node.Type.Call);
+		final List<Node> calls = this.edg.getNodes(Node.Type.Call);
 
 		for (Node call : calls)
 		{
@@ -37,50 +37,47 @@ public class InterproceduralEdgeGenerator extends EdgeGenerator {
 	{
 		final List<Node> possibleClauses = this.getPossibleClauses(call);
 		final List<Node> matchingClauses = this.getMatchingClauses(possibleClauses, call);
-		final Node callee = EDGTraverser.getChild(edg, call, Node.Type.Callee);
-		final Node calleeResultNode = EDGTraverser.getResFromNode(edg, callee);
-		final Node arguments = EDGTraverser.getChild(edg, call, Node.Type.Arguments);
-		final Node argumentsIn = EDGTraverser.getChild(edg, call, Node.Type.ArgumentIn);
-		final List<Node> argumentNodes = EDGTraverser.getChildren(edg, arguments);
+		final Node callee = edg.getChild(call, Node.Type.Callee);
+		final Node calleeResultNode = edg.getResFromNode(callee);
+		final Node arguments = edg.getChild(call, Node.Type.Arguments);
+		final Node argumentsIn = edg.getChild(call, Node.Type.ArgumentIn);
+		final List<Node> argumentNodes = edg.getChildren(arguments);
 
 		for (Node matchingClause : matchingClauses)
 		{
-			final Node parameters = EDGTraverser.getChild(edg, matchingClause, Node.Type.Parameters);
-			final List<Node> parameterNodes = EDGTraverser.getChildren(edg, parameters);
+			final Node parameters = edg.getChild(matchingClause, Node.Type.Parameters);
+			final List<Node> parameterNodes = edg.getChildren(parameters);
 
 			this.edg.addEdge(calleeResultNode, matchingClause, new Edge(Edge.Type.Input, new PhaseConstraint(Phase.Input)));
 			for (int argumentIndex = 0; argumentIndex < argumentNodes.size(); argumentIndex++)
 			{
 				final Node argument = argumentNodes.get(argumentIndex);
 				final Node parameter = parameterNodes.get(argumentIndex);
-				final Node argumentResult = EDGTraverser.getResFromNode(edg, argument);
-				final Node parameterResult = EDGTraverser.getResFromNode(edg, parameter);
+				final Node argumentResult = edg.getResFromNode(argument);
+				final Node parameterResult = edg.getResFromNode(parameter);
 
 				if (argumentResult != null && parameterResult != null)
 					this.edg.addEdge(argumentResult, parameterResult,
 							new Edge(Edge.Type.Input, new PhaseConstraint(Phase.Input)));
 			}
-			final Node parameterIn = EDGTraverser.getChild(edg, matchingClause, Node.Type.ParameterIn);
+			final Node parameterIn = edg.getChild(matchingClause, Node.Type.ParameterIn);
 			this.edg.addEdge(argumentsIn, parameterIn, new Edge(Edge.Type.Call, new PhaseConstraint(Phase.Input)));
 		}
 	}
 	private List<Node> getPossibleClauses(Node call)
 	{
-		final Node callee = EDGTraverser.getChild(edg, call, Node.Type.Callee);
-		final Node scopeNode = EDGTraverser.getChild(edg, callee, Node.Type.Scope);
-		final Node nameNode = EDGTraverser.getChild(edg, callee, Node.Type.Name);
-		final List<Node> scopeChildren = EDGTraverser.getChildren(edg, scopeNode);
-		final Node routineArguments = EDGTraverser.getChild(edg, call, Node.Type.Arguments);
-		final List<Node> arguments = EDGTraverser.getChildren(edg, routineArguments);
+		final Node callee = edg.getChild(call, Node.Type.Callee);
+		final Node scopeNode = edg.getChild(callee, Node.Type.Scope);
+		final Node nameNode = edg.getChild(callee, Node.Type.Name);
+		final List<Node> scopeChildren = edg.getChildren(scopeNode);
+		final Node routineArguments = edg.getChild(call, Node.Type.Arguments);
+		final List<Node> arguments = edg.getChildren(routineArguments);
 
 		// Module
-		final Node moduleRef0 = scopeChildren.isEmpty() ? EDGTraverser
-				.getAncestor(edg, call, Node.Type.Module) : scopeChildren.get(0);
-		final Node moduleRef1 = moduleRef0.getType() != Node.Type.Expression ? moduleRef0 : EDGTraverser
-				.getChild(edg, moduleRef0, Node.Type.Value);
+		final Node moduleRef0 = scopeChildren.isEmpty() ? edg.getAncestor(call, Node.Type.Module) : scopeChildren.get(0);
+		final Node moduleRef1 = moduleRef0.getType() != Node.Type.Expression ? moduleRef0 : edg.getChild(moduleRef0, Node.Type.Value);
 		final Node moduleRef =
-				moduleRef1.getType() != Node.Type.TypeTransformation ? moduleRef1 : EDGTraverser
-						.getChild(edg, EDGTraverser.getChild(edg, moduleRef1, Node.Type.Variable), Node.Type.Value);
+				moduleRef1.getType() != Node.Type.TypeTransformation ? moduleRef1 : edg.getChild(edg.getChild(moduleRef1, Node.Type.Variable), Node.Type.Value);
 		final Node.Type moduleRefType = moduleRef.getType();
 
 		//String moduleName = moduleRefType == Node.Info.Type.Literal ? moduleRef.getName() : null;//moduleRef.getInfo().getClassName();
@@ -90,9 +87,8 @@ public class InterproceduralEdgeGenerator extends EdgeGenerator {
 		String moduleName = scopeChildren.size() == 0 ? moduleRef.getName() : moduleName1;
 
 		// Function
-		final Node name0 = EDGTraverser.getChild(edg, nameNode, 0);
-		final Node name = name0.getType() != Node.Type.Expression ? name0 : EDGTraverser
-				.getChild(edg, name0, Node.Type.Value);
+		final Node name0 = edg.getChild(nameNode, 0);
+		final Node name = name0.getType() != Node.Type.Expression ? name0 : edg.getChild(name0, Node.Type.Value);
 		final Node.Type nameType = name.getType();
 		String routineName = name.getName();
 
@@ -126,10 +122,10 @@ public class InterproceduralEdgeGenerator extends EdgeGenerator {
 			final String moduleScopeName = moduleName;
 			if (moduleScopeName.equals("super"))
 			{
-				final Node module = EDGTraverser.getAncestor(edg, call, Node.Type.Module);
+				final Node module = edg.getAncestor(call, Node.Type.Module);
 				moduleName = module.getName();
 			}
-			final List<Node> modules = EDGTraverser.getNodes(this.edg, Node.Type.Module);
+			final List<Node> modules = this.edg.getNodes(Node.Type.Module);
 			for (Node module : modules)
 			{
 				final String moduleText = module.getName();
@@ -145,10 +141,10 @@ public class InterproceduralEdgeGenerator extends EdgeGenerator {
 					}
 					else
 					{	
-						final Node parentRoutineNode = EDGTraverser.getAncestor(edg, call, Node.Type.Routine);
+						final Node parentRoutineNode = edg.getAncestor(call, Node.Type.Routine);
 						if (parentRoutineNode != null)
 						{
-							final String parentRoutineName = EDGTraverser.getAncestor(edg, call, Node.Type.Routine).getName();
+							final String parentRoutineName = edg.getAncestor(call, Node.Type.Routine).getName();
 							classClauses = this.getClassClauses(moduleInfo, routineName, parentRoutineName);
 						}
 						else 
@@ -160,19 +156,19 @@ public class InterproceduralEdgeGenerator extends EdgeGenerator {
 		}
 		
 		final List<Node> possibleClauses = new LinkedList<>();
-		final List<Node> clauses = EDGTraverser.getNodes(this.edg, Node.Type.Clause); // ONLY WHEN THERE IS ONLY A DEFINITION OF A FUNCTION, NOT FOR POLIMORPHIC CALLS
+		final List<Node> clauses = this.edg.getNodes(Node.Type.Clause); // ONLY WHEN THERE IS ONLY A DEFINITION OF A FUNCTION, NOT FOR POLIMORPHIC CALLS
 		final boolean thisAnonymousRoutine = moduleName == null && routineName != null;
 		final boolean allRoutines = moduleName == null && routineName == null;
 
 		for (Node clause : clauses)
 		{
-			final Node routine = EDGTraverser.getParent(edg, clause);
+			final Node routine = edg.getParent(clause);
 			if (thisAnonymousRoutine && routine != name)
 				continue;
 			
 			if (!thisAnonymousRoutine && !allRoutines)
 			{
-				final Node module = EDGTraverser.getParent(edg, routine);
+				final Node module = edg.getParent(routine);
 				final Node.Type moduleType = module.getType();
 				if (moduleType != Node.Type.Module)
 					continue;
@@ -184,8 +180,8 @@ public class InterproceduralEdgeGenerator extends EdgeGenerator {
 					continue;
 			}
 
-			final Node parameters = EDGTraverser.getChild(edg, clause, 0);
-			final List<Node> parameterNodes = EDGTraverser.getChildren(edg, parameters);
+			final Node parameters = edg.getChild(clause, 0);
+			final List<Node> parameterNodes = edg.getChildren(parameters);
 			if (arguments.size() != parameterNodes.size())
 				continue;
 
@@ -206,10 +202,10 @@ public class InterproceduralEdgeGenerator extends EdgeGenerator {
 	}
 	private boolean matchClause(Node possibleClause, Node call)
 	{
-		final Node parameters = EDGTraverser.getChild(edg, possibleClause, 0);
-		final List<Node> parameterNodes = EDGTraverser.getChildren(edg, parameters);
-		final Node arguments = EDGTraverser.getChild(edg, call, 1);
-		final List<Node> argumentNodes = EDGTraverser.getChildren(edg, arguments);
+		final Node parameters = edg.getChild(possibleClause, 0);
+		final List<Node> parameterNodes = edg.getChildren(parameters);
+		final Node arguments = edg.getChild(call, 1);
+		final List<Node> argumentNodes = edg.getChildren(arguments);
 		if (argumentNodes.size() != parameterNodes.size())
 			return false;
 
@@ -230,23 +226,23 @@ public class InterproceduralEdgeGenerator extends EdgeGenerator {
 	/************************************/
 	private void generateOutputEdges(Node call)
 	{
-		final Node callResult = EDGTraverser.getResult(edg, call);
-		final Node callee = EDGTraverser.getChild(edg, call, Node.Type.Callee);
-		final Node calleeResult = EDGTraverser.getResFromNode(edg, callee);
-		final List<Node> callingFunctions = EDGTraverser.getInputs(edg, calleeResult, EDGTraverser.Direction.Forwards);
+		final Node callResult = edg.getResult(call);
+		final Node callee = edg.getChild(call, Node.Type.Callee);
+		final Node calleeResult = edg.getResFromNode(callee);
+		final List<Node> callingFunctions = edg.getInputs(calleeResult, LAST.Direction.Forwards);
 
 		for (Node callingFunction : callingFunctions)
 		{
-			final Node result = EDGTraverser.getResult(edg, callingFunction);
+			final Node result = edg.getResult(callingFunction);
 
 			if (result != null)
 			{
-				final String routineName = EDGTraverser.getAncestor(edg, callingFunction, Node.Type.Routine).getName();
+				final String routineName = edg.getAncestor(callingFunction, Node.Type.Routine).getName();
 				if (routineName.equals("<constructor>"))
 				{
 					final GlobalVariableConstraint addConstraint = new GlobalVariableConstraint(
 							SeekingConstraint.Operation.Add, "*");
-					this.edg.addEdge(EDGTraverser.getChild(edg, callingFunction, Node.Type.ParameterOut), callResult,
+					this.edg.addEdge(edg.getChild(callingFunction, Node.Type.ParameterOut), callResult,
 							new Edge(Edge.Type.Output, addConstraint));
 				}
 				this.edg.addEdge(result, callResult, new Edge(Edge.Type.Output, new PhaseConstraint(Phase.Output)));

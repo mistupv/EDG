@@ -11,8 +11,6 @@ import upv.slicing.edg.graph.EDG;
 import upv.slicing.edg.graph.Edge;
 import upv.slicing.edg.graph.LAST;
 import upv.slicing.edg.graph.Node;
-import upv.slicing.edg.traverser.EDGTraverser;
-import upv.slicing.edg.traverser.LASTTraverser;
 
 import java.util.List;
 import java.util.Set;
@@ -47,7 +45,7 @@ public class EDGFactory {
 
 	private void transformExpressionNodes()
 	{
-		final List<Node> expressionNodes = EDGTraverser.getNodes(edg, node -> node.getInfo() != null &&
+		final List<Node> expressionNodes = edg.getNodes(node -> node.getInfo() != null &&
 				node.getInfo().isExpression());
 		for (Node expression : expressionNodes)
 			createThreeNodeStructures(expression);
@@ -56,7 +54,7 @@ public class EDGFactory {
 		edg.vertexSet().stream()
 				.filter(EDGFactory::isCallNode)
 				.forEach(node -> {
-					final Node parent = LASTTraverser.getParent(edg, node);
+					final Node parent = edg.getParent(node);
 					edg.removeEDGEdge(parent, node, Edge.Type.Structural);
 					edg.setRemovableEdge(parent, node, Edge.Type.Structural);
 				});
@@ -100,10 +98,10 @@ public class EDGFactory {
 		// Result Node
 		final Node result = new Node("result", fictitiousId--, Node.Type.Result, "", ldNodeInfo);
 
-		final Node parent = EDGTraverser.getParent(last, node);
+		final Node parent = last.getParent(node);
 
-		edg.addNode(result);
-		edg.addNodeResInfo(node,result);
+		edg.addVertex(result);
+		edg.registerNodeResPair(node, result);
 
 		// Remove the Structural edges if the parent is an expression -> The hidden structural edges inside nodes remain in the graph
 		if (!parent.getType().isFictitious() && parent.getInfo().isExpression())
@@ -124,7 +122,7 @@ public class EDGFactory {
 		switch (node.getType())
 		{
 			case DataConstructor:
-				final boolean isPatternZone = EDGTraverser.isPatternZone(edg, node);
+				final boolean isPatternZone = edg.isPatternZone(node);
 				if (!isPatternZone)
 				{
 					treatDataConstructorExpressions(node, result);
@@ -132,8 +130,8 @@ public class EDGFactory {
 				}
 			case Variable: // Variables scope of a call, don't add the result node to the slice
 				// 3 levels (in case it is a casting)
-				final Node grandParent = EDGTraverser.getParent(edg, parent);
-				final Node grandGrandParent = EDGTraverser.getParent(edg, grandParent);
+				final Node grandParent = edg.getParent(parent);
+				final Node grandGrandParent = edg.getParent(grandParent);
 				if (parent.getType() == Node.Type.Scope ||
 						grandParent.getType() == Node.Type.Scope ||
 						grandGrandParent.getType() == Node.Type.Scope)
@@ -206,7 +204,7 @@ public class EDGFactory {
 					final Node finalToDestination = edg.getEdgeTarget(CFGEdge);
 					Node to = finalToDestination;
 					if (to.getType() == Node.Type.Result)
-						to = LASTTraverser.getNodeFromRes(edg, to);
+						to = edg.getNodeFromRes(to);
 
 					if (to.getType() == Node.Type.Routine)
 					{
@@ -264,14 +262,14 @@ public class EDGFactory {
 
 	private void modifyDataConstructorArcs(Node dataConstructor, Node result)
 	{
-		final List<Node> dataConstructorChildren = EDGTraverser.getChildren(edg, dataConstructor);
+		final List<Node> dataConstructorChildren = edg.getChildren(dataConstructor);
 		final int dataConstructorChildrenCount = dataConstructorChildren.size();
 
 		for (int childIndex = 0; childIndex < dataConstructorChildrenCount; childIndex++)
 		{
 			final Node dataConstructorChild = dataConstructorChildren.get(childIndex);
 			final Node from = dataConstructorChild.getType() == Node.Type.Expression ?
-					EDGTraverser.getChild(edg, dataConstructorChild, Node.Type.Result) : dataConstructorChild;
+					edg.getChild(dataConstructorChild, Node.Type.Result) : dataConstructorChild;
 			final DataConstructorConstraint constraint = new DataConstructorConstraint(
 					AccessConstraint.Operation.Remove, childIndex + "");
 			edg.addEdge(from, result, new Edge(Edge.Type.Value, constraint));

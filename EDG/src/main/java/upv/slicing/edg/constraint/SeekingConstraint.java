@@ -4,7 +4,6 @@ import upv.slicing.edg.graph.EDG;
 import upv.slicing.edg.graph.Edge;
 import upv.slicing.edg.graph.Node;
 import upv.slicing.edg.slicing.Phase;
-import upv.slicing.edg.traverser.EDGTraverser;
 
 import java.util.List;
 
@@ -83,10 +82,10 @@ public abstract class SeekingConstraint extends EdgeConstraint {
 		final Node to = edg.getEdgeTarget(edge);
 		if (this.operation == Operation.LetThrough)
 		{
-			final Node parent = EDGTraverser.getParent(edg, to);
+			final Node parent = edg.getParent(to);
 			if (parent.getType() != Node.Type.Clause)
 				return super.wrap();
-			final Node result = EDGTraverser.getChild(edg, parent, 3);
+			final Node result = edg.getChild(parent, 3);
 			if (to != result)
 				return super.wrap();
 		}

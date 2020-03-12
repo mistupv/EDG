@@ -4,7 +4,6 @@ import upv.slicing.edg.graph.Edge;
 import upv.slicing.edg.graph.LAST;
 import upv.slicing.edg.graph.Node;
 import upv.slicing.edg.graph.Variable;
-import upv.slicing.edg.traverser.LASTTraverser;
 
 import java.util.*;
 
@@ -52,7 +51,7 @@ public class LASTBuilder {
 	}
 	public static int addClause(LAST last, int functionId, LDASTNodeInfo info)
 	{
-		final Node parent = LASTTraverser.getNode(last, functionId);
+		final Node parent = last.getNode(functionId);
 		final Node.Type parentType = parent.getType();
 		if (parentType != Node.Type.Routine)
 			throw new RuntimeException("A " + parentType + " cannot contain a clause");
@@ -392,14 +391,14 @@ public class LASTBuilder {
 		final Node node = LASTBuilder.getNode(last, type, parent, isVariable, name, info);
 		node.setLabel(text);
 
-		last.addNode(node);
+		last.addVertex(node);
 		last.addEdge(parent, node, Edge.Type.Structural);
 
 		return node;
 	}
 	public static void addNode(LAST last, Node node, Node parent, Edge.Type type)
 	{
-		last.addNode(node);
+		last.addVertex(node);
 		last.addEdge(parent, node, type);
 	}
 	private static String getArchive(LAST last, Node node)
@@ -415,7 +414,7 @@ public class LASTBuilder {
 				if (file != null)
 					return file;
 			}
-			ancestor = LASTTraverser.getParent(last, ancestor);
+			ancestor = last.getParent(ancestor);
 		}
 
 		return null;
@@ -433,7 +432,7 @@ public class LASTBuilder {
 				if (className != null)
 					return className;
 			}
-			ancestor = LASTTraverser.getParent(last, ancestor);
+			ancestor = last.getParent(ancestor);
 		}
 
 		return null;
@@ -508,7 +507,7 @@ public class LASTBuilder {
 
 		while (true)
 		{
-			final List<Node> children = LASTTraverser.getChildren(last, currentNode);
+			final List<Node> children = last.getChildren(currentNode);
 
 			if (childIndexToVisit == children.size())
 			{ // It is a leaf or all its children have been already processed
@@ -516,7 +515,7 @@ public class LASTBuilder {
 				if (currentNode == root)
 					break;
 				// Go back to parent
-				currentNode = LASTTraverser.getParent(last, currentNode);
+				currentNode = last.getParent(currentNode);
 				childIndexToVisit = bifurcations.removeLast();
 			}
 			else
@@ -543,14 +542,14 @@ public class LASTBuilder {
 	}
 	private static void completeExpression(LAST last, Node node)
 	{
-		final Node child = LASTTraverser.getChild(last, node, 0);
+		final Node child = last.getChild(node, 0);
 		final Node.Type childType = child.getType();
 	}
 
 	// Add class inheritance information
 	public static void addInheritanceInfomation(LAST last) {
 		final Node root = last.getRootNode();
-		final List<Node> children = LASTTraverser.getChildren(last, root);
+		final List<Node> children = last.getChildren(root);
 		
 		final List<String> definedClasses = new LinkedList<>();
 		for (Node child : children)
@@ -584,7 +583,7 @@ public class LASTBuilder {
 	}
 	public static void addNonExtendedClassInfo(LAST last, Node node)
 	{
-		final List<Node> children = LASTTraverser.getChildren(last, node);
+		final List<Node> children = last.getChildren(node);
 		
 		final Map<String, List<Node>> methods = new HashMap<>();
 		final Map<String, Node> variables = new HashMap<>();
@@ -593,9 +592,9 @@ public class LASTBuilder {
 		{
 			if (child.getType() == Node.Type.Expression || child.getType() == Node.Type.Variable)
 			{
-				final Node expressionInstanceNode = child.getType() == Node.Type.Expression ? LASTTraverser.getChild(last, child,0) : child;
+				final Node expressionInstanceNode = child.getType() == Node.Type.Expression ? last.getChild(child,0) : child;
 				final Node variableNode = expressionInstanceNode.getType() == Node.Type.Variable ?
-							expressionInstanceNode : LASTTraverser.getChild(last, LASTTraverser.getChild(last, expressionInstanceNode,0),0);
+							expressionInstanceNode : last.getChild(last.getChild(expressionInstanceNode,0),0);
 				final String name = variableNode.getName();
 				
 				variables.put(name, variableNode);
@@ -603,7 +602,7 @@ public class LASTBuilder {
 			else
 			{ 
 				final String methodName = child.getName();
-				final List<Node> methodClauses = LASTTraverser.getChildren(last, child);
+				final List<Node> methodClauses = last.getChildren(child);
 				methodClauses.removeIf(n -> n.getType() != Node.Type.Clause);
 				List<Node> previousClauses = methods.get(methodName);
 				if (previousClauses != null)
@@ -620,15 +619,15 @@ public class LASTBuilder {
 		ClassInfo parentClassInfo = (ClassInfo) parent.getInfo().getInfo()[2];
 		ClassInfo nodeClassInfo = new ClassInfo(parentClassInfo);
 		
-		final List<Node> children = LASTTraverser.getChildren(last, node);
+		final List<Node> children = last.getChildren(node);
 		
 		for (Node child : children)
 		{
 			if (child.getType() == Node.Type.Expression || child.getType() == Node.Type.Variable)
 			{
-				final Node expressionInstanceNode = child.getType() == Node.Type.Expression ? LASTTraverser.getChild(last, child,0) : child;
+				final Node expressionInstanceNode = child.getType() == Node.Type.Expression ? last.getChild(child,0) : child;
 				final Node variableNode = expressionInstanceNode.getType() == Node.Type.Variable ?
-							expressionInstanceNode : LASTTraverser.getChild(last, LASTTraverser.getChild(last, expressionInstanceNode,0),0);
+							expressionInstanceNode : last.getChild(last.getChild(expressionInstanceNode,0),0);
 				final String name = variableNode.getName();
 				
 				nodeClassInfo.variables.put(name, variableNode);
@@ -636,12 +635,12 @@ public class LASTBuilder {
 			else
 			{ 
 				final String methodName = child.getName();
-				final List<Node> methodClauses = LASTTraverser.getChildren(last, child);
+				final List<Node> methodClauses = last.getChildren(child);
 				methodClauses.removeIf(n -> n.getType() == Node.Type.Result);
 				final List<Integer> resultArities = new LinkedList<>();
 				for (Node clause : methodClauses)
 				{	
-					final int arity = LASTTraverser.getChildren(last, LASTTraverser.getChild(last, clause, 0)).size();
+					final int arity = last.getChildren(last.getChild(clause, 0)).size();
 					if (!resultArities.contains(arity))
 						resultArities.add(arity);
 				}
@@ -654,7 +653,7 @@ public class LASTBuilder {
 					final List<Node> parentMethodClauses = nodeClassInfo.methods.get(methodName);
 					for (Node parentMethodClause : parentMethodClauses)
 					{
-						final int existentArity = LASTTraverser.getChildren(last, LASTTraverser.getChild(last, parentMethodClause, 0)).size();
+						final int existentArity = last.getChildren(last.getChild(parentMethodClause, 0)).size();
 						if (!resultArities.contains(existentArity))
 							methodClauses.add(parentMethodClause);
 					}
@@ -674,15 +673,15 @@ public class LASTBuilder {
 		switch (where)
 		{
 			case ParameterIn:
-				return LASTTraverser.getChild(last, clause, 0);
+				return last.getChild(clause, 0);
 			case Parameters:
-				return LASTTraverser.getChild(last, clause, 1);
+				return last.getChild(clause, 1);
 			case ParameterOut:
-				return LASTTraverser.getChild(last, clause, 2);
+				return last.getChild(clause, 2);
 			case Guard:
-				return LASTTraverser.getChild(last, clause, 3);
+				return last.getChild(clause, 3);
 			case Body:
-				return LASTTraverser.getChild(last, clause, 4);
+				return last.getChild(clause, 4);
 			default:
 				throw new RuntimeException("A clause cannot contain " + where);
 		}
@@ -692,11 +691,11 @@ public class LASTBuilder {
 		switch (where)
 		{
 			case Condition:
-				return LASTTraverser.getChild(last, _if, 0);
+				return last.getChild(_if, 0);
 			case Then:
-				return LASTTraverser.getChild(last, _if, 1);
+				return last.getChild(_if, 1);
 			case Else:
-				return LASTTraverser.getChild(last, _if, 2);
+				return last.getChild(_if, 2);
 			default:
 				throw new RuntimeException("An if cannot contain " + where);
 		}
@@ -706,9 +705,9 @@ public class LASTBuilder {
 		switch (where)
 		{
 			case Selector:
-				return LASTTraverser.getChild(last, _switch, 0);
+				return last.getChild(_switch, 0);
 			case Cases:
-				return LASTTraverser.getChild(last, _switch, 1);
+				return last.getChild(_switch, 1);
 			default:
 				throw new RuntimeException("A switch cannot contain " + where);
 		}
@@ -718,11 +717,11 @@ public class LASTBuilder {
 		switch (where)
 		{
 			case Selectable:
-				return LASTTraverser.getChild(last, _case, 0);
+				return last.getChild(_case, 0);
 			case Guard:
-				return LASTTraverser.getChild(last, _case, 1);
+				return last.getChild(_case, 1);
 			case Body:
-				return LASTTraverser.getChild(last, _case, 2);
+				return last.getChild(_case, 2);
 			default:
 				throw new RuntimeException("A case cannot contain " + where);
 		}
@@ -732,7 +731,7 @@ public class LASTBuilder {
 		switch (where)
 		{
 			case Body:
-				return LASTTraverser.getChild(last, defaultCase, 0);
+				return last.getChild(defaultCase, 0);
 			default:
 				throw new RuntimeException("A default case cannot contain " + where);
 		}
@@ -742,17 +741,17 @@ public class LASTBuilder {
 		switch (where)
 		{
 			case Scope:
-				final Node callee = LASTTraverser.getChild(last, call, 0);
-				return LASTTraverser.getChild(last, callee, 0);
+				final Node callee = last.getChild(call, 0);
+				return last.getChild(callee, 0);
 			case Name:
-				final Node callee0 = LASTTraverser.getChild(last, call, 0);
-				return LASTTraverser.getChild(last, callee0, 1);
+				final Node callee0 = last.getChild(call, 0);
+				return last.getChild(callee0, 1);
 			case ArgumentIn:
-				return LASTTraverser.getChild(last, call, 1);
+				return last.getChild(call, 1);
 			case Arguments:
-				return LASTTraverser.getChild(last, call, 2);
+				return last.getChild(call, 2);
 			case ArgumentOut:
-				return LASTTraverser.getChild(last, call, 3);
+				return last.getChild(call, 3);
 			default:
 				throw new RuntimeException("A call cannot contain " + where);
 		}
@@ -762,9 +761,9 @@ public class LASTBuilder {
 		switch (where)
 		{
 			case Restrictions:
-				return LASTTraverser.getChild(last, listComprehension, 0);
+				return last.getChild(listComprehension, 0);
 			case Value:
-				return LASTTraverser.getChild(last, listComprehension, 1);
+				return last.getChild(listComprehension, 1);
 			default:
 				throw new RuntimeException("A list comprehension cannot contain " + where);
 		}
@@ -772,7 +771,7 @@ public class LASTBuilder {
 
 	private static Node getLoopChildNode(LAST last, Node loop, Where where)
 	{
-		return LASTTraverser.getChild(last, loop, getLoopChildNodeType(where));
+		return last.getChild(loop, getLoopChildNodeType(where));
 	}
 
 	private static Node.Type getLoopChildNodeType(Where where)
@@ -790,7 +789,7 @@ public class LASTBuilder {
 
 	private static Node getForeachChildNode(LAST last, Node foreach, Where where)
 	{
-		return LASTTraverser.getChild(last, foreach, getForeachChildNodeType(where));
+		return last.getChild(foreach, getForeachChildNodeType(where));
 	}
 
 	private static Node.Type getForeachChildNodeType(Where where)
@@ -806,7 +805,7 @@ public class LASTBuilder {
 
 	private static Node getExhandlerChildNode(LAST last, Node exHandler, Where where)
 	{
-		return LASTTraverser.getChild(last, exHandler, getExhandlerChildNodeType(where));
+		return last.getChild(exHandler, getExhandlerChildNodeType(where));
 	}
 
 	private static Node.Type getExhandlerChildNodeType(Where where)
@@ -863,7 +862,7 @@ public class LASTBuilder {
 	}
 	private static Node getParentNode(LAST last, int parentId, Where where)
 	{
-		final Node parentNode = LASTTraverser.getNode(last, parentId);
+		final Node parentNode = last.getNode(parentId);
 		final Node.Type type = parentNode.getType();
 
 		switch (type)
@@ -943,7 +942,7 @@ public class LASTBuilder {
 			case ArgumentOut:
 				return new Node(LASTBuilder.nextId++, type, name, info);
 			case Result:
-				final Node firstSibling = LASTTraverser.getChild(last, parent, 0);
+				final Node firstSibling = last.getChild(parent, 0);
 				final Node.Type siblingType = firstSibling.getType();
 				switch(siblingType)
                 {
@@ -960,7 +959,7 @@ public class LASTBuilder {
                 }
 			case DefaultCase:
 
-                final List<Node> children = LASTTraverser.getChildren(last, parent);
+                final List<Node> children = last.getChildren(parent);
                 if (children.size() == 1)
                     return new Node(LASTBuilder.nextId++, type, name, info);
 
@@ -975,7 +974,7 @@ public class LASTBuilder {
                 switch (parentType)
                 {
                     case Parameters:
-                        final Node grandParent = LASTTraverser.getParent(last, parent);
+                        final Node grandParent = last.getParent(parent);
                         if (grandParent.getType() == Node.Type.CatchClause)
                             return new Node(LASTBuilder.nextId++, type, name, info);
                     case Arguments:

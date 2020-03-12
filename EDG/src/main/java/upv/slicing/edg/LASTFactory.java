@@ -3,7 +3,6 @@ package upv.slicing.edg;
 import upv.slicing.edg.LASTBuilder.Where;
 import upv.slicing.edg.graph.LAST;
 import upv.slicing.edg.graph.Node;
-import upv.slicing.edg.traverser.LASTTraverser;
 
 import java.util.*;
 
@@ -833,7 +832,7 @@ public abstract class LASTFactory {
 			return;
 		for (Integer id : unresolvedLabels.get(labelText))
 		{
-			Node jumpNode = LASTTraverser.getNode(last, id);
+			Node jumpNode = last.getNode(id);
 			jumpNode.setName("continue " + jumpId);
 		}
 	}
