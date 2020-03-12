@@ -5,7 +5,7 @@ class doWhileTest{
 		int y;
 		do
 			y = 1;
-		while(x = 3 > 4);
+		while((x = 3) > 4);
 
 		System.out.println(x);	// SC: (10,x,1)
 		System.out.println(y);	// SC: (11,y,1)

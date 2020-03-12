@@ -409,6 +409,9 @@ public class JavaCodeFactory {
 	 */
 	private List<SwitchEntry> parseCase(Node _case)
 	{
+		if (EDGTraverser.getChildren(edg, _case).size() == 1)
+			return parseDefaultCase(_case);
+
 		if (slice != null && !slice.contains(_case))
 			return List.of();
 
@@ -426,6 +429,22 @@ public class JavaCodeFactory {
 
 		assert label.size() == 1; // Java: this assumption breaks under Java >= 12
 		return List.of(new SwitchEntry(new NodeList<>(label.get(0)), SwitchEntry.Type.STATEMENT_GROUP, bodyStatements));
+	}
+
+	private List<SwitchEntry> parseDefaultCase(Node defaultCase)
+	{
+		if (slice != null && !slice.contains(defaultCase))
+			return List.of();
+
+		// Statements
+		final Node body = EDGTraverser.getChild(edg, defaultCase, Node.Type.Body);
+		final List<Node> bodyChildren = EDGTraverser.getChildren(edg, body);
+		final List<Statement> statements = this.parseStatements(bodyChildren, false);
+
+		final NodeList<Statement> bodyStatements = new NodeList<>();
+		statements.addAll(statements);
+
+		return List.of(new SwitchEntry(new NodeList<>(), SwitchEntry.Type.STATEMENT_GROUP, bodyStatements));
 	}
 
 	/**
@@ -483,9 +502,8 @@ public class JavaCodeFactory {
 			return initExprs.stream().map(ExpressionStmt::new).collect(Collectors.toList());
 
 		// Condition slice part
-		final List<Node> conditionChildren = EDGTraverser.getChildren(edg, conditionNode);
-		conditionChildren.removeIf(node -> node.getType() == Node.Type.Result);
-		final List<Expression> conditionExpressions = this.parseExpression(conditionNode);
+		final Node conditionExprNode = EDGTraverser.getChild(edg, conditionNode, Node.Type.Value);
+		final List<Expression> conditionExpressions = this.parseExpression(conditionExprNode);
 
 		// Body slice part
 		final List<Node> bodyChildren = EDGTraverser.getChildren(edg, bodyNode);
@@ -717,6 +735,9 @@ public class JavaCodeFactory {
 			case FieldAccess:
 				parserFunc = this::parseFieldAccess;
 				break;
+			case Enclosed:
+				parserFunc = this::parseEnclosed;
+				break;
 			case If:
 				parserFunc = this::parseTernary;
 				break;
@@ -741,6 +762,7 @@ public class JavaCodeFactory {
 		}
 		return parserFunc.apply(expression);
 	}
+
 
 	/**
 	 * Parse to javaparser an Equality node of the EDG (only the parts contained in the slice).
@@ -1031,6 +1053,18 @@ public class JavaCodeFactory {
 		}
 	}
 
+	private List<Expression> parseEnclosed(Node enclosed)
+	{
+		final Node exprNode = EDGTraverser.getChild(edg, enclosed, Node.Type.Value);
+		List<Expression> expressions = parseExpression(exprNode);
+
+		if (slice != null && !slice.contains(enclosed))
+			return expressions;
+
+		assert expressions.size() == 1;
+		return List.of(new EnclosedExpr(expressions.get(0)));
+	}
+
 	/**
 	 * Parse to javaparser a reference node of the EDG (this or super).
 	 * @param reference Reference node to be parsed.
@@ -1062,7 +1096,7 @@ public class JavaCodeFactory {
 	 */
 	private List<Expression> parseInstanceOf(Node instanceOf)
 	{
-		final Node expressionNode = EDGTraverser.getChild(edg, instanceOf, Value);
+		final Node expressionNode = EDGTraverser.getChild(edg, instanceOf, Node.Type.Variable);
 		final List<Expression> instanceExpr = this.parseExpression(expressionNode);
 
 		if (instanceExpr.isEmpty())
@@ -1193,15 +1227,17 @@ public class JavaCodeFactory {
 			return List.of();
 
 		final Node thenNode = EDGTraverser.getChild(edg, _if, Node.Type.Then);
-		final Node thenExprNode = EDGTraverser.getChild(edg, thenNode, 0);
+		final List<Node> thenExprNodes = EDGTraverser.getChildren(edg, thenNode);
+		thenExprNodes.removeIf(n -> n.getType() == Node.Type.Result);
 
 		final Node elseNode = EDGTraverser.getChild(edg, _if, Node.Type.Else);
-		final Node elseExprNode = EDGTraverser.getChild(edg, elseNode, 0);
+		final List<Node> elseExprNodes = EDGTraverser.getChildren(edg, elseNode);
+		elseExprNodes.removeIf(n -> n.getType() == Node.Type.Result);
 
 		final List<Expression>  conditionExpressions = this.parseExpression(conditionExprNode);
 		// TODO: These two calls MUST only return ZERO or ONE expressions
-		final List<Expression> thenExpressions = this.parseExpression(thenExprNode);
-		final List<Expression> elseExpressions = this.parseExpression(elseExprNode);
+		final List<Expression> thenExpressions = this.parseExpressions(thenExprNodes, false);
+		final List<Expression> elseExpressions = this.parseExpressions(elseExprNodes, false);
 
 		if (thenExpressions.isEmpty() && elseExpressions.isEmpty())
 			return conditionExpressions;
@@ -1458,6 +1494,7 @@ public class JavaCodeFactory {
 			case FLoop:
 			case Switch:
 			case Selector:
+			case Enclosed:
 				return true;
 			default:
 				return false;

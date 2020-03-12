@@ -110,7 +110,7 @@ public class EDGFactory {
 		{
 			// THIS IS AN EXCEPTION IN ORDER TO INCLUDE ROUTINES IN THE SLICE
 			// WHEN CFG IS FINISHED THEY WILL BE INCLUDED BY CONTROL
-			if (parent.getType() != Node.Type.Routine)
+			if (parent.getType() != Node.Type.Routine && parent.getType() != Node.Type.Enclosed)
 			{
 				edg.removeEDGEdge(parent, node, Edge.Type.Structural);
 				edg.setRemovableEdge(parent, node, Edge.Type.Structural);

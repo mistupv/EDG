@@ -80,9 +80,7 @@ public class JavaLASTFactory extends LASTFactory {
 
 	protected void processElement(Object element, Map<String, Object> info)
 	{
-		if (this.needsReturn(info))
-			this.processReturn(element, info);
-		else if (element instanceof ClassOrInterfaceDeclaration)
+		if (element instanceof ClassOrInterfaceDeclaration)
 			this.process((ClassOrInterfaceDeclaration) element);
 		else if (element instanceof FieldDeclaration)
 			this.process((FieldDeclaration) element, info);
@@ -195,48 +193,6 @@ public class JavaLASTFactory extends LASTFactory {
 			this.process((ClassExpr) element);
 		else
 			throw new RuntimeException("Element not contemplated: " + element);
-	}
-
-	// Return
-	private boolean needsReturn(Map<String, Object> info)
-	{
-		final LASTFactory.Branch parent = (LASTFactory.Branch) info.get("parent");
-		if (parent == null)
-			return false;
-
-		final upv.slicing.edg.graph.Node.Type parentType = parent.getNodeType();
-		final String construction = parent.getLdASTNodeInfo().getConstruction();
-		final Where where = parent.getWhere();
-		final int index = parent.getIndex();
-		final int length = parent.getLength();
-
-		if (index != length)
-			return false;
-		switch (parentType)
-		{
-			case If:
-				return construction.equals("ternary") && (where == Where.Then || where == Where.Else);
-			default:
-				return false;
-		}
-	}
-
-	private void processReturn(Object expression, Map<String, Object> info)
-	{
-		@SuppressWarnings("unchecked")
-		final Deque<LASTFactory.Branch> ancestors = (Deque<LASTFactory.Branch>) info.get("ancestors");
-
-		for (LASTFactory.Branch ancestor : ancestors)
-		{
-			final upv.slicing.edg.graph.Node.Type type = ancestor.getNodeType();
-			if (type != upv.slicing.edg.graph.Node.Type.If)
-				continue;
-
-			final int id = ancestor.getNodeId();
-			final LDASTNodeInfo ldNodeInfo = new LDASTNodeInfo(0, "return");
-			super.addReturn(expression, id, ldNodeInfo);
-			break;
-		}
 	}
 
 	// Structure
@@ -591,9 +547,11 @@ public class JavaLASTFactory extends LASTFactory {
 	// Expressions
 	private void process(EnclosedExpr enclosedExpr, Map<String, Object> info)
 	{
-		final Expression inner = enclosedExpr.getInner();
-		info.put("enclosed", true);
-		this.processElement(inner, info);
+		final long line = enclosedExpr.getRange().get().begin.line;
+		final LDASTNodeInfo ldNodeInfo = new LDASTNodeInfo(line, true, "enclosed");
+		final Expression expr = enclosedExpr.getInner();
+
+		super.addEnclosed(expr, ldNodeInfo);
 	}
 
 	private void process(VariableDeclarationExpr variableDeclaration)
@@ -673,10 +631,7 @@ public class JavaLASTFactory extends LASTFactory {
 
 			this.createNewContext();
 			this.addVariableToContext(new VariableRecord(varName, modifiers, (Type) type));
-			if (isEnclosedExpr)
-				super.addTypeTransformation(type, expression, ldNodeInfo, isEnclosedExpr);
-			else
-				super.addTypeTransformation(type, expression, ldNodeInfo);
+			super.addTypeTransformation(type, expression, ldNodeInfo, isEnclosedExpr);
 			this.destroyContext();
 		} else
 			super.addTypeTransformation(type, expression, ldNodeInfo, isEnclosedExpr);

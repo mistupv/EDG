@@ -344,6 +344,16 @@ public class LASTBuilder {
 		
 		return foreach.getId();
 	}
+
+	public static int addEnclosed(LAST last, int parentId, Where where, LDASTNodeInfo info)
+	{
+		final Node parent = LASTBuilder.getParentNode(last, parentId, where);
+		final Node enclosed = LASTBuilder.addNode(last, parent, Node.Type.Enclosed, "()", info);
+
+		return enclosed.getId();
+	}
+
+
 	public static int addReturn(LAST last, int parentId, Where where, int dstId, LDASTNodeInfo info)
 	{
 		final Node parent = LASTBuilder.getParentNode(last, parentId, where);
@@ -627,6 +637,7 @@ public class LASTBuilder {
 			{ 
 				final String methodName = child.getName();
 				final List<Node> methodClauses = LASTTraverser.getChildren(last, child);
+				methodClauses.removeIf(n -> n.getType() == Node.Type.Result);
 				final List<Integer> resultArities = new LinkedList<>();
 				for (Node clause : methodClauses)
 				{	
@@ -899,6 +910,7 @@ public class LASTBuilder {
 			case Generator:
 			case Filter:
 			case Return:
+			case Enclosed:
 			case Label:
 			case FieldAccess:
 				if (where == null)

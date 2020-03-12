@@ -20,19 +20,19 @@ public class callTest{
 	{
 		return a;
 	}
-}
 
-class A
-{
-	int x;
-
-	public A(int a)
+	private static class A
 	{
-		x = a;
-	}
+		int x;
 
-	public int getX()
-	{
-		return x;
+		public A(int a)
+		{
+			x = a;
+		}
+
+		public int getX()
+		{
+			return x;
+		}
 	}
 }

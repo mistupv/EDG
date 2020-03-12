@@ -3,13 +3,13 @@ class forTest{
 	{
 		int total = 0;
 
-		for (int i = 0; i < 2, i++)						// SC: (6,i,1) (6,i,2)
+		for (int i = 0; i < 2; i++)						// SC: (6,i,1) (6,i,2)
 			total += i;
 
 		System.out.println(total);
 
 		int i;
-		for (i = 0, total = 0; i < 3; i++, total++)		
+		for (i = 0, total = 0; i < 3; i++, total++)
 			total += i;
 
 		System.out.println(i);							// SC: (15,i,1)

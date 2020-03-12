@@ -77,6 +77,11 @@ public class VoidVisitor<A> {
 		visitChildren(n, arg);
 	}
 
+	public void visitEnclosed(Node n, A arg)
+	{
+		visitChildren(n, arg);
+	}
+
 	public void visitIf(Node n, A arg)
 	{
 		visitChildren(n, arg);

@@ -251,19 +251,6 @@ public abstract class LASTFactory {
 		this.branches.pop();
 	}
 
-	protected <R, T> void addTypeTransformation(T type, R expression, LDASTNodeInfo info)
-	{
-		final Branch parent = this.branches.peek();
-		final int parentId = parent.getNodeId();
-		final Where where = parent.getWhere();
-		final int typeTransformId = LASTBuilder.addTypeTransformation(this.last, parentId, where, info);
-
-		this.branches.push(new Branch(typeTransformId, Node.Type.TypeTransformation, info));
-		this.processElement(type, 1, 1);
-		this.processElement(expression, 2, 1);
-		this.branches.pop();
-	}
-
 	protected void addType(String value, LDASTNodeInfo info)
 	{
 		final Branch parent = this.branches.peek();
@@ -654,6 +641,18 @@ public abstract class LASTFactory {
 		this.processElements(bodyExpressions);
 		this.branches.pop();
 
+	}
+
+	protected <R> void addEnclosed(R expression, LDASTNodeInfo info)
+	{
+		final Branch parent = this.branches.peek();
+		final int parentId = parent.getNodeId();
+		final Where where = parent.getWhere();
+		final int enclosedId = LASTBuilder.addEnclosed(this.last, parentId, where, info);
+
+		this.branches.push(new Branch(enclosedId, Node.Type.Enclosed, info));
+		this.processElement(expression, 1, 1);
+		this.branches.pop();
 	}
 
 	protected <R> void addReturn(R expression, int dstId, LDASTNodeInfo info)

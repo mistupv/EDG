@@ -53,15 +53,14 @@ public class InterproceduralEdgeGenerator extends EdgeGenerator {
 			{
 				final Node argument = argumentNodes.get(argumentIndex);
 				final Node parameter = parameterNodes.get(argumentIndex);
-				final Node argumentResult = EDGTraverser.getResult(edg, argument);
-				final Node parameterResult = EDGTraverser.getResult(edg, parameter);
+				final Node argumentResult = EDGTraverser.getResFromNode(edg, argument);
+				final Node parameterResult = EDGTraverser.getResFromNode(edg, parameter);
 
 				if (argumentResult != null && parameterResult != null)
 					this.edg.addEdge(argumentResult, parameterResult,
 							new Edge(Edge.Type.Input, new PhaseConstraint(Phase.Input)));
 			}
 			final Node parameterIn = EDGTraverser.getChild(edg, matchingClause, Node.Type.ParameterIn);
-			//this.edg.addEdge(arguments, parameters, 0, new EdgeInfo(EdgeInfo.Type.Call, new PhaseConstraint(Phase.Input)));
 			this.edg.addEdge(argumentsIn, parameterIn, new Edge(Edge.Type.Call, new PhaseConstraint(Phase.Input)));
 		}
 	}

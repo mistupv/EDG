@@ -19,7 +19,7 @@ public class Node implements Visitable {
 
 		// Expressions
 		List, DataConstructor, DataConstructorAccess, FieldAccess,
-		Block, Operation, Equality, Pattern,
+		Block, Operation, Equality, Pattern, Enclosed,
 		If, Condition(true), Then, Else,
 		Switch, Selector(true), Cases(true), Case, DefaultCase, Selectable(true),
 		Call, Callee, Scope(true), Name(true), Arguments(true),
@@ -169,6 +169,7 @@ public class Node implements Visitable {
 			case Operation:		return visitor.visitOperation(this, argument);
 			case Equality:		return visitor.visitEquality(this, argument);
 			case Pattern:		return visitor.visitPattern(this, argument);
+			case Enclosed:		return visitor.visitEnclosed(this, argument);
 			case If:			return visitor.visitIf(this, argument);
 			case Condition:		return visitor.visitCondition(this, argument);
 			case Then:			return visitor.visitThen(this, argument);
@@ -268,6 +269,9 @@ public class Node implements Visitable {
 				break;
 			case Pattern:
 				visitor.visitPattern(this, argument);
+				break;
+			case Enclosed:
+				visitor.visitEnclosed(this, argument);
 				break;
 			case If:
 				visitor.visitIf(this, argument);

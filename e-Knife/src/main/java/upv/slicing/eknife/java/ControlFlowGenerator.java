@@ -80,6 +80,13 @@ public final class ControlFlowGenerator extends VoidVisitor<Void> implements Gen
 	}
 
 	@Override
+	public void visitEnclosed(Node n, Void arg)
+	{
+		super.visitEnclosed(n, arg);
+		connectTo(n);
+	}
+
+	@Override
 	public void visitEquality(Node n, Void arg)
 	{
 		EDGTraverser.getChild(new EDG(graph), n, Node.Type.Value).accept(this, arg);
@@ -168,8 +175,8 @@ public final class ControlFlowGenerator extends VoidVisitor<Void> implements Gen
 	@Override
 	public void visitGenerator(Node n, Void arg)
 	{
-		LASTTraverser.getChild(graph, n, Node.Type.Iterator).accept(this, arg);
-		LASTTraverser.getChild(graph, n, Node.Type.Variable).accept(this, arg);
+		EDGTraverser.getChild(new EDG(graph), n, Node.Type.Iterator).accept(this, arg);
+		EDGTraverser.getChild(new EDG(graph), n, Node.Type.Variable).accept(this, arg);
 	}
 
 	@Override

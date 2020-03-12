@@ -25,6 +25,7 @@ public abstract class GenericVisitor<R,A> {
 	public abstract R visitOperation(Node n, A arg);
 	public abstract R visitEquality(Node n, A arg);
 	public abstract R visitPattern(Node n, A arg);
+	public abstract R visitEnclosed(Node n, A arg);
 	public abstract R visitIf(Node n, A arg);
 	public abstract R visitCondition(Node n, A arg);
 	public abstract R visitThen(Node n, A arg);

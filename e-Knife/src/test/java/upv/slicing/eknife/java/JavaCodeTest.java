@@ -74,12 +74,12 @@ public class JavaCodeTest {
 		argList.add(Arguments.of("castingTest.java", new SlicingCriterion("castingTest.java", 5, "a")));
 		argList.add(Arguments.of("castingTest.java", new SlicingCriterion("castingTest.java", 5, "d")));
 
-		argList.add(Arguments.of("instanceOfTest.java", new SlicingCriterion("castingTest.java", 5, "bool")));
-		argList.add(Arguments.of("instanceOfTest.java", new SlicingCriterion("castingTest.java", 5, "b")));
+		argList.add(Arguments.of("instanceOfTest.java", new SlicingCriterion("instanceOfTest.java", 5, "bool")));
+		argList.add(Arguments.of("instanceOfTest.java", new SlicingCriterion("instanceOfTest.java", 5, "b")));
 
-		argList.add(Arguments.of("ternaryTest.java", new SlicingCriterion("ternaryTest.java", 5, "c")));
-		argList.add(Arguments.of("ternaryTest.java", new SlicingCriterion("ternaryTest.java", 7, "d")));
-		argList.add(Arguments.of("ternaryTest.java", new SlicingCriterion("ternaryTest.java", 8, "e")));
+		argList.add(Arguments.of("ternaryTest.java", new SlicingCriterion("ternaryTest.java", 6, "c")));
+		argList.add(Arguments.of("ternaryTest.java", new SlicingCriterion("ternaryTest.java", 8, "d")));
+		argList.add(Arguments.of("ternaryTest.java", new SlicingCriterion("ternaryTest.java", 9, "e")));
 
 		argList.add(Arguments.of("switchTest.java", new SlicingCriterion("switchTest.java", 18, "a")));
 		argList.add(Arguments.of("switchTest.java", new SlicingCriterion("switchTest.java", 19, "d")));

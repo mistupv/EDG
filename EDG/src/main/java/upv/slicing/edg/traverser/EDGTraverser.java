@@ -73,11 +73,18 @@ public class EDGTraverser extends LASTTraverser
                 {
                     case Selectable:
                         return EDGTraverser.getChild(edg, node, 0);
-                    case Body:
+                    case Guard:
                         return EDGTraverser.getChild(edg, node, 1);
+                    case Body:
+                        return EDGTraverser.getChild(edg, node, 2);
                 }
                 break;
-
+            case DefaultCase:
+                switch (type)
+                {
+                    case Body:
+                        return EDGTraverser.getChild(edg, node, 0);
+                }
             case FLoop:
                 switch (type)
                 {
@@ -153,6 +160,8 @@ public class EDGTraverser extends LASTTraverser
             case Selector:
             case Selectable:
             case Literal:
+            case Return:
+            case Enclosed:
                 switch (type)
                 {
                     case Value:
