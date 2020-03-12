@@ -198,7 +198,7 @@ public class JavaCodeFactory {
 		final LDASTNodeInfo ldNodeInfo = routine.getInfo();
 		final String name = routine.getName();
 		@SuppressWarnings("unchecked")
-		final Set<Modifier> modifiers = (Set<Modifier>) ldNodeInfo.getInfo()[0];
+		final NodeList<Modifier> modifiers = (NodeList<Modifier>) ldNodeInfo.getInfo()[0];
 		final Type type = (Type) ldNodeInfo.getInfo()[1];
 		final Set<Modifier.Keyword> keywords = modifiers.stream().map(Modifier::getKeyword).collect(Collectors.toSet());
 		final MethodDeclaration methodDeclaration = clazz.addMethod(name, keywords.toArray(Modifier.Keyword[]::new));
@@ -211,7 +211,7 @@ public class JavaCodeFactory {
 	{
 		final LDASTNodeInfo ldNodeInfo = routine.getInfo();
 		@SuppressWarnings("unchecked")
-		final Set<Modifier> modifiers = (Set<Modifier>) ldNodeInfo.getInfo()[0];
+		final NodeList<Modifier> modifiers = (NodeList<Modifier>) ldNodeInfo.getInfo()[0];
 		final Set<Modifier.Keyword> keywords = modifiers.stream().map(Modifier::getKeyword).collect(Collectors.toSet());
 		return clazz.addConstructor(keywords.toArray(Modifier.Keyword[]::new));
 	}
@@ -794,7 +794,7 @@ public class JavaCodeFactory {
 		final LDASTNodeInfo ldNodeInfo = variableNode.getInfo();
 		final Type type = (Type) ldNodeInfo.getInfo()[1];
 		final String name = variableNode.getName();
-		final Set<Modifier> modifiers = (Set<Modifier>) ldNodeInfo.getInfo()[0];
+		final NodeList<Modifier> modifiers = (NodeList<Modifier>) ldNodeInfo.getInfo()[0];
 
 		assert initializerExprs.size() == 1;
 		VariableDeclarator variableDeclarator = new VariableDeclarator(type, name, initializerExprs.get(0));
@@ -815,7 +815,7 @@ public class JavaCodeFactory {
 		final Type type = (Type) ldNodeInfo.getInfo()[1];
 		final String name = declarationVariable.getName();
 		@SuppressWarnings("unchecked")
-		final Set<Modifier> modifiers = (Set<Modifier>) ldNodeInfo.getInfo()[0];
+		final NodeList<Modifier> modifiers = (NodeList<Modifier>) ldNodeInfo.getInfo()[0];
 
 		final NodeList<VariableDeclarator> variableDeclarator = new NodeList<>();
 		variableDeclarator.add(new VariableDeclarator(type, name));
@@ -834,7 +834,7 @@ public class JavaCodeFactory {
 		final LDASTNodeInfo ldNodeInfo = declaration.getInfo();
 		final Type type = (Type) ldNodeInfo.getInfo()[1];
 		final String name = declaration.getName();
-		final Set<Modifier> modifiers = (Set<Modifier>) ldNodeInfo.getInfo()[0];
+		final NodeList<Modifier> modifiers = (NodeList<Modifier>) ldNodeInfo.getInfo()[0];
 
 		final NodeList<VariableDeclarator> variableDeclarator = new NodeList<>();
 		if (type instanceof PrimitiveType)
