@@ -26,7 +26,6 @@ import java.io.PrintWriter;
 import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 import static upv.slicing.edg.graph.Node.Type.Value;
 
@@ -198,10 +197,11 @@ public class JavaCodeFactory {
 	{
 		final LDASTNodeInfo ldNodeInfo = routine.getInfo();
 		final String name = routine.getName();
-		@SuppressWarnings("rawtypes")
-		final Modifier[] modifiers = (Modifier[]) ((EnumSet) ldNodeInfo.getInfo()[0]).toArray(new Modifier[0]);
+		@SuppressWarnings("unchecked")
+		final Set<Modifier> modifiers = (Set<Modifier>) ldNodeInfo.getInfo()[0];
 		final Type type = (Type) ldNodeInfo.getInfo()[1];
-		final MethodDeclaration methodDeclaration = clazz.addMethod(name, modifiers);
+		final Set<Modifier.Keyword> keywords = modifiers.stream().map(Modifier::getKeyword).collect(Collectors.toSet());
+		final MethodDeclaration methodDeclaration = clazz.addMethod(name, keywords.toArray(Modifier.Keyword[]::new));
 
 		methodDeclaration.setType(type);
 
@@ -210,11 +210,10 @@ public class JavaCodeFactory {
 	private CallableDeclaration<?> parseConstructor(ClassOrInterfaceDeclaration clazz, Node routine)
 	{
 		final LDASTNodeInfo ldNodeInfo = routine.getInfo();
-		@SuppressWarnings("rawtypes")
-		final Modifier[] modifiers = (Modifier[]) ((EnumSet) ldNodeInfo.getInfo()[0]).toArray(new Modifier[0]);
-		final ConstructorDeclaration constructorDeclaration = clazz.addConstructor(modifiers);
-
-		return constructorDeclaration;
+		@SuppressWarnings("unchecked")
+		final Set<Modifier> modifiers = (Set<Modifier>) ldNodeInfo.getInfo()[0];
+		final Set<Modifier.Keyword> keywords = modifiers.stream().map(Modifier::getKeyword).collect(Collectors.toSet());
+		return clazz.addConstructor(keywords.toArray(Modifier.Keyword[]::new));
 	}
 	private Parameter parseParameter(Node parameter)
 	{
@@ -298,9 +297,6 @@ public class JavaCodeFactory {
 				break;
 			case Switch:
 				parserFunc = this::parseSwitch;
-				break;
-			case Case:
-				parserFunc = this::parseCase;
 				break;
 			case CLoop:
 			case RLoop:
@@ -392,15 +388,14 @@ public class JavaCodeFactory {
 		// Cases
 		final Node cases = EDGTraverser.getChild(edg, _switch, Node.Type.Cases);
 		final List<Node> casesChildren = EDGTraverser.getChildren(edg, cases);
-		final List<Statement> statements = this.parseStatements(casesChildren, false);
+		final List<SwitchEntry> resultNodes = new LinkedList<>();
+		for (Node child : casesChildren)
+			resultNodes.addAll(this.parseCase(child));
 
-		if (slice != null && statements.isEmpty())
+		if (slice != null && resultNodes.isEmpty())
 			return selectorExprs.stream().map(ExpressionStmt::new).collect(Collectors.toList());
 
-		final NodeList<SwitchEntryStmt> entries = new NodeList<>();
-		for (Statement statement : statements)
-			if (statement instanceof SwitchEntryStmt)
-			entries.add((SwitchEntryStmt) statement);
+		final NodeList<SwitchEntry> entries = new NodeList<>(resultNodes);
 
 		assert selectorExprs.size() == 1;
 		return List.of(new SwitchStmt(selectorExprs.get(0), entries));
@@ -412,7 +407,7 @@ public class JavaCodeFactory {
 	 * @return A list of javaparser statements containing the case statement or
 	 * 		   a list of statements with only the selectable, which are part of the slice.
 	 */
-	private List<Statement> parseCase(Node _case)
+	private List<SwitchEntry> parseCase(Node _case)
 	{
 		if (slice != null && !slice.contains(_case))
 			return List.of();
@@ -427,11 +422,10 @@ public class JavaCodeFactory {
 		final List<Node> bodyChildren = EDGTraverser.getChildren(edg, body);
 		final List<Statement> statements = this.parseStatements(bodyChildren, false);
 
-		final NodeList<Statement> bodyStatements = new NodeList<>();
-		statements.addAll(statements);
+		final NodeList<Statement> bodyStatements = new NodeList<>(statements);
 
-		assert label.size() == 1;
-		return List.of(new SwitchEntryStmt(label.get(0), bodyStatements));
+		assert label.size() == 1; // Java: this assumption breaks under Java >= 12
+		return List.of(new SwitchEntry(new NodeList<>(label.get(0)), SwitchEntry.Type.STATEMENT_GROUP, bodyStatements));
 	}
 
 	/**
@@ -470,7 +464,6 @@ public class JavaCodeFactory {
 	 * @return A list of javaparser statements containing a for statement or
 	 * 		   a list of statements of the condition, init or both nodes of the loop that are part of the slice.
 	 */
-
 	private List<Statement> parseForLoop(Node loop)
 	{
 		final Node initNode = EDGTraverser.getChild(edg, loop, Node.Type.Init);
@@ -559,7 +552,7 @@ public class JavaCodeFactory {
 			bodyBlock.addStatement(new EmptyStmt());
 
 		assert variableDeclarationExpr.size() == 1 && iterableExpr.size() == 1;
-		return List.of(new ForeachStmt((VariableDeclarationExpr) variableDeclarationExpr.get(0), iterableExpr.get(0), bodyBlock));
+		return List.of(new ForEachStmt((VariableDeclarationExpr) variableDeclarationExpr.get(0), iterableExpr.get(0), bodyBlock));
 	}
 
 	/** PENDING **/
@@ -801,15 +794,15 @@ public class JavaCodeFactory {
 		final LDASTNodeInfo ldNodeInfo = variableNode.getInfo();
 		final Type type = (Type) ldNodeInfo.getInfo()[1];
 		final String name = variableNode.getName();
-		final EnumSet<Modifier> modifiers = (EnumSet<Modifier>) ldNodeInfo.getInfo()[0];
+		final Set<Modifier> modifiers = (Set<Modifier>) ldNodeInfo.getInfo()[0];
 
 		assert initializerExprs.size() == 1;
 		VariableDeclarator variableDeclarator = new VariableDeclarator(type, name, initializerExprs.get(0));
 
-		final NodeList<VariableDeclarator> variableDeclarators = new NodeList<VariableDeclarator>();
+		final NodeList<VariableDeclarator> variableDeclarators = new NodeList<>();
 		variableDeclarators.add(variableDeclarator);
 
-		return List.of(new VariableDeclarationExpr(modifiers, variableDeclarators));
+		return List.of(new VariableDeclarationExpr(new NodeList<>(modifiers), variableDeclarators));
 	}
 	/**
 	 * Parse to javaparser a Variable declaration node of the EDG (only the parts contained in the slice).
@@ -821,11 +814,12 @@ public class JavaCodeFactory {
 		final LDASTNodeInfo ldNodeInfo = declarationVariable.getInfo();
 		final Type type = (Type) ldNodeInfo.getInfo()[1];
 		final String name = declarationVariable.getName();
-		final EnumSet<Modifier> modifiers = (EnumSet<Modifier>) ldNodeInfo.getInfo()[0];
+		@SuppressWarnings("unchecked")
+		final Set<Modifier> modifiers = (Set<Modifier>) ldNodeInfo.getInfo()[0];
 
 		final NodeList<VariableDeclarator> variableDeclarator = new NodeList<>();
 		variableDeclarator.add(new VariableDeclarator(type, name));
-		return List.of(new VariableDeclarationExpr(modifiers, variableDeclarator));
+		return List.of(new VariableDeclarationExpr(new NodeList<>(modifiers), variableDeclarator));
 	}
 	/**
 	 * Parse to javaparser a Variable declaration node of the EDG (only the parts contained in the slice).
@@ -840,7 +834,7 @@ public class JavaCodeFactory {
 		final LDASTNodeInfo ldNodeInfo = declaration.getInfo();
 		final Type type = (Type) ldNodeInfo.getInfo()[1];
 		final String name = declaration.getName();
-		final EnumSet<Modifier> modifiers = (EnumSet<Modifier>) ldNodeInfo.getInfo()[0];
+		final Set<Modifier> modifiers = (Set<Modifier>) ldNodeInfo.getInfo()[0];
 
 		final NodeList<VariableDeclarator> variableDeclarator = new NodeList<>();
 		if (type instanceof PrimitiveType)
@@ -850,7 +844,7 @@ public class JavaCodeFactory {
 			final Expression initializer = new ObjectCreationExpr(null, (ClassOrInterfaceType) type, new NodeList<>());
 			variableDeclarator.add(new VariableDeclarator(type, name,initializer));
 		}
-		return List.of(new VariableDeclarationExpr(modifiers, variableDeclarator));
+		return List.of(new VariableDeclarationExpr(new NodeList<>(modifiers), variableDeclarator));
 	}
 
 
@@ -1314,11 +1308,12 @@ public class JavaCodeFactory {
 
 	private MethodDeclaration createFunundef()
 	{
+		final NodeList<Modifier> modifiers = new NodeList<>(Modifier.privateModifier(), Modifier.staticModifier());
 		final MethodDeclaration funundef;
 		final NodeList<Parameter> parameters = new NodeList<>();
 
 		parameters.add(new Parameter(new ClassOrInterfaceType("Object..."), "params"));
-		funundef = new MethodDeclaration(EnumSet.of(Modifier.PRIVATE, Modifier.STATIC), "funundef", new VoidType(), parameters);
+		funundef = new MethodDeclaration(modifiers, "funundef", new VoidType(), parameters);
 
 		return funundef;
 	}
