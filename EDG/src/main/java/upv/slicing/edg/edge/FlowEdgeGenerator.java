@@ -4,11 +4,10 @@ import upv.slicing.edg.LASTBuilder.ClassInfo;
 import upv.slicing.edg.constraint.*;
 import upv.slicing.edg.graph.EDG;
 import upv.slicing.edg.graph.Edge;
+import upv.slicing.edg.graph.LAST;
 import upv.slicing.edg.graph.Node;
 import upv.slicing.edg.graph.Variable.Context;
 import upv.slicing.edg.traverser.ControlFlowTraverser;
-import upv.slicing.edg.traverser.EDGTraverser;
-import upv.slicing.edg.traverser.LASTTraverser;
 
 import java.util.*;
 import java.util.Map.Entry;
@@ -174,11 +173,11 @@ public class FlowEdgeGenerator extends EdgeGenerator
 			{
 				final Context context = variable.getContext();
 				
-				final Node grandParent = EDGTraverser.getParent(edg, EDGTraverser.getParent(edg, node));
+				final Node grandParent = edg.getParent(edg.getParent(node));
 				final VariableId variableId;
 				if (grandParent.getType() == Node.Type.DataConstructorAccess)
 				{
-					final Node index = EDGTraverser.getChild(edg, EDGTraverser.getChild(edg, grandParent, 1),0);
+					final Node index = edg.getChild(edg.getChild(grandParent, 1),0);
 					variableId = new VariableId(node.getName(), index);
 				}
 				else 
@@ -218,15 +217,15 @@ public class FlowEdgeGenerator extends EdgeGenerator
 	// Collect info
 	private void collectInfo()
 	{
-		final List<Node> workList = EDGTraverser.getNodes(this.edg, Node.Type.Clause);
+		final List<Node> workList = this.edg.getNodes(Node.Type.Clause);
 		final Set<Node> worksDone = new HashSet<>();
 
 		while (!workList.isEmpty())
 		{
 			final Node clause = workList.remove(0);
-			final Node parametersNode = EDGTraverser.getChild(edg, clause, Node.Type.ParameterIn);
-			final Node clauseResult = EDGTraverser.getResFromNode(edg, clause);
-			final List<Node> callResults = EDGTraverser.getOutputs(edg, clauseResult, EDGTraverser.Direction.Forwards);
+			final Node parametersNode = edg.getChild(clause, Node.Type.ParameterIn);
+			final Node clauseResult = edg.getResFromNode(clause);
+			final List<Node> callResults = edg.getOutputs(clauseResult, LAST.Direction.Forwards);
 
 			final Function<ControlFlowTraverser.NodeWork<State>, Set<ControlFlowTraverser.NodeWork<State>>> newStates = nodeWork -> {
 				final Node newNode = nodeWork.getNode();
@@ -259,7 +258,7 @@ public class FlowEdgeGenerator extends EdgeGenerator
 
 			for (Node callResult : callResults)
 			{
-				final Node outputClause = EDGTraverser.getAncestor(edg, callResult, Node.Type.Clause);
+				final Node outputClause = edg.getAncestor(callResult, Node.Type.Clause);
 				if (outputClause != null)
 				{
 					final Set<State> newInfo = new HashSet<>();
@@ -311,7 +310,7 @@ public class FlowEdgeGenerator extends EdgeGenerator
 
 			final boolean isDefinitionParameters = definitionNode.getType() == Node.Type.ParameterIn;
 			final boolean isDefinitionCall = !isDefinitionParameters &&
-					EDGTraverser.getSibling(edg, definitionNode, 0).getType() == Node.Type.Call;
+					edg.getSibling(definitionNode, 0).getType() == Node.Type.Call;
 			final boolean isDefinitionVariable = !isDefinitionParameters && !isDefinitionCall;
 
 			final Node definitionResultNode;
@@ -320,11 +319,11 @@ public class FlowEdgeGenerator extends EdgeGenerator
 				definitionResultNode = getArgumentOutNode(definitionNode);
 
 // TODO ESTE TRATAMIENTO NO DEBE HACERSE AQUI, YA QUE ESTA CLASE ES COMUN A TODOS LOS SLICERS E INDEPENDIENTE DEL LENGUAJE
-				final Node callNode = EDGTraverser.getSibling(edg, definitionNode, 0);
-				final Node calleeNode = EDGTraverser.getChild(edg, callNode,0);
-				final Node nameNode = EDGTraverser.getChild(edg, calleeNode, 1);
-				final Node nameChild = EDGTraverser.getChild(edg, nameNode, 0);
-				final String Name = nameChild.getType() == Node.Type.Expression ? EDGTraverser.getChild(edg, nameChild,0).getName() : "";
+				final Node callNode = edg.getSibling(definitionNode, 0);
+				final Node calleeNode = edg.getChild(callNode,0);
+				final Node nameNode = edg.getChild(calleeNode, 1);
+				final Node nameChild = edg.getChild(nameNode, 0);
+				final String Name = nameChild.getType() == Node.Type.Expression ? edg.getChild(nameChild,0).getName() : "";
 				
 				if (Name.equals("<constructor>")) 
 				{
@@ -333,12 +332,11 @@ public class FlowEdgeGenerator extends EdgeGenerator
 				}
 			} else
 			{
-				final Node definitionResultNode0 = EDGTraverser.getResult(edg, definitionNode);
+				final Node definitionResultNode0 = edg.getResult(definitionNode);
 				final Node definitionResultNode1 =
 						definitionResultNode0 == null ? definitionNode : definitionResultNode0;
 				definitionResultNode =
-						definitionResultNode1.getType() == Node.Type.Expression ? EDGTraverser
-								.getResult(edg, definitionResultNode1) : definitionResultNode1;
+						definitionResultNode1.getType() == Node.Type.Expression ? edg.getResult(definitionResultNode1) : definitionResultNode1;
 			}
 
 			final GlobalVariableConstraint addConstraint = new GlobalVariableConstraint(SeekingConstraint.Operation.Add,
@@ -349,7 +347,7 @@ public class FlowEdgeGenerator extends EdgeGenerator
 					SeekingConstraint.Operation.Remove, variableId.toString());
 
 			final String className0 = isDefinitionCall ?
-					this.getScopeClass(EDGTraverser.getParent(edg, definitionResultNode)) :
+					this.getScopeClass(edg.getParent(definitionResultNode)) :
 					definitionNode.getInfo().getClassName();
 			final String className = className0.equals("super") ? definitionNode.getInfo().getClassName() : className0;
 			final Node declarationNode = this.getDeclaration(variableId, className, definitionNode);
@@ -365,7 +363,7 @@ public class FlowEdgeGenerator extends EdgeGenerator
 							new Edge(Edge.Type.Flow, letThroughConstraint));
 				else if (isDefinitionVariable)
 				{
-					final Node definitionName = EDGTraverser.getSibling(edg, definitionResultNode, 0);
+					final Node definitionName = edg.getSibling(definitionResultNode, 0);
 					this.edg.addEdge(declarationNode, definitionName,
 							new Edge(Edge.Type.Flow, ignoreConstraint));
 				}
@@ -393,18 +391,18 @@ if (declarationNode != null && declarationNode != definitionNode)
 			for (Node useNode : usesNodes)
 			{
 				final boolean isUseLastNode = useNode == lastNode;
-				final boolean isUseCall = !isUseLastNode && EDGTraverser.getSibling(edg, useNode, 0).getType() == Node.Type.Call;
+				final boolean isUseCall = !isUseLastNode && edg.getSibling(useNode, 0).getType() == Node.Type.Call;
 				final boolean isUseVariable = !isUseLastNode && !isUseCall;
-				final Node useNode1 = !isUseCall ? EDGTraverser.getResult(edg, useNode) : getArgumentInNode(useNode);
+				final Node useNode1 = !isUseCall ? edg.getResult(useNode) : getArgumentInNode(useNode);
 				
 				// INSIDE FUNCTIONS, GLOBALS & LOCALS
 				if(isDefinitionVariable && isUseVariable)
 				{
-					final Node parent = EDGTraverser.getParent(edg, useNode1);
+					final Node parent = edg.getParent(useNode1);
 					if (parent.getType() == Node.Type.DataConstructorAccess)
 					{
 						final Node variableIndex = variableId.getVariableIndex();
-						final Node index = EDGTraverser.getChild(edg, parent, Node.Type.Index);
+						final Node index = edg.getChild(parent, Node.Type.Index);
 						if (index.getType() == Node.Type.Literal && variableIndex == null)
 						{
 							final String indexValue = index.getName();
@@ -424,7 +422,7 @@ if (declarationNode != null && declarationNode != definitionNode)
 				{
 					if (isUseCall)
 					{    // useNode1 is node argumentIn
-						this.edg.addEdge(useNode1, EDGTraverser.getResult(edg, useNode),
+						this.edg.addEdge(useNode1, edg.getResult(useNode),
 								new Edge(Edge.Type.Flow, addConstraint));
 						if (isDefinitionVariable)
 							this.edg.addEdge(definitionResultNode, useNode1,
@@ -437,11 +435,11 @@ if (declarationNode != null && declarationNode != definitionNode)
 									new Edge(Edge.Type.Flow, letThroughConstraint));
 					} else if (isDefinitionParameters && isUseVariable)
 					{
-						final Set<Edge> calleeResults = EDGTraverser.getEdges(edg, EDGTraverser.getParent(edg, definitionNode), LASTTraverser.Direction.Backwards, Edge.Type.Input);
+						final Set<Edge> calleeResults = edg.getEdges(edg.getParent(definitionNode), LAST.Direction.Backwards, Edge.Type.Input);
 						for (Edge calleeResult : calleeResults)
 						{
-							final Node clauseArgsInNode = EDGTraverser.getSibling(edg,
-									EDGTraverser.getParent(edg, edg.getEdgeSource(calleeResult)),
+							final Node clauseArgsInNode = edg.getSibling(
+									edg.getParent(edg.getEdgeSource(calleeResult)),
 									Node.Type.ArgumentIn);
 							this.edg.addEdge(clauseArgsInNode, definitionResultNode,
 									new Edge(Edge.Type.Input, letThroughConstraint));
@@ -452,11 +450,11 @@ if (declarationNode != null && declarationNode != definitionNode)
 						this.edg.addEdge(definitionResultNode, useNode1, new Edge(Edge.Type.Flow, addConstraint));
 					else if (isDefinitionVariable && isUseLastNode)
 					{
-						final Node clauseNode = EDGTraverser.getNodeFromRes(edg, useNode);
-						final Node parameterOutNode = EDGTraverser.getChild(edg, clauseNode, Node.Type.ParameterOut);
+						final Node clauseNode = edg.getNodeFromRes(useNode);
+						final Node parameterOutNode = edg.getChild(clauseNode, Node.Type.ParameterOut);
 						this.edg.addEdge(definitionResultNode, parameterOutNode,
 								new Edge(Edge.Type.Flow, removeConstraint));
-						final Node routineNode = EDGTraverser.getAncestor(edg, definitionNode, Node.Type.Routine);
+						final Node routineNode = edg.getAncestor(definitionNode, Node.Type.Routine);
 						final String routineName = routineNode.getName();
 						if (routineName.equals("<constructor>"))
 							this.edg.addEdge(definitionResultNode, useNode,
@@ -464,8 +462,8 @@ if (declarationNode != null && declarationNode != definitionNode)
 					}
 					else if (isDefinitionCall && isUseLastNode)
 					{
-						final Node clauseNode = EDGTraverser.getNodeFromRes(edg, useNode);
-						final Node parametersNode = EDGTraverser.getChild(edg, clauseNode, Node.Type.ParameterOut);
+						final Node clauseNode = edg.getNodeFromRes(useNode);
+						final Node parametersNode = edg.getChild(clauseNode, Node.Type.ParameterOut);
 						this.edg.addEdge(definitionResultNode, parametersNode,
 								new Edge(Edge.Type.Flow, letThroughConstraint));
 					}
@@ -474,17 +472,14 @@ if (declarationNode != null && declarationNode != definitionNode)
 					if (isDefinitionCall)
 					{
 						// definitionResultNode here is Definition call argsOut Node
-						final Node calleeDefCallResult = EDGTraverser
-								.getResult(edg, EDGTraverser.getSibling(edg, definitionResultNode, 0));
+						final Node calleeDefCallResult = edg.getResult(edg.getSibling(definitionResultNode, 0));
 						this.edg.addEdge(calleeDefCallResult, definitionResultNode,
 								new Edge(Edge.Type.Flow, removeConstraint));
 
-						final Set<Edge> calledFunctionClauseEdges = EDGTraverser
-								.getEdges(edg, calleeDefCallResult, LASTTraverser.Direction.Forwards, Edge.Type.Input);
+						final Set<Edge> calledFunctionClauseEdges = edg.getEdges(calleeDefCallResult, LAST.Direction.Forwards, Edge.Type.Input);
 						for (Edge clauseEdge : calledFunctionClauseEdges)
 						{
-							final Node clauseParameterOut = EDGTraverser
-									.getChild(edg, edg.getEdgeTarget(clauseEdge), Node.Type.ParameterOut);
+							final Node clauseParameterOut = edg.getChild(edg.getEdgeTarget(clauseEdge), Node.Type.ParameterOut);
 							this.edg.addEdge(clauseParameterOut, definitionResultNode,
 									new Edge(Edge.Type.Output, letThroughConstraint));
 						}
@@ -494,7 +489,7 @@ if (declarationNode != null && declarationNode != definitionNode)
 // TODO Discutir si habria que coger esta definición cuando haya llamadas a esta funcion
 					if (isDefinitionParameters)
 					{
-						final Node declarationResultNode = EDGTraverser.getResult(edg, declarationNode);
+						final Node declarationResultNode = edg.getResult(declarationNode);
 						if (declarationResultNode != null)
 							this.edg.addEdge(declarationResultNode, definitionNode,
 									new Edge(Edge.Type.Input, removeConstraint));
@@ -557,7 +552,7 @@ if (declarationNode != null && declarationNode != definitionNode)
 		final String variableName = variableId.getVariableName();
 		//final Node moduleNode = EDGTraverserNew.getAncestor(definitionNode, Node.Info.Type.Module);
 
-		final Node moduleNode = EDGTraverser.getModuleByName(edg, clazz);
+		final Node moduleNode = edg.getModuleByName(clazz);
 		final ClassInfo info = (ClassInfo) moduleNode.getInfo().getInfo()[2];
 		final Node variableDeclaration = info.getVariables().get(variableName);
 
@@ -580,12 +575,12 @@ if (declarationNode != null && declarationNode != definitionNode)
 		
 		for (Node definitionNode : definitionNodes)
 		{
-			final Node parent = EDGTraverser.getParent(edg, definitionNode);
+			final Node parent = edg.getParent(definitionNode);
 			if (parent.getType() == Node.Type.DataConstructorAccess ||
 				parent.getType() == Node.Type.FieldAccess)
 			{
-				final Node dataAccessResultNode = EDGTraverser.getResFromNode(edg, parent);
-				final Node index = EDGTraverser.getChild(edg, parent, Node.Type.Index);
+				final Node dataAccessResultNode = edg.getResFromNode(parent);
+				final Node index = edg.getChild(parent, Node.Type.Index);
 				final VariableId variableId = new VariableId(definitionNode.getName(), index);
 				definitions.add(new Variable(variableId, dataAccessResultNode));
 			} else
@@ -686,25 +681,25 @@ if (declarationNode != null && declarationNode != definitionNode)
 	
 	private Node getLastNode(Node node)
 	{
-		final Node clauseNode = EDGTraverser.getAncestor(edg, node, Node.Type.Clause);
+		final Node clauseNode = edg.getAncestor(node, Node.Type.Clause);
 		if (clauseNode != null)
-			return EDGTraverser.getResFromNode(edg, clauseNode);
-		return EDGTraverser.getResult(edg, node);
+			return edg.getResFromNode(clauseNode);
+		return edg.getResult(node);
 	}
 	private Node getArgumentsNode(Node node)
 	{
-		final Node callNode = EDGTraverser.getSibling(edg, node, 0);
-		return EDGTraverser.getChild(edg, callNode, Node.Type.Arguments);
+		final Node callNode = edg.getSibling(node, 0);
+		return edg.getChild(callNode, Node.Type.Arguments);
 	}
 	private Node getArgumentInNode(Node node)
 	{
-		final Node callNode = EDGTraverser.getSibling(edg, node, 0);
-		return EDGTraverser.getChild(edg, callNode, Node.Type.ArgumentIn);
+		final Node callNode = edg.getSibling(node, 0);
+		return edg.getChild(callNode, Node.Type.ArgumentIn);
 	}
 	private Node getArgumentOutNode(Node node)
 	{
-		final Node callNode = EDGTraverser.getSibling(edg, node, 0);
-		return EDGTraverser.getChild(edg, callNode, Node.Type.ArgumentOut);
+		final Node callNode = edg.getSibling(node, 0);
+		return edg.getChild(callNode, Node.Type.ArgumentOut);
 	}
 	
 //	private Node getArgumentInNode(Node node)
@@ -721,16 +716,16 @@ if (declarationNode != null && declarationNode != definitionNode)
 	
 	private String getScopeClass(Node callResult) // EN CASO DE QUE LA VARIABLE GLOBAL QUE SE MODIFICA PERTENEZCA A OTRA CLASE, HAY QUE SABER A QUE CLASE PERTENECE
 	{
-		final Node callNode = EDGTraverser.getSibling(edg, callResult, 0);
-		final Node scopeNode = EDGTraverser.getChild(edg, EDGTraverser.getChild(edg, callNode, 0),0);
-		final List<Node> scopeChildren = EDGTraverser.getChildren(edg, scopeNode);
+		final Node callNode = edg.getSibling(callResult, 0);
+		final Node scopeNode = edg.getChild(edg.getChild(callNode, 0),0);
+		final List<Node> scopeChildren = edg.getChildren(scopeNode);
 		if (scopeChildren.isEmpty())
 			return callResult.getInfo().getClassName();
 		else
 		{
 			final Node moduleRef0 = scopeChildren.get(0);
-			final Node moduleRef1 = moduleRef0.getType() != Node.Type.Expression ? moduleRef0 : EDGTraverser.getChild(edg, moduleRef0, 0);
-			final Node moduleRef = moduleRef1.getType() == Node.Type.TypeTransformation ? EDGTraverser.getChild(edg, EDGTraverser.getChild(edg, moduleRef1, 0),0) :
+			final Node moduleRef1 = moduleRef0.getType() != Node.Type.Expression ? moduleRef0 : edg.getChild(moduleRef0, 0);
+			final Node moduleRef = moduleRef1.getType() == Node.Type.TypeTransformation ? edg.getChild(edg.getChild(moduleRef1, 0),0) :
 				moduleRef1;
 			final Node.Type moduleRefType = moduleRef.getType();
 			

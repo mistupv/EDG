@@ -5,8 +5,6 @@ import upv.slicing.edg.graph.EDG;
 import upv.slicing.edg.graph.Edge;
 import upv.slicing.edg.graph.LAST;
 import upv.slicing.edg.graph.Node;
-import upv.slicing.edg.traverser.EDGTraverser;
-import upv.slicing.edg.traverser.LASTTraverser;
 import upv.slicing.edg.visitor.VoidVisitor;
 
 import java.util.*;
@@ -72,8 +70,8 @@ public final class ControlFlowGenerator extends VoidVisitor<Void> implements Gen
 	{
 		connectTo(n);
 		assert returnSet.isEmpty();
-		LASTTraverser.getChild(graph, n, Node.Type.Guard).accept(this, arg);
-		LASTTraverser.getChild(graph, n, Node.Type.Body).accept(this, arg);
+		graph.getChild(n, Node.Type.Guard).accept(this, arg);
+		graph.getChild(n, Node.Type.Body).accept(this, arg);
 		hangingNodes.addAll(returnSet);
 		returnSet.clear();
 		connectTo(n);
@@ -89,8 +87,8 @@ public final class ControlFlowGenerator extends VoidVisitor<Void> implements Gen
 	@Override
 	public void visitEquality(Node n, Void arg)
 	{
-		EDGTraverser.getChild(new EDG(graph), n, Node.Type.Value).accept(this, arg);
-		EDGTraverser.getChild(new EDG(graph), n, Node.Type.Pattern).accept(this, arg);
+		new EDG(graph).getChild(n, Node.Type.Value).accept(this, arg);
+		new EDG(graph).getChild(n, Node.Type.Pattern).accept(this, arg);
 		connectTo(n);
 	}
 
@@ -126,11 +124,11 @@ public final class ControlFlowGenerator extends VoidVisitor<Void> implements Gen
 	public void visitSwitch(Node n, Void arg)
 	{
 		breakStack.push(new HashSet<>());
-		LASTTraverser.getChild(graph, n, Node.Type.Selector).accept(this, arg);
+		graph.getChild(n, Node.Type.Selector).accept(this, arg);
 		switchSelectorStack.push(Set.copyOf(hangingNodes));
 		switchHasDefaultStack.push(false);
 		clearHanging();
-		LASTTraverser.getChild(graph, n, Node.Type.Cases).accept(this, arg);
+		graph.getChild(n, Node.Type.Cases).accept(this, arg);
 		hangingNodes.addAll(breakStack.pop());
 		if (!switchHasDefaultStack.pop())
 			hangingNodes.addAll(switchSelectorStack.getFirst());
@@ -143,16 +141,16 @@ public final class ControlFlowGenerator extends VoidVisitor<Void> implements Gen
 		Set<Node> prevCaseHanging = Set.copyOf(hangingNodes);
 		clearHanging();
 		hangingNodes.addAll(switchSelectorStack.getFirst());
-		LASTTraverser.getChild(graph, n, Node.Type.Selectable).accept(this, arg);
+		graph.getChild(n, Node.Type.Selectable).accept(this, arg);
 		hangingNodes.addAll(prevCaseHanging);
-		LASTTraverser.getChild(graph, n, Node.Type.Body).accept(this, arg);
+		graph.getChild(n, Node.Type.Body).accept(this, arg);
 	}
 
 	@Override
 	public void visitDefaultCase(Node n, Void arg)
 	{
 		hangingNodes.addAll(switchSelectorStack.getFirst());
-		LASTTraverser.getChild(graph, n, Node.Type.Body).accept(this, arg);
+		graph.getChild(n, Node.Type.Body).accept(this, arg);
 		switchHasDefaultStack.pop();
 		switchHasDefaultStack.push(true);
 	}
@@ -160,8 +158,8 @@ public final class ControlFlowGenerator extends VoidVisitor<Void> implements Gen
 	@Override
 	public void visitCall(Node n, Void arg)
 	{
-		LASTTraverser.getChild(graph, n, Node.Type.Callee).accept(this, arg);
-		LASTTraverser.getChild(graph, n, Node.Type.Arguments).accept(this, arg);
+		graph.getChild(n, Node.Type.Callee).accept(this, arg);
+		graph.getChild(n, Node.Type.Arguments).accept(this, arg);
 		connectTo(n);
 	}
 
@@ -175,8 +173,8 @@ public final class ControlFlowGenerator extends VoidVisitor<Void> implements Gen
 	@Override
 	public void visitGenerator(Node n, Void arg)
 	{
-		EDGTraverser.getChild(new EDG(graph), n, Node.Type.Iterator).accept(this, arg);
-		EDGTraverser.getChild(new EDG(graph), n, Node.Type.Variable).accept(this, arg);
+		new EDG(graph).getChild(n, Node.Type.Iterator).accept(this, arg);
+		new EDG(graph).getChild(n, Node.Type.Variable).accept(this, arg);
 	}
 
 	@Override
@@ -185,11 +183,11 @@ public final class ControlFlowGenerator extends VoidVisitor<Void> implements Gen
 		// Efficiency: store the "first" visited element through the arg.
 		breakStack.push(new HashSet<>());
 		continueStack.push(new HashSet<>());
-		LASTTraverser.getChild(graph, n, Node.Type.Condition).accept(this, arg);
-		LASTTraverser.getChild(graph, n, Node.Type.Body).accept(this, arg);
+		graph.getChild(n, Node.Type.Condition).accept(this, arg);
+		graph.getChild(n, Node.Type.Body).accept(this, arg);
 		ttl = 1;
 		hangingNodes.addAll(continueStack.pop());
-		LASTTraverser.getChild(graph, n, Node.Type.Condition).accept(this, arg);
+		graph.getChild(n, Node.Type.Condition).accept(this, arg);
 		ttl = INFINITY;
 		hangingNodes.addAll(breakStack.pop());
 	}
@@ -199,13 +197,13 @@ public final class ControlFlowGenerator extends VoidVisitor<Void> implements Gen
 	{
 		breakStack.push(new HashSet<>());
 		continueStack.push(new HashSet<>());
-		LASTTraverser.getChild(graph, n, Node.Type.Init).accept(this, arg);
-		LASTTraverser.getChild(graph, n, Node.Type.Condition).accept(this, arg);
-		LASTTraverser.getChild(graph, n, Node.Type.Body).accept(this, arg);
-		LASTTraverser.getChild(graph, n, Node.Type.Update).accept(this, arg);
+		graph.getChild(n, Node.Type.Init).accept(this, arg);
+		graph.getChild(n, Node.Type.Condition).accept(this, arg);
+		graph.getChild(n, Node.Type.Body).accept(this, arg);
+		graph.getChild(n, Node.Type.Update).accept(this, arg);
 		ttl = 1;
 		hangingNodes.addAll(continueStack.pop());
-		LASTTraverser.getChild(graph, n, Node.Type.Condition).accept(this, arg);
+		graph.getChild(n, Node.Type.Condition).accept(this, arg);
 		ttl = INFINITY;
 		hangingNodes.addAll(breakStack.pop());
 	}
@@ -215,12 +213,12 @@ public final class ControlFlowGenerator extends VoidVisitor<Void> implements Gen
 	{
 		breakStack.push(new HashSet<>());
 		continueStack.push(new HashSet<>());
-		LASTTraverser.getChild(graph, n, Node.Type.Body).accept(this, arg);
+		graph.getChild(n, Node.Type.Body).accept(this, arg);
 		hangingNodes.addAll(continueStack.getFirst());
-		LASTTraverser.getChild(graph, n, Node.Type.Condition).accept(this, arg);
+		graph.getChild(n, Node.Type.Condition).accept(this, arg);
 		Set<Node> condHanging = Set.copyOf(hangingNodes);
 		ttl = 1;
-		LASTTraverser.getChild(graph, n, Node.Type.Body).accept(this, arg);
+		graph.getChild(n, Node.Type.Body).accept(this, arg);
 		ttl = INFINITY;
 		continueStack.pop();
 		clearHanging();
@@ -234,11 +232,11 @@ public final class ControlFlowGenerator extends VoidVisitor<Void> implements Gen
 		// Efficiency: store the "first" visited element through the arg.
 		breakStack.push(new HashSet<>());
 		continueStack.push(new HashSet<>());
-		LASTTraverser.getChild(graph, n, Node.Type.Iterator).accept(this, arg);
-		LASTTraverser.getChild(graph, n, Node.Type.Body).accept(this, arg);
+		graph.getChild(n, Node.Type.Iterator).accept(this, arg);
+		graph.getChild(n, Node.Type.Body).accept(this, arg);
 		ttl = 1;
 		hangingNodes.addAll(continueStack.pop());
-		LASTTraverser.getChild(graph, n, Node.Type.Iterator).accept(this, arg);
+		graph.getChild(n, Node.Type.Iterator).accept(this, arg);
 		ttl = INFINITY;
 		hangingNodes.addAll(breakStack.pop());
 	}
@@ -268,10 +266,10 @@ public final class ControlFlowGenerator extends VoidVisitor<Void> implements Gen
 	public void visitBreak(Node n, Void arg)
 	{
 		connectTo(n);
-		if (LASTTraverser.getChildren(graph, n).isEmpty())
+		if (graph.getChildren(n).isEmpty())
 			breakStack.peek().add(n);
 		else {
-			String label = LASTTraverser.getChild(graph, n, Node.Type.Label).getLabel();
+			String label = graph.getChild(n, Node.Type.Label).getLabel();
 			breakMap.get(label).add(n);
 		}
 		clearHanging(); // ACFG: delete this
@@ -281,10 +279,10 @@ public final class ControlFlowGenerator extends VoidVisitor<Void> implements Gen
 	public void visitContinue(Node n, Void arg)
 	{
 		connectTo(n);
-		if (LASTTraverser.getChildren(graph, n).isEmpty())
+		if (graph.getChildren(n).isEmpty())
 			continueStack.peek().add(n);
 		else {
-			String label = LASTTraverser.getChild(graph, n, Node.Type.Label).getLabel();
+			String label = graph.getChild(n, Node.Type.Label).getLabel();
 			continueMap.get(label).add(n);
 		}
 		clearHanging(); // ACFG: delete this
@@ -300,8 +298,8 @@ public final class ControlFlowGenerator extends VoidVisitor<Void> implements Gen
 	@Override
 	public void visitTypeTransformation(Node n, Void arg)
 	{
-		LASTTraverser.getChild(graph, n, Node.Type.Variable).accept(this, arg);
-		LASTTraverser.getChild(graph, n, Node.Type.Type).accept(this, arg);
+		graph.getChild(n, Node.Type.Variable).accept(this, arg);
+		graph.getChild(n, Node.Type.Type).accept(this, arg);
 		connectTo(n);
 	}
 
@@ -331,18 +329,18 @@ public final class ControlFlowGenerator extends VoidVisitor<Void> implements Gen
 	public void visitIf(Node n, Void arg)
 	{
 		// <before> --> *if*
-		LASTTraverser.getChild(graph, n, Node.Type.Condition).accept(this, arg);
+		graph.getChild(n, Node.Type.Condition).accept(this, arg);
 		Set<Node> condHanging = Set.copyOf(hangingNodes);
 
 		// if --> *then*
-		EDGTraverser.getChild(new EDG(graph), n, Node.Type.Then).accept(this, arg);
+		new EDG(graph).getChild(n, Node.Type.Then).accept(this, arg);
 		Set<Node> thenHanging = Set.copyOf(hangingNodes);
 
-		if (LASTTraverser.getChildren(graph, n).size() == 3) { // TODO: IMPROVE CONDITION
+		if (graph.getChildren(n).size() == 3) { // TODO: IMPROVE CONDITION
 			// if --> *else*
 			clearHanging();
 			hangingNodes.addAll(condHanging);
-			EDGTraverser.getChild(new EDG(graph), n, Node.Type.Else).accept(this, arg);
+			new EDG(graph).getChild(n, Node.Type.Else).accept(this, arg);
 			hangingNodes.addAll(thenHanging);
 		} else {
 			// if --> <after>

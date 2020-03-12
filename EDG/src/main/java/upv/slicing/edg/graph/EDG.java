@@ -3,7 +3,6 @@ package upv.slicing.edg.graph;
 import upv.slicing.edg.constraint.Constraints;
 import upv.slicing.edg.constraint.GrammarConstraint;
 import upv.slicing.edg.slicing.SlicingCriterion;
-import upv.slicing.edg.traverser.EDGTraverser;
 
 import java.util.Comparator;
 import java.util.List;
@@ -42,7 +41,7 @@ public class EDG extends LAST {
 			throw new IllegalArgumentException("Slicing criterion could not be mapped to graph: " + sc);
 		nodes.sort(Comparator.comparingInt(Node::getId));
 		final Node node = nodes.get(sc.getOccurrence() - 1);
-		return EDGTraverser.getResFromNode(this, node);
+		return getResFromNode(node);
 	}
 
 	// ================================================= //
