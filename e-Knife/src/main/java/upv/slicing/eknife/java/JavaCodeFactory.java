@@ -29,7 +29,7 @@ import java.util.stream.Collectors;
 import static upv.slicing.edg.graph.Node.Type.Value;
 
 public class JavaCodeFactory {
-	/********************************************************************************************************************************/
+	/*******************************************************************************************************************************/
 	/************************************************************ STATIC ************************************************************/
 	/********************************************************************************************************************************/
 	public static void createJavaFile(File outputFile, EDG edg)
@@ -59,7 +59,6 @@ public class JavaCodeFactory {
 	private final EDG edg;
 	private final Set<Node> slice;
 	private boolean funundef = false;
-	//	private boolean returnRequired = false;
 	private final Stack<Context> context = new Stack<>();
 
 	private JavaCodeFactory(EDG edg, Set<Node> slice)
@@ -107,6 +106,7 @@ public class JavaCodeFactory {
 
 		this.parseMembers(clazz, module);
 	}
+
 	private void parseMembers(ClassOrInterfaceDeclaration clazz, Node module)
 	{
 		final List<Node> members = edg.getChildren(module);
@@ -131,10 +131,8 @@ public class JavaCodeFactory {
 			clazz.addMember(this.createFunundef());
 	}
 
-	@SuppressWarnings("unchecked")
 	private List<FieldDeclaration> parseGlobalVariable(Node globalVariable)
 	{
-		final NodeList<VariableDeclarator> variableDeclarators = new NodeList<>();
 		final List<Expression> variableDeclaratorExprs;
 		if (globalVariable.getType() == Node.Type.Variable)
 			variableDeclaratorExprs = parseDeclarationVariable(globalVariable);
@@ -142,7 +140,7 @@ public class JavaCodeFactory {
 			// TODO: This can be a list of Expressions without any FieldDeclaration
 			variableDeclaratorExprs = parseDeclaration(globalVariable);
 
-		if (variableDeclarators.isEmpty())
+		if (variableDeclaratorExprs.isEmpty())
 			return List.of();
 
 		assert variableDeclaratorExprs.size() == 1;
@@ -166,7 +164,7 @@ public class JavaCodeFactory {
 				.parseConstructor(clazz, routine) : this.parseMethod(clazz, routine);
 
 		// Parameters
-		final NodeWithParameters<?> nodeWithParameters = (NodeWithParameters<?>) callableDeclaration;
+		final NodeWithParameters<?> nodeWithParameters = callableDeclaration;
 		final List<Node> parametersChildren = edg.getChildren(parametersNode);
 		for (Node parameter : parametersChildren)
 			// This would not be necessary if Result nodes were not linked to parent with marked edges in order to generate a readable .dot file
@@ -191,6 +189,7 @@ public class JavaCodeFactory {
 
 		context.pop();
 	}
+
 	private CallableDeclaration<?> parseMethod(ClassOrInterfaceDeclaration clazz, Node routine)
 	{
 		final LDASTNodeInfo ldNodeInfo = routine.getInfo();
@@ -205,6 +204,7 @@ public class JavaCodeFactory {
 
 		return methodDeclaration;
 	}
+
 	private CallableDeclaration<?> parseConstructor(ClassOrInterfaceDeclaration clazz, Node routine)
 	{
 		final LDASTNodeInfo ldNodeInfo = routine.getInfo();
@@ -213,6 +213,7 @@ public class JavaCodeFactory {
 		final Set<Modifier.Keyword> keywords = modifiers.stream().map(Modifier::getKeyword).collect(Collectors.toSet());
 		return clazz.addConstructor(keywords.toArray(Modifier.Keyword[]::new));
 	}
+
 	private Parameter parseParameter(Node parameter)
 	{
 		final LDASTNodeInfo ldNodeInfo = parameter.getInfo();
@@ -270,6 +271,7 @@ public class JavaCodeFactory {
 
 		return statementsList;
 	}
+
 	/**
 	 * Parse to javaparser a single statement of the EDG (only the parts contained in the slice).
 	 * @apiNote This method is also used to parse expressions. These expressions may result in a
@@ -281,9 +283,7 @@ public class JavaCodeFactory {
 	{
 
 		if (this.slice != null && !this.slice.contains(statement) && !mayContainInternalSliceCode(statement))
-			// Hay que poner returns en las calls a funciones
-			// if (statement.getType() != Node.Type.Return)
-				return List.of();
+			return List.of();
 
 		final Node.Type statementType = statement.getType();
 		final Function<Node, List<Statement>> parserFunc;
@@ -325,8 +325,7 @@ public class JavaCodeFactory {
 
 	private List<Statement> parseExpressionStmt(Node statement)
 	{
-		final List<Expression> parsedExprs = this.parseExpression(statement);
-		return parsedExprs.stream().map(ExpressionStmt::new).collect(Collectors.toList());
+		return parseExpression(statement).stream().map(ExpressionStmt::new).collect(Collectors.toList());
 	}
 
 	/**
@@ -761,7 +760,6 @@ public class JavaCodeFactory {
 		return parserFunc.apply(expression);
 	}
 
-
 	/**
 	 * Parse to javaparser an Equality node of the EDG (only the parts contained in the slice).
 	 * @param equality Equality node to be parsed.
@@ -824,6 +822,7 @@ public class JavaCodeFactory {
 
 		return List.of(new VariableDeclarationExpr(new NodeList<>(modifiers), variableDeclarators));
 	}
+
 	/**
 	 * Parse to javaparser a Variable declaration node of the EDG (only the parts contained in the slice).
 	 * @param declarationVariable Declaration node to be parsed.
@@ -841,6 +840,7 @@ public class JavaCodeFactory {
 		variableDeclarator.add(new VariableDeclarator(type, name));
 		return List.of(new VariableDeclarationExpr(new NodeList<>(modifiers), variableDeclarator));
 	}
+
 	/**
 	 * Parse to javaparser a Variable declaration node of the EDG (only the parts contained in the slice).
 	 * @param declaration Declaration node to be parsed.
@@ -854,6 +854,7 @@ public class JavaCodeFactory {
 		final LDASTNodeInfo ldNodeInfo = declaration.getInfo();
 		final Type type = (Type) ldNodeInfo.getInfo()[1];
 		final String name = declaration.getName();
+		@SuppressWarnings("unchecked")
 		final NodeList<Modifier> modifiers = (NodeList<Modifier>) ldNodeInfo.getInfo()[0];
 
 		final NodeList<VariableDeclarator> variableDeclarator = new NodeList<>();
@@ -866,7 +867,6 @@ public class JavaCodeFactory {
 		}
 		return List.of(new VariableDeclarationExpr(new NodeList<>(modifiers), variableDeclarator));
 	}
-
 
 	/**
 	 * Parse to javaparser a definition node of the EDG (only the parts contained in the slice).
@@ -1109,6 +1109,7 @@ public class JavaCodeFactory {
 
 		return List.of(new InstanceOfExpr(instanceExpr.get(0), (ArrayType) instanceType));
 	}
+
 	/**
 	 * Parse to javaparser a Cast Expression node of the EDG (only the parts contained in the slice).
 	 * @param cast Cast Expression node to be parsed.
@@ -1273,6 +1274,7 @@ public class JavaCodeFactory {
 		final String value = info.getName();
 		return List.of(new NameExpr(value));
 	}
+
 	/**
 	 * Parse to javaparser a literal node of the EDG (if contained in the slice).
 	 * @param literal Literal node to be parsed.
@@ -1310,34 +1312,6 @@ public class JavaCodeFactory {
 				return List.of(new NullLiteralExpr());
 		}
 	}
-
-//	/**
-//	 * Parse to javaparser a variable declaration node of the EDG (if contained in the slice).
-//	 * @param declaration Declaration node to be parsed.
-//	 * @return A javaparser VariableDeclarator item considering which parts of it are in the slice.
-//	 */
-//	private List<VariableDeclarator> getVariableDeclarator(Node declaration)
-//	{
-//		final Node variableNode = EDGTraverser.getChild(edg, declaration, Node.Type.Pattern);
-//		final Node initializerNode = EDGTraverser.getChild(edg, declaration, Value);
-//
-//		final LDASTNodeInfo ldNodeInfo = variableNode.getInfo();
-//		final Type type = (Type) ldNodeInfo.getInfo()[1];
-//		final String name = variableNode.getName();
-//
-//		if (this.slice != null && !this.slice.contains(initializerNode) && !mayContentInternalSliceCode(initializerNode))
-//		{
-//			if (type instanceof PrimitiveType)
-//				return new VariableDeclarator(type, name);
-//
-//			final Expression initializer = new ObjectCreationExpr(null, (ClassOrInterfaceType) type, new NodeList<>());
-//			return new VariableDeclarator(type, name, initializer);
-//		}
-//
-//		final Expression initializerExpr = this.parseExpression(initializerNode).get(0);
-//		return new VariableDeclarator(type, name, initializerExpr);
-//	}
-
 
 	private MethodDeclaration createFunundef()
 	{
@@ -1497,5 +1471,4 @@ public class JavaCodeFactory {
 				return false;
 		}
 	}
-
 }

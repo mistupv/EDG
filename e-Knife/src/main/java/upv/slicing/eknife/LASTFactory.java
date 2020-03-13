@@ -15,10 +15,6 @@ public class LASTFactory {
 		{
 			case Java:
 				return JavaLASTFactory.createLAST(sourcePath, generateArcs);
-//			case Erlang:
-//				return eknife.erlang.ErlangEDGFactory.createEDG(sourcePath, generateArcs);
-//			case Php:
-//				return eknife.php.PhpEDGFactory.createEDG(sourcePath, generateArcs);
 			default:
 				throw new RuntimeException("Language not contemplated: " + language);
 		}

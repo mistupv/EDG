@@ -19,7 +19,6 @@ import java.io.File;
 import java.util.*;
 
 public class JavaLASTFactory extends LASTFactory {
-
 	/********************************************************************************************************************************/
 	/************************************************************ STATIC ************************************************************/
 	/********************************************************************************************************************************/
@@ -238,18 +237,16 @@ public class JavaLASTFactory extends LASTFactory {
 		{
 			final long line = variable.getRange().get().begin.line;
 			final Type type = variable.getType();
-			final Expression initializer = variable.getInitializer().isPresent() ? variable.getInitializer()
-																						   .get() : null;
+			final Expression initializer = variable.getInitializer().isPresent() ? variable.getInitializer().get() : null;
 
 			if (initializer == null)
 			{
 				final String name = variable.getName().getIdentifier();
 				final LDASTNodeInfo ldNodeInfo = new LDASTNodeInfo(line, "field", modifiers, type);
 				// TODO Incorrecto, este tipo de fields ("private int v;") no son definiciones, solo declaraciones... TABUM
-				//super.addVariable(name, true, true, true, ldNodeInfo); 
 				this.addVariableToContext(new VariableRecord(name, modifiers, type)); // Añadir Global Vars al contexto
-				super.addVariable(name, true, false, false, true,
-								  ldNodeInfo); // Son Globales y no son ni definicion ni uso, solo declaracion
+				// Son Globales y no son ni definicion ni uso, solo declaracion
+				super.addVariable(name, true, false, false, true, ldNodeInfo);
 			} else
 			{
 				final LDASTNodeInfo ldNodeInfo0 = new LDASTNodeInfo(line, true, "name", modifiers, type);
@@ -589,8 +586,7 @@ public class JavaLASTFactory extends LASTFactory {
 	private void process(AssignExpr assignation)
 	{
 		final long line = assignation.getRange().get().begin.line;
-		//final LDASTNodeInfo ldNodeInfo0 = new LDASTNodeInfo(line, "var");
-		//final Variable target = new Variable(assignation.getTarget(), false, true, false, ldNodeInfo0); // TODO This is not always a variable
+		// TODO This is not always a variable
 		final Object target = this.treatExpression(assignation.getTarget(), false, true, false, line);
 		final Object value = this.treatExpression(assignation.getValue(), false, false, true, line);
 		final String operator = assignation.getOperator().asString();
@@ -669,7 +665,6 @@ public class JavaLASTFactory extends LASTFactory {
 		final long line = unaryExpression.getRange().get().begin.line;
 		final String operation = unaryExpression.getOperator().asString();
 		final boolean isPostfix = unaryExpression.isPostfix(); // DECIDIR SI ES ++i o i++ 
-		//final LDASTNodeInfo ldNodeInfo = new LDASTNodeInfo(line, "unary", postfix);
 		final LDASTNodeInfo ldNodeInfo = new LDASTNodeInfo(line, true, "unary", isPostfix);
 
 		final Object operand = this.treatExpression(unaryExpression.getExpression(), false, true, true, line);
@@ -793,7 +788,6 @@ public class JavaLASTFactory extends LASTFactory {
 		final String name = parameter.getNameAsString();
 		final LDASTNodeInfo ldNodeInfo = new LDASTNodeInfo(line, true, "var", type);
 
-//		this.addVariableToContext(name); TYPE VARIABLE 
 		this.addVariableToContext(new VariableRecord(name, type));
 
 		super.addVariable(name, true, true, false, false, ldNodeInfo);
@@ -802,7 +796,6 @@ public class JavaLASTFactory extends LASTFactory {
 	private void process(FieldAccessExpr fieldAccessExpression, Map<String, Object> info)
 	{
 		final long line = fieldAccessExpression.getRange().get().begin.line;
-		//final String value = fieldAccessExpression.toString();
 
 		final Expression scopeExpr = fieldAccessExpression.getScope();
 		final SimpleName nameExpr = fieldAccessExpression.getName();
@@ -818,29 +811,6 @@ public class JavaLASTFactory extends LASTFactory {
 
 		final LDASTNodeInfo ldNodeInfo = new LDASTNodeInfo(line, true, "field");
 		super.addFieldAccess(scopeVar, nameVar, ldNodeInfo);
-
-//		final VariableRecord newContextVariable = this.getVarByName(this.variableContexts.peek(), scopeVar.name);
-//		final boolean global = (this.variableContexts.size() == 1 || newContextVariable == null);
-//		
-//		final VariableRecord newContextVariable0 = global ? this.getVarByName(this.variableContexts.firstElement(), value) : newContextVariable;	
-//		final boolean isStaticClassname = newContextVariable0 == null;
-//		
-//		final Object[] varInfo;
-//		if (!isStaticClassname)
-//		{
-//			varInfo = new Object[2];
-//			varInfo[0] = newContextVariable0.varModifiers; 
-//			varInfo[1] = newContextVariable0.varType;
-//		}
-//		else
-//		{
-//			varInfo = new Object[2];
-//			varInfo[0] = null; // TODO must be an empty list of modifiers
-//			varInfo[1] = value;
-//		}
-//		
-//		
-//		super.addVariable(value, false, false, true, true, ldNodeInfo);
 	}
 
 	private void process(NameExpr nameExpression)
@@ -869,7 +839,6 @@ public class JavaLASTFactory extends LASTFactory {
 		}
 
 		final LDASTNodeInfo ldNodeInfo = new LDASTNodeInfo(line, true, "var", info);
-// 		super.addVariable(name, false, true, true, global, ldNodeInfo);
 
 		// Variables sueltas son usos, no definiciones y usos. Esto afecta a llamadas con objetos (b.foo() define b? Esto habrá que analizarlo y generar nodos en funcion de ello)
 		super.addVariable(name, false, false, true, global, ldNodeInfo);
@@ -912,8 +881,6 @@ public class JavaLASTFactory extends LASTFactory {
 		final VariableRecord newContextVariable0 = global ? this
 				.getVarByName(this.variableContexts.firstElement(), name) : newContextVariable;
 
-//final LDASTNodeInfo ldNodeInfo = new LDASTNodeInfo(line, "var", modifiers, type);
-
 		final LDASTNodeInfo ldNodeInfo;
 		if (!declaration && newContextVariable0 != null)
 		{
@@ -926,38 +893,16 @@ public class JavaLASTFactory extends LASTFactory {
 		super.addVariable(name, declaration, definition, use, global, ldNodeInfo);
 	}
 
-	private void processArrayAccess(Variable variable)
+	private void processArrayAccess(Variable var)
 	{
-		final ArrayAccessExpr expression = (ArrayAccessExpr) variable.node;
+		final ArrayAccessExpr expression = (ArrayAccessExpr) var.node;
 		final long line = expression.getRange().get().begin.line;
-//		final String varName = expression.getName().toString();
-//		final String varIndex = expression.getIndex().toString();
-//		final String name = varName+"["+varIndex+"]";
-		final LDASTNodeInfo ldNodeInfo = variable.ldNodeInfo;
+		final LDASTNodeInfo ldNodeInfo = var.ldNodeInfo;
 
-		final Object name0 = this
-				.treatExpression(expression.getName(), variable.declaration, variable.definition, variable.use, line);
-		final Object index0 = this.treatExpression(expression.getIndex(), false, false, true, line);
+		final Object name0 = treatExpression(expression.getName(), var.declaration, var.definition, var.use, line);
+		final Object index0 = treatExpression(expression.getIndex(), false, false, true, line);
 
 		super.addDataConstructorAccess(name0, index0, ldNodeInfo);
-
-//		final VariableRecord newContextVariable = this.getVarByName(this.variableContexts.peek(), varName);
-//		final boolean global = (declaration && this.variableContexts.size() == 1) || (!declaration && newContextVariable == null);
-
-//		final VariableRecord newContextVariable0 = global ? this.getVarByName(this.variableContexts.firstElement(), name) : newContextVariable;
-
-//final LDASTNodeInfo ldNodeInfo = new LDASTNodeInfo(line, "var", modifiers, type);
-
-//		final LDASTNodeInfo ldNodeInfo;
-//		if(!declaration && newContextVariable0 != null)
-//		{
-//			final Object[] info = {newContextVariable0.varModifiers, newContextVariable0.varType};
-//			ldNodeInfo = new LDASTNodeInfo(variable.ldNodeInfo.getArchive(),variable.ldNodeInfo.getClassName(),
-//											variable.ldNodeInfo.getLine(),variable.ldNodeInfo.getConstruction(), info);
-//		}
-//		else
-//			ldNodeInfo = variable.ldNodeInfo;
-//		super.addVariable(name, declaration, definition, use, global, ldNodeInfo);
 	}
 
 	// Literals
@@ -1058,8 +1003,6 @@ public class JavaLASTFactory extends LASTFactory {
 	{
 		if (expression instanceof NameExpr)
 			return new Variable(expression, declaration, definition, use, new LDASTNodeInfo(line, true, "var"));
-//		if (expression instanceof ArrayAccessExpr)
-//			return new Variable(expression, declaration, definition, new LDASTNodeInfo(line, "array access"));
 		return expression;
 	}
 
@@ -1194,7 +1137,6 @@ public class JavaLASTFactory extends LASTFactory {
 	// Variable global/local
 	private Stack<List<VariableRecord>> variableContexts = new Stack<>();
 
-
 	private void createContext()
 	{
 		final List<VariableRecord> lastVariableContext =
@@ -1232,5 +1174,4 @@ public class JavaLASTFactory extends LASTFactory {
 				return vr;
 		return null;
 	}
-
 }

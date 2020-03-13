@@ -7,27 +7,13 @@ import upv.slicing.edg.graph.Variable;
 import java.util.LinkedList;
 import java.util.List;
 
-public abstract class EdgeGenerator {
-//	public static void generateEdges(EDG edg)
-//	{
-//		new ControlFlowEdgeGenerator(edg).generate();
-//		new ControlEdgeGenerator(edg).generate();
-//		new InterproceduralEdgeGenerator(edg).generate();
-//		new FlowEdgeGenerator(edg).generate();
-//		new ValueEdgeGenerator(edg).generateJava();
-//		new SummaryEdgeGenerator(edg).generate();
-//		// EXCEPTIONS
-//		new ExceptionEdgeGenerator(edg).generate();
-//	}
-	
+public abstract class EdgeGenerator implements Generator {
 	protected final EDG edg;
 
 	public EdgeGenerator(EDG edg)
 	{
 		this.edg = edg;
 	}
-
-	public abstract void generate();
 
 	protected List<Node> getImplicitRestrictions(List<Node> patterns)
 	{
@@ -42,6 +28,7 @@ public abstract class EdgeGenerator {
 
 		return implicitRestrictions;
 	}
+
 	protected List<Node> getImplicitRestrictions(Node pattern)
 	{
 		final List<Node> implicitRestrictions = new LinkedList<>();
@@ -71,6 +58,7 @@ public abstract class EdgeGenerator {
 
 		return implicitRestrictions;
 	}
+
 	protected List<Node[]> getMatches(Node pattern, Node expression)
 	{
 		final List<Node[]> matches = new LinkedList<>();

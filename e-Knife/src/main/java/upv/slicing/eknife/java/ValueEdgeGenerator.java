@@ -1,5 +1,6 @@
 package upv.slicing.eknife.java;
 
+import upv.slicing.edg.edge.Generator;
 import upv.slicing.edg.graph.EDG;
 import upv.slicing.edg.graph.Edge;
 import upv.slicing.edg.graph.LAST;
@@ -7,7 +8,7 @@ import upv.slicing.edg.graph.Node;
 
 import java.util.List;
 
-public class ValueEdgeGenerator {
+public class ValueEdgeGenerator implements Generator {
 
 	protected final LAST last;
 

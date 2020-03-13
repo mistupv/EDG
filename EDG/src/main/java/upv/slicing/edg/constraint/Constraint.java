@@ -9,6 +9,7 @@ import java.util.List;
 public abstract class Constraint
 {
 	public abstract boolean equals(Object object);
+
 	public abstract String toString();
 
 	protected List<Constraints> wrap(Constraints... constraints)
@@ -21,6 +22,7 @@ public abstract class Constraint
 		if (!phase1.isInstanceof(phase2))
 			throw new RuntimeException("Constraint situation not contemplated");
 	}
+
 	protected <R> void check(R obj1, R obj2)
 	{
 		if (obj1 == null && obj2 == null)

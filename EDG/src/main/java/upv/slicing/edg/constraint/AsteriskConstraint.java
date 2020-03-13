@@ -9,6 +9,7 @@ import java.util.List;
 public class AsteriskConstraint extends EdgeConstraint
 {
 	private static AsteriskConstraint constraint = new AsteriskConstraint();
+
 	public static AsteriskConstraint getConstraint()
 	{
 		return AsteriskConstraint.constraint;
@@ -23,6 +24,7 @@ public class AsteriskConstraint extends EdgeConstraint
 	{
 		return object instanceof AsteriskConstraint;
 	}
+
 	public String toString()
 	{
 		return "*";
@@ -32,6 +34,7 @@ public class AsteriskConstraint extends EdgeConstraint
 	{
 		return super.wrap(constraints);
 	}
+
 	protected List<Constraints> resolve(Phase phase, EDG edg, Edge edge, Constraints constraints, AccessConstraint topConstraint, int productionDepth)
 	{
 		if (phase.isInstanceof(Phase.Slicing))
@@ -49,12 +52,14 @@ public class AsteriskConstraint extends EdgeConstraint
 		final EdgeConstraint peekConstraint = newConstraints.peekEdgeConstraint();
 		return super.resolve(phase, edg, edge, newConstraints, peekConstraint, productionDepth);
 	}
+
 	protected List<Constraints> resolve(Phase phase, EDG edg, Edge edge, Constraints constraints, GrammarConstraint topConstraint, int productionDepth)
 	{
 		super.check(phase, Phase.SummaryGeneration);
 
 		return super.wrap(super.push(phase, constraints));
 	}
+
 	protected List<Constraints> resolve(Phase phase, EDG edg, Edge edge, Constraints constraints, SeekingConstraint topConstraint, int productionDepth)
 	{
 		if (phase.isInstanceof(Phase.Slicing))

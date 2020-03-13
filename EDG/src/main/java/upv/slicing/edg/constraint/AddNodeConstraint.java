@@ -25,6 +25,7 @@ public class AddNodeConstraint extends EdgeConstraint {
 
 		return this.nodeConstraint.equals(constraint.nodeConstraint);
 	}
+
 	public String toString()
 	{
 		return this.nodeConstraint.toString();
@@ -35,11 +36,13 @@ public class AddNodeConstraint extends EdgeConstraint {
 		constraints.nodeConstraints.add(this.nodeConstraint);
 		return super.wrap(constraints);
 	}
+
 	protected List<Constraints> resolve(Phase phase, EDG edg, Edge edge, Constraints constraints, AccessConstraint topConstraint, int productionDepth)
 	{
 		constraints.nodeConstraints.add(this.nodeConstraint);
 		return super.wrap(constraints);
 	}
+
 	protected List<Constraints> resolve(Phase phase, EDG edg, Edge edge, Constraints constraints, GrammarConstraint topConstraint, int productionDepth)
 	{
 		super.check(phase, Phase.SummaryGeneration);
@@ -47,11 +50,13 @@ public class AddNodeConstraint extends EdgeConstraint {
 		constraints.nodeConstraints.add(this.nodeConstraint);
 		return super.wrap(constraints);
 	}
+
 	protected List<Constraints> resolve(Phase phase, EDG edg, Edge edge, Constraints constraints, SeekingConstraint topConstraint, int productionDepth)
 	{
 		constraints.nodeConstraints.add(this.nodeConstraint);
 		return super.wrap(constraints);
 	}
+
 	protected List<Constraints> resolve(Phase phase, EDG edg, Edge edge, Constraints constraints, AsteriskConstraint topConstraint, int productionDepth)
 	{
 		super.check(phase, Phase.SummaryGeneration);

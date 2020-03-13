@@ -24,12 +24,14 @@ public abstract class AccessConstraint extends EdgeConstraint {
 	{
 		return this.operation;
 	}
+
 	public CompositeType getCompositeType()
 	{
 		return this.compositeType;
 	}
 
 	public abstract AccessConstraint opposite();
+
 	public boolean cancels(AccessConstraint constraint)
 	{
 		return this.equals(constraint.opposite());
@@ -48,6 +50,7 @@ public abstract class AccessConstraint extends EdgeConstraint {
 			return false;
 		return this.compositeType == constraint.compositeType;
 	}
+
 	public String toString()
 	{
 		String toString = "";
@@ -71,6 +74,7 @@ public abstract class AccessConstraint extends EdgeConstraint {
 		super.check(phase, Phase.SummaryGeneration);
 		return super.wrap(super.push(phase, constraints));
 	}
+
 	protected List<Constraints> resolve(Phase phase, EDG edg, Edge edge, Constraints constraints, AccessConstraint topConstraint, int productionDepth)
 	{
 		if (topConstraint.operation == Operation.Add)
@@ -87,12 +91,14 @@ public abstract class AccessConstraint extends EdgeConstraint {
 
 		return super.wrap(super.push(phase, constraints));
 	}
+
 	protected List<Constraints> resolve(Phase phase, EDG edg, Edge edge, Constraints constraints, GrammarConstraint topConstraint, int productionDepth)
 	{
 		super.check(phase, Phase.SummaryGeneration);
 
 		return super.wrap(super.push(phase, constraints));
 	}
+
 	protected List<Constraints> resolve(Phase phase, EDG edg, Edge edge, Constraints constraints, ListComprehensionConstraint topConstraint, int productionDepth)
 	{
 		if (topConstraint.operation == Operation.Add)
@@ -115,6 +121,7 @@ public abstract class AccessConstraint extends EdgeConstraint {
 
 		return super.wrap(super.push(phase, constraints));
 	}
+
 	protected List<Constraints> resolve(Phase phase, EDG edg, Edge edge, Constraints constraints, SeekingConstraint topConstraint, int productionDepth)
 	{
 		if (topConstraint.operation == SeekingConstraint.Operation.LetThrough)
@@ -127,6 +134,7 @@ public abstract class AccessConstraint extends EdgeConstraint {
 
 		return super.wrap(super.push(phase, constraints));
 	}
+
 	protected List<Constraints> resolve(Phase phase, EDG edg, Edge edge, Constraints constraints, AsteriskConstraint topConstraint, int productionDepth)
 	{
 		super.check(phase, Phase.SummaryGeneration);

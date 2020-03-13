@@ -13,6 +13,7 @@ public class CodeFactory
 	{
 		CodeFactory.createCode(language, outputFile, edg, null);
 	}
+
 	public static void createCode(EKnife.Language language, File outputFile, EDG edg, Set<Node> slice)
 	{
 		switch (language)
@@ -20,12 +21,6 @@ public class CodeFactory
 			case Java:
 				JavaCodeFactory.createJavaFile(outputFile, edg, slice);
 				break;
-//			case Erlang:
-//				eknife.erlang.ErlangCodeFactory.createErlangFile(outputFile, edg, slice);
-//				break;
-//			case Php:
-//				eknife.php.PhpCodeFactory.createPhpFile(outputFile, edg, slice);
-//				break;
 			default:
 				throw new RuntimeException("Language not contemplated: " + language);
 		}
