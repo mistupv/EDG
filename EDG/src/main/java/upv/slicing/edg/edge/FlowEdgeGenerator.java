@@ -403,15 +403,15 @@ if (declarationNode != null && declarationNode != definitionNode)
 					{
 						final Node variableIndex = variableId.getVariableIndex();
 						final Node index = edg.getChild(parent, Node.Type.Index);
-						if (index.getType() == Node.Type.Literal && variableIndex == null)
-						{
+						if (index.getType() == Node.Type.Literal && variableIndex == null) {
+							final Node dataConstructorResult = edg.getResFromNode(parent);
 							final String indexValue = index.getName();
 							final EdgeConstraint dataConstructorConstraint = new DataConstructorConstraint(
 									AccessConstraint.Operation.Add, indexValue);
-							this.edg.addEdge(definitionResultNode, useNode1,
+							this.edg.addEdge(definitionResultNode, dataConstructorResult,
 									new Edge(Edge.Type.Flow, dataConstructorConstraint));
-						} else
-							this.edg.addEdge(definitionResultNode, useNode1, Edge.Type.Flow);
+						}
+						this.edg.addEdge(definitionResultNode, useNode1, Edge.Type.Flow);
 					}
 					else
 						this.edg.addEdge(definitionResultNode, useNode1, Edge.Type.Flow);

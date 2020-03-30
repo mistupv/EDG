@@ -247,7 +247,7 @@ public class EDGFactory {
 		}
 	}
 
-	private void treatDataConstructorExpressions(Node dataConstructor, Node result) // TODO: REVIEW AFTER DELETING "EXPRESSION" NODES
+	private void treatDataConstructorExpressions(Node dataConstructor, Node result)
 	{
 		deleteIncomingValueArcs(dataConstructor);
 		modifyDataConstructorArcs(dataConstructor, result);
@@ -263,16 +263,16 @@ public class EDGFactory {
 	private void modifyDataConstructorArcs(Node dataConstructor, Node result)
 	{
 		final List<Node> dataConstructorChildren = edg.getChildren(dataConstructor);
+		dataConstructorChildren.removeIf(n -> n.getType() == Node.Type.Result);
+
 		final int dataConstructorChildrenCount = dataConstructorChildren.size();
 
 		for (int childIndex = 0; childIndex < dataConstructorChildrenCount; childIndex++)
 		{
-			final Node dataConstructorChild = dataConstructorChildren.get(childIndex);
-			final Node from = dataConstructorChild.getType() == Node.Type.Expression ?
-					edg.getChild(dataConstructorChild, Node.Type.Result) : dataConstructorChild;
+			final Node dataConstructorChild = edg.getResFromNode(dataConstructorChildren.get(childIndex));
 			final DataConstructorConstraint constraint = new DataConstructorConstraint(
 					AccessConstraint.Operation.Remove, childIndex + "");
-			edg.addEdge(from, result, new Edge(Edge.Type.Value, constraint));
+			edg.addEdge(dataConstructorChild, result, new Edge(Edge.Type.Value, constraint));
 		}
 		
 		final Set<Edge> outgoingEdges = edg.outgoingEdgesOf(dataConstructor);
@@ -285,7 +285,7 @@ public class EDGFactory {
 			final EdgeConstraint edgeConstraint = valueEdge.getConstraint();
 			edg.removeEdge(valueEdge);
 			final Edge e = new Edge(Edge.Type.Value, edgeConstraint);
-			edg.addEdge(from, to, e);
+			edg.addEdge(result, to, e);
 		}
 	}
 }

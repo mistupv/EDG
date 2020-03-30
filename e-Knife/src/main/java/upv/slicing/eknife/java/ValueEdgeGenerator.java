@@ -1,5 +1,9 @@
 package upv.slicing.eknife.java;
 
+import upv.slicing.edg.constraint.AddNodeConstraint;
+import upv.slicing.edg.constraint.EdgeConstraint;
+import upv.slicing.edg.constraint.IgnoreEdgeConstraint;
+import upv.slicing.edg.constraint.NodeConstraint;
 import upv.slicing.edg.graph.EDG;
 import upv.slicing.edg.graph.Edge;
 import upv.slicing.edg.graph.LAST;
@@ -23,6 +27,7 @@ public class ValueEdgeGenerator {
 		this.generateRoutineCallEdgesJava();
 		this.generateEqualityEdges();
 		this.generateOperationEdges();
+		this.generateGeneratorEdges();
 		this.generateTernaryEdges();
 		this.generateDataConstructorEdges();
 		this.generateDataConstructorAccessEdges();
@@ -55,9 +60,8 @@ public class ValueEdgeGenerator {
 			final Node returnChild = returnChildren.get(0);
 			final String returnText = returnNode.getName();
 			final int dstId = Integer.parseInt(returnText.substring(returnText.lastIndexOf(" ") + 1));
-			final Node dstNode = this.last.getNode(dstId);
-			final Node dstResult = last.getResult(dstNode);
-			this.last.addEdge(returnChild, dstResult, Edge.Type.Value);
+			final Node dstClause = this.last.getNode(dstId);
+			this.last.addEdge(returnChild, dstClause, Edge.Type.Value);
 		}
 	}
 
@@ -108,6 +112,19 @@ public class ValueEdgeGenerator {
 
 			for (Node operator : operators)
 				this.last.addEdge(operator, operation, Edge.Type.Value);
+		}
+	}
+
+	private void generateGeneratorEdges()
+	{
+		final List<Node> generators = this.last.getNodes(Node.Type.Generator);
+
+		for (Node generator : generators)
+		{
+			final Node declaration = last.getChild(generator,0);
+			final Node variable = last.getChild(generator,1);
+
+			this.last.addEdge(variable, declaration, Edge.Type.Value);
 		}
 	}
 
@@ -166,7 +183,10 @@ public class ValueEdgeGenerator {
 			final Node dataConstructor = last.getChild(dataConstructorAccess, 0);
 			final Node indexExpression = last.getChild(dataConstructorAccess, 1);
 
-			this.last.addEdge(dataConstructor, dataConstructorAccess, Edge.Type.Value);
+			final NodeConstraint nodeConstraint = new IgnoreEdgeConstraint(Edge.Type.Flow);
+			final EdgeConstraint ignoreConstraint = new AddNodeConstraint(nodeConstraint);
+
+			this.last.addEdge(dataConstructor, dataConstructorAccess, new Edge(Edge.Type.Value, ignoreConstraint));
 			this.last.addEdge(indexExpression, dataConstructorAccess, Edge.Type.Value);
 		}
 	}

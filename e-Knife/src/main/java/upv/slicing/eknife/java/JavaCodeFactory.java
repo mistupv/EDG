@@ -440,7 +440,7 @@ public class JavaCodeFactory {
 		final List<Statement> statements = this.parseStatements(bodyChildren, false);
 
 		final NodeList<Statement> bodyStatements = new NodeList<>();
-		statements.addAll(statements);
+		bodyStatements.addAll(statements);
 
 		return List.of(new SwitchEntry(new NodeList<>(), SwitchEntry.Type.STATEMENT_GROUP, bodyStatements));
 	}
@@ -845,9 +845,10 @@ public class JavaCodeFactory {
 	 * Parse to javaparser a Variable declaration node of the EDG (only the parts contained in the slice).
 	 * @param declaration Declaration node to be parsed.
 	 * @return A list of javaparser expressions inside the given node contained in the slice.
-	 * @apiNote This method parses variable declaration nodes and returns the single declaration if the variable
-	 * 			type is Primitive Type or an initialization with the constructor without arguments if the variable
-	 * 			type is a ClassOrInterfaceType. This would not work if the ClassOrInterfaceType has no empty constructor.
+	 * @apiNote This method parses variable declaration nodes and returns the variable declaration if the variable
+	 * 			type is Primitive Type or an initialization with the empty constructor if the variable type is a
+	 * 			ClassOrInterfaceType.
+	 * 			The produced code may not compile if the ClassOrInterfaceType has no empty constructor.
 	 */
 	private List<Expression> parseDeclarationNonEmpty(Node declaration)
 	{
@@ -904,8 +905,11 @@ public class JavaCodeFactory {
 	{
 		final List<Node> elements = edg.getChildren(dataConstructor);
 		elements.removeIf(node -> node.getType() == Node.Type.Result);
-		final List<Expression> expressions = this.parseExpressions(elements, true);
 
+		if (slice != null && !slice.contains(dataConstructor))
+			return this.parseExpressions(elements, false);
+
+		final List<Expression> expressions = this.parseExpressions(elements, true);
 		return List.of(new ArrayInitializerExpr(NodeList.nodeList(expressions)));
 	}
 
@@ -1446,6 +1450,12 @@ public class JavaCodeFactory {
 			case Switch:
 			case Selector:
 			case Enclosed:
+			case TypeTransformation:
+			case TypeCheck:
+			case Generator:
+			case Iterator:
+			case DataConstructor:
+			case DataConstructorAccess:
 				return true;
 			default:
 				return false;

@@ -31,22 +31,21 @@ public class SummaryEdgeGenerator extends EdgeGenerator {
 
 		for (Node call : calls)
 		{
-			final Node calleeNode = edg.getChild(call, Node.Type.Callee);
-			final Node calleeResultNode = edg.getResFromNode(calleeNode);
-			final List<Node> inputs = edg.getInputs(calleeResultNode, LAST.Direction.Forwards);
+			final Node callee = edg.getChild(call, Node.Type.Callee);
+			final Node calleeResult = edg.getResFromNode(callee);
+			final List<Node> inputs = edg.getInputs(calleeResult, LAST.Direction.Forwards);
 			if (!inputs.isEmpty())
 				continue;
 
 			final Node callResult = edg.getResFromNode(call);
-			final Node arguments = edg.getChild(call, Node.Type.Arguments);
-			final List<Node> argumentNodes = edg.getChildren(arguments);
+			final Node argumentsNode = edg.getChild(call, Node.Type.Arguments);
+			final List<Node> arguments = edg.getChildren(argumentsNode);
+			arguments.removeIf(n -> n.getType() == Node.Type.Result);
 
-			for (Node argumentNode : argumentNodes)
+			for (Node argument : arguments)
 			{
-				final Node result = edg.getResult(argumentNode);
-
-				if (result != null)
-					this.edg.addEdge(result, callResult, new Edge(Edge.Type.Summary, AsteriskConstraint.getConstraint()));
+				final Node argumentResult = edg.getResFromNode(argument);
+				this.edg.addEdge(argumentResult, callResult, new Edge(Edge.Type.Summary, AsteriskConstraint.getConstraint()));
 			}
 		}
 	}
@@ -54,37 +53,16 @@ public class SummaryEdgeGenerator extends EdgeGenerator {
 	/************************************/
 	/************* Internal *************/
 	/************************************/
-private final Map<String, Integer> ids = new Hashtable<>();
 	private void generateInternalSummaryEdges()
 	{
 		final List<Work> initialWorks = this.getInitialWorks();
 		final WorkList workList = new WorkList(initialWorks);
 		final ConstrainedAlgorithm slicingAlgorithm = new ConstrainedAlgorithm(edg);
 
-long worksProcessed = 0;
 		while (workList.hasMore())
 		{
-		
-//if (workList.getPendingWorks().size() == 1)
-//	System.out.println("PARA");
-//if (workList.getPendingWorks().containsKey("203->228"))
-//	System.out.println("Aun esta 1");
 			final Work work = workList.next();
-//if (workList.contains(work))
-//	continue;
-			
-// TODO Borrame
-worksProcessed++;
-final String id = work.getId();
-final Integer prev = ids.get(id);
-ids.put(id, prev == null ? 0 : prev + 1);
-if (prev != null && prev == 100000)
-System.out.println(work.getId() + " - " + work.getConstraints().getEdgeConstraints().toString());
 			final Node initialNode = work.getInitialNode();
-			
-//final int initialNodeId = initialNode.getId();
-//if(initialNodeId == 48)
-//	System.out.print("");
 			final Constraints constraints = work.getConstraints();
 			boolean isFormalIn = false;
 			
@@ -92,12 +70,9 @@ System.out.println(work.getId() + " - " + work.getConstraints().getEdgeConstrain
 			{
 				final NodeWork nodeWork = (NodeWork) work;
 				final Node currentNode = nodeWork.getCurrentNode();
-//final int currentNodeId = currentNode.getId();
-//if(currentNodeId == 228)
-//System.out.println(" Node "+currentNodeId);
 
 				// ESTO SE USA PARA EVITAR BUCLES INFINITOS AL GENERAR SUMMARIES, SE PIERDE PRECISION Y PUEDE DAR COMO RESULTADO GRAMATICAS INCOMPLETAS O INCLUSO ERRONEAS
-				if (workList.getDoneNodes().contains(currentNode) && edg.getParent(initialNode).getType() != Node.Type.Clause)
+				if (workList.getDoneNodes().contains(currentNode) && edg.getResFromNode(initialNode).getType() != Node.Type.Clause)
 					continue;
 
 				if (isFormalIn = this.isFormalIn(currentNode, initialNode))
@@ -111,14 +86,8 @@ System.out.println(work.getId() + " - " + work.getConstraints().getEdgeConstrain
 				continue;
 
 			final List<Work> newWorks = slicingAlgorithm.processWork(Phase.SummaryGeneration, work);
-//if(initialNodeId == 48)
-//	System.out.print("");
 			workList.pendAll(newWorks);
 		}
-// TODO Borrame
-//System.out.println("Works done: " + workList.getDoneNodes().size());
-//System.out.println("Works processed: " + worksProcessed);
-//System.out.println();
 	}
 	private List<Work> getInitialWorks()
 	{
@@ -132,6 +101,10 @@ System.out.println(work.getId() + " - " + work.getConstraints().getEdgeConstrain
 			
 			for (Node clause : clauses)
 			{
+				List<Node> calls = edg.getNodes(clause, LAST.Direction.Backwards, Edge.Type.Input);
+				if (calls.isEmpty())
+					continue;
+
 				// Summary Edges for the result node
 				final Node clauseResult = edg.getResFromNode(clause);
 				workList.add(new NodeWork(clauseResult, clauseResult, new Constraints()));
@@ -156,22 +129,18 @@ System.out.println(work.getId() + " - " + work.getConstraints().getEdgeConstrain
 		final Node parent = edg.getParent(node);
 		final Node.Type nodeType = node.getType();
 		final Node.Type parentType = parent == null ? null : parent.getType();
-		final Node grandParent = parent == null ? null : edg.getParent(parent);
-		final Node.Type grandParentType = grandParent == null ? null : grandParent.getType();
 		if (parent == null)
 			return false;
+
 		if (nodeType != Node.Type.Parameters)
-			if (nodeType != Node.Type.Result || parentType != Node.Type.Expression ||
-				grandParentType != Node.Type.Parameters)
+			if (nodeType != Node.Type.Result || parentType != Node.Type.Parameters)
 				return false;
 
 		// The formal in must be related to the formal out
 		final Node clause = edg.getAncestor(node, Node.Type.Clause);
 		final Node clauseResult = edg.getResFromNode(clause);
 
-		final Node formalOutResult = edg.getResult(edg.getAncestor(formalOutNode, Node.Type.Clause));
-
-		return clauseResult == formalOutResult;
+		return clauseResult == formalOutNode;
 	}
 	private List<Node> createSummaryEdges(Node formalOut, Node formalIn, Constraints constraints)
 	{
@@ -192,7 +161,7 @@ System.out.println(work.getId() + " - " + work.getConstraints().getEdgeConstrain
 					continue;
 
 				final Node callResult = edg.getResFromNode(call);
-				if (edg.getParent(formalOut).getType() != Node.Type.Clause) // PART FOR GLOBAL VARIABLE'S SUMMARIES
+				if (edg.getNodeFromRes(formalOut).getType() != Node.Type.Clause) // PART FOR GLOBAL VARIABLE'S SUMMARIES
 				{
 					final Set<Edge> GVOutEdges = edg.getEdges(formalOut, LAST.Direction.Forwards, Edge.Type.Flow);
 					for (Edge GVOutEdge : GVOutEdges)

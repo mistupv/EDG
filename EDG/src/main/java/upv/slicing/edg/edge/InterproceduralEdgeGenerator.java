@@ -39,26 +39,27 @@ public class InterproceduralEdgeGenerator extends EdgeGenerator {
 		final List<Node> matchingClauses = this.getMatchingClauses(possibleClauses, call);
 		final Node callee = edg.getChild(call, Node.Type.Callee);
 		final Node calleeResultNode = edg.getResFromNode(callee);
-		final Node arguments = edg.getChild(call, Node.Type.Arguments);
+		final Node argumentsNode = edg.getChild(call, Node.Type.Arguments);
 		final Node argumentsIn = edg.getChild(call, Node.Type.ArgumentIn);
-		final List<Node> argumentNodes = edg.getChildren(arguments);
+		final List<Node> arguments = edg.getChildren(argumentsNode);
+		arguments.removeIf(n -> n.getType() == Node.Type.Result);
 
 		for (Node matchingClause : matchingClauses)
 		{
-			final Node parameters = edg.getChild(matchingClause, Node.Type.Parameters);
-			final List<Node> parameterNodes = edg.getChildren(parameters);
+			final Node parametersNode = edg.getChild(matchingClause, Node.Type.Parameters);
+			final List<Node> parameters = edg.getChildren(parametersNode);
+			parameters.removeIf(n -> n.getType() == Node.Type.Result);
 
 			this.edg.addEdge(calleeResultNode, matchingClause, new Edge(Edge.Type.Input, new PhaseConstraint(Phase.Input)));
-			for (int argumentIndex = 0; argumentIndex < argumentNodes.size(); argumentIndex++)
+			for (int argumentIndex = 0; argumentIndex < arguments.size(); argumentIndex++)
 			{
-				final Node argument = argumentNodes.get(argumentIndex);
-				final Node parameter = parameterNodes.get(argumentIndex);
+				final Node argument = arguments.get(argumentIndex);
+				final Node parameter = parameters.get(argumentIndex);
+
 				final Node argumentResult = edg.getResFromNode(argument);
 				final Node parameterResult = edg.getResFromNode(parameter);
 
-				if (argumentResult != null && parameterResult != null)
-					this.edg.addEdge(argumentResult, parameterResult,
-							new Edge(Edge.Type.Input, new PhaseConstraint(Phase.Input)));
+				this.edg.addEdge(argumentResult, parameterResult, new Edge(Edge.Type.Input, new PhaseConstraint(Phase.Input)));
 			}
 			final Node parameterIn = edg.getChild(matchingClause, Node.Type.ParameterIn);
 			this.edg.addEdge(argumentsIn, parameterIn, new Edge(Edge.Type.Call, new PhaseConstraint(Phase.Input)));
@@ -226,14 +227,14 @@ public class InterproceduralEdgeGenerator extends EdgeGenerator {
 	/************************************/
 	private void generateOutputEdges(Node call)
 	{
-		final Node callResult = edg.getResult(call);
+		final Node callResult = edg.getResFromNode(call);
 		final Node callee = edg.getChild(call, Node.Type.Callee);
 		final Node calleeResult = edg.getResFromNode(callee);
 		final List<Node> callingFunctions = edg.getInputs(calleeResult, LAST.Direction.Forwards);
 
 		for (Node callingFunction : callingFunctions)
 		{
-			final Node result = edg.getResult(callingFunction);
+			final Node result = edg.getResFromNode(callingFunction);
 
 			if (result != null)
 			{

@@ -162,8 +162,9 @@ public class LAST extends GraphWithRoot {
 	{
 		if (!node.getInfo().isExpression())
 			return node;
-		assert resultFromNode.containsKey(node);
-		return resultFromNode.get(node);
+		if (resultFromNode.containsKey(node))
+			return resultFromNode.get(node);
+		return node;
 	}
 
 	/**
