@@ -21,13 +21,13 @@ public class DotFactory {
 	// Edge types that will be ignored (none if empty)
 	static final List<Edge.Type> ignoreEdgeTypes = Arrays.asList();
 	// Edge types that will be included (all if empty)
-	static final List<Edge.Type> edgeTypes = Arrays.asList(Edge.Type.ControlFlow, Edge.Type.Control, Edge.Type.Value);
+	static final List<Edge.Type> edgeTypes = Arrays.asList();
 	// Lower and upper bound for node inclusion (both ends of an edge must be included for
 	// the edge to be included)
 	static final int lowerBound = Integer.MIN_VALUE;
 	static final int upperBound = Integer.MAX_VALUE;
 	// Specific nodes, for which all edges must be included (all if empty)
-	static final List<Integer> nodeIds = Arrays.asList(-10,-11,-19, -24);
+	static final List<Integer> nodeIds = Arrays.asList();
 	// =========================== END DEBUG CONFIGURATION =========================== //
 
     public static void createDot(File outputFile, EDG edg)

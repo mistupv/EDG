@@ -40,11 +40,13 @@ public class JavaCodeTest {
 		argList.add(Arguments.of("operationTest.java", new SlicingCriterion("operationTest.java", 8, "c", 2)));
 		argList.add(Arguments.of("operationTest.java", new SlicingCriterion("operationTest.java", 9, "f")));
 		argList.add(Arguments.of("operationTest.java", new SlicingCriterion("operationTest.java", 10, "e")));
+		argList.add(Arguments.of("operationTest.java", new SlicingCriterion("operationTest.java", 12, "j")));
 
 		argList.add(Arguments.of("callTest.java", new SlicingCriterion("callTest.java", 6, "z")));
 		argList.add(Arguments.of("callTest.java", new SlicingCriterion("callTest.java", 7, "w")));
 		argList.add(Arguments.of("callTest.java", new SlicingCriterion("callTest.java", 10, "a")));
 		argList.add(Arguments.of("callTest.java", new SlicingCriterion("callTest.java", 13, "d")));
+		argList.add(Arguments.of("callTest.java", new SlicingCriterion("callTest.java", 16, "f")));
 
 		argList.add(Arguments.of("whileTest.java", new SlicingCriterion("whileTest.java", 9, "x")));
 		argList.add(Arguments.of("whileTest.java", new SlicingCriterion("whileTest.java", 10, "y")));
@@ -103,9 +105,10 @@ public class JavaCodeTest {
 
 		String outName = className + "_" + slicingCriterion.getLine() + "_" + slicingCriterion.getName();
 
-		final String outputDotPath = CODE_ROOT + outName + ".dot";
-		final String outputPdfPath = CODE_ROOT + outName + ".pdf";
-		final String outputJavaPath = CODE_ROOT + outName + ".java";
+		new File("./out/" + CODE_ROOT + "/").mkdirs();
+		final String outputDotPath = "./out/" + CODE_ROOT + outName + ".dot";
+		final String outputPdfPath = "./out/" + CODE_ROOT + outName + ".pdf";
+		final String outputJavaPath = "./out/" + CODE_ROOT + outName + ".java";
 		final File outputDotFile = new File(outputDotPath);
 		final File outputPdfFile = new File(outputPdfPath);
 		final File outputJavaFile = new File(outputJavaPath);

@@ -11,6 +11,9 @@ public class callTest{
 
 		int c = g(1, f((x = 1), (y = 3)));
 		int d = x + y + c;			// SC: (13,d,1)
+
+		int e = f(1, g((x = 1), (y = 3)));
+		int f = x + e;				// SC: (16,f,1)
 	}
 	public static int f(int a, int b)
 	{
@@ -36,3 +39,5 @@ public class callTest{
 		}
 	}
 }
+
+
