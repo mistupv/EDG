@@ -1029,17 +1029,11 @@ public class JavaCodeFactory {
 				final List<Expression> rightExpression = this.parseExpression(rightNode);
 
 				if (slice != null && slice.contains(operation))
-				{
-					final Expression leftOperator = isEnclosedExpr(leftExpression.get(0), binaryOperator, true) ?
-							new EnclosedExpr(leftExpression.get(0)) : leftExpression.get(0);
-					final Expression rightOperator = isEnclosedExpr(rightExpression.get(0), binaryOperator, false) ?
-							new EnclosedExpr(rightExpression.get(0)) : rightExpression.get(0);
-					return List.of(new BinaryExpr(leftOperator, rightOperator, binaryOperator));
-				}
+					return List.of(new BinaryExpr(leftExpression.get(0), rightExpression.get(0), binaryOperator));
 
-				if (slice != null && slice.contains(leftNode))
+				if (slice != null && !leftExpression.isEmpty())
 				{
-					if (slice.contains(rightNode))
+					if (!rightExpression.isEmpty())
 						return Util.join(leftExpression,rightExpression);
 					return leftExpression;
 				}
@@ -1050,6 +1044,11 @@ public class JavaCodeFactory {
 		}
 	}
 
+	/**
+	 * Parse to javaparser a parenthesis node of the EDG (only the parts contained in the slice).
+	 * @param enclosed Parenthesis node containing the expression to be parsed.
+	 * @return A list of javaparser expressions of the given node contained in the slice.
+	 */
 	private List<Expression> parseEnclosed(Node enclosed)
 	{
 		final Node exprNode = edg.getChild(enclosed, Node.Type.Value);
@@ -1365,51 +1364,6 @@ public class JavaCodeFactory {
 			if (operator.asString().equals(sign) && operator.isPostfix() == isPostfix)
 				return operator;
 		throw new IllegalArgumentException("Invalid operator: " + sign);
-	}
-
-	private boolean isEnclosedExpr(Expression expr, BinaryExpr.Operator operator, boolean isLeftExpr)
-	{
-		if (expr instanceof BinaryExpr)
-		{
-			BinaryExpr.Operator opChild = ((BinaryExpr) expr).getOperator();
-			switch (operator)
-			{
-				case PLUS:
-				case MINUS:
-					switch (opChild)
-					{
-						case PLUS:
-						case MINUS:
-							return !isLeftExpr;
-						case MULTIPLY:
-						case DIVIDE:
-						case REMAINDER:
-							return false;
-						default:
-							break;
-					}
-					break;
-				case MULTIPLY:
-				case DIVIDE:
-				case REMAINDER:
-					switch (opChild)
-					{
-						case PLUS:
-						case MINUS:
-							return true;
-						case MULTIPLY:
-						case DIVIDE:
-						case REMAINDER:
-							return !isLeftExpr;
-						default:
-							break;
-					}
-					break;
-				default:
-					break;
-			}
-		}
-		return false;
 	}
 
 	private Expression generateReturnExpr(Type type)
