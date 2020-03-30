@@ -67,7 +67,8 @@ public class JavaLASTFactory extends LASTFactory {
 			final LAST last = super.createLAST(generateArcs, classes, ldNodeInfo);
 			if (generateArcs)
 			{
-				new ControlFlowGenerator(last).generate();
+				new AugmentedControlFlowGenerator(last).generate();
+				//new ControlFlowGenerator(last).generate();
 				new ValueEdgeGenerator(last).generate();
 			}
 			return last;

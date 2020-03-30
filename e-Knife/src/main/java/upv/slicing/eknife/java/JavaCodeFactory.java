@@ -315,6 +315,12 @@ public class JavaCodeFactory {
 			case Foreach:
 				parserFunc = this::parseForeach;
 				break;
+			case Break:
+				parserFunc = this::parseBreak;
+				break;
+			case Continue:
+				parserFunc = this::parseContinue;
+				break;
 			default:
 				parserFunc = this::parseExpressionStmt;
 				break;
@@ -455,6 +461,9 @@ public class JavaCodeFactory {
 	{
 		// Condition
 		final Node conditionNode = edg.getChild(loop, Node.Type.Condition);
+		if (slice != null && !slice.contains(conditionNode))
+			return List.of();
+
 		final Node conditionExprNode = edg.getChild(conditionNode, Node.Type.Value);
 		final List<Expression> conditionExpression = this.parseExpression(conditionExprNode);
 
@@ -462,8 +471,8 @@ public class JavaCodeFactory {
 		final Node body = edg.getChild(loop, Node.Type.Body);
 		final List<Node> bodyChildren = edg.getChildren(body);
 		final List<Statement> bodyStatements = this.parseStatements(bodyChildren, false);
-		if (bodyStatements.isEmpty())
-			return conditionExpression.stream().map(ExpressionStmt::new).collect(Collectors.toList());
+//		if (bodyStatements.isEmpty())
+//			return conditionExpression.stream().map(ExpressionStmt::new).collect(Collectors.toList());
 
 		final BlockStmt bodyBlock = new BlockStmt();
 		for (Statement bodyStatement : bodyStatements)
@@ -513,8 +522,8 @@ public class JavaCodeFactory {
 		updateChildren.removeIf(node -> node.getType() == Node.Type.Result);
 		final List<Expression> updateExpressions = this.parseExpressions(updateChildren, false);
 
-		if (slice != null && slice.contains(conditionNode) && bodyStatements.isEmpty() && updateExpressions.isEmpty())
-			return Util.join(initExprs,conditionExpressions).stream().map(ExpressionStmt::new).collect(Collectors.toList());
+//		if (slice != null && slice.contains(conditionNode) && bodyStatements.isEmpty() && updateExpressions.isEmpty())
+//			return Util.join(initExprs,conditionExpressions).stream().map(ExpressionStmt::new).collect(Collectors.toList());
 
 		// ForStmt structure is only required if any statement of the body or update is necessary in the slice
 		final NodeList<Expression> initBlock = new NodeList<>();
@@ -571,9 +580,10 @@ public class JavaCodeFactory {
 		return List.of(new ForEachStmt((VariableDeclarationExpr) variableDeclarationExpr.get(0), iterableExpr.get(0), bodyBlock));
 	}
 
-	/** PENDING **/
+	/* *** PENDING *** */
 	private List<Statement> parseExHandler(Node exHandler)
 	{
+		assert false;	// TODO: @serperu generate code for try-catch-finally when properly implemented
 		// Try
 		final Node tryNode = edg.getChild(exHandler, Node.Type.Try);
 
@@ -627,6 +637,20 @@ public class JavaCodeFactory {
 
 		return List.of(new ThrowStmt(throwExpression.get(0)));
 
+	}
+
+	private List<Statement> parseBreak(Node _break)
+	{
+		if (this.slice != null && !this.slice.contains(_break))
+			return List.of();
+		return List.of(new BreakStmt(null, null));
+	}
+
+	private List<Statement> parseContinue(Node _continue)
+	{
+		if (this.slice != null && !this.slice.contains(_continue))
+			return List.of();
+		return List.of(new ContinueStmt());
 	}
 
 	private List<Statement> parseReturn(Node _return)

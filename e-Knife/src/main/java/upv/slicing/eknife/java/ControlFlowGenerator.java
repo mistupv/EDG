@@ -9,20 +9,20 @@ import upv.slicing.edg.visitor.VoidVisitor;
 
 import java.util.*;
 
-public final class ControlFlowGenerator extends VoidVisitor<Void> implements Generator {
-	private static final int INFINITY = -1;
+public class ControlFlowGenerator extends VoidVisitor<Void> implements Generator {
+	protected static final int INFINITY = -1;
 
-	private final Set<Node> hangingNodes = new HashSet<>();
-	private final Set<Node> returnSet = new HashSet<>();
-	private final Deque<Set<Node>> breakStack = new LinkedList<>();
-	private final Deque<Set<Node>> continueStack = new LinkedList<>();
-	private final Map<String, Set<Node>> breakMap = new HashMap<>();
-	private final Map<String, Set<Node>> continueMap = new HashMap<>();
-	private final Deque<Set<Node>> switchSelectorStack = new LinkedList<>();
-	private final Deque<Boolean> switchHasDefaultStack = new LinkedList<>();
+	protected final Set<Node> hangingNodes = new HashSet<>();
+	protected final Set<Node> returnSet = new HashSet<>();
+	protected final Deque<Set<Node>> breakStack = new LinkedList<>();
+	protected final Deque<Set<Node>> continueStack = new LinkedList<>();
+	protected final Map<String, Set<Node>> breakMap = new HashMap<>();
+	protected final Map<String, Set<Node>> continueMap = new HashMap<>();
+	protected final Deque<Set<Node>> switchSelectorStack = new LinkedList<>();
+	protected final Deque<Boolean> switchHasDefaultStack = new LinkedList<>();
 
-	private int ttl = INFINITY;
-	private boolean generating = false;
+	protected int ttl = INFINITY;
+	protected boolean generating = false;
 
 	public ControlFlowGenerator(LAST graph)
 	{
@@ -35,7 +35,7 @@ public final class ControlFlowGenerator extends VoidVisitor<Void> implements Gen
 		graph.getRootNode().accept(this, null);
 	}
 
-	private void connectTo(Node n)
+	protected void connectTo(Node n)
 	{
 		if (!generating)
 			return;
@@ -49,7 +49,7 @@ public final class ControlFlowGenerator extends VoidVisitor<Void> implements Gen
 		hangingNodes.add(n);
 	}
 
-	private void clearHanging() {
+	protected void clearHanging() {
 		hangingNodes.clear();
 	}
 
@@ -70,6 +70,7 @@ public final class ControlFlowGenerator extends VoidVisitor<Void> implements Gen
 	{
 		connectTo(n);
 		assert returnSet.isEmpty();
+		graph.getChild(n, Node.Type.Parameters).accept(this, arg);
 		graph.getChild(n, Node.Type.Guard).accept(this, arg);
 		graph.getChild(n, Node.Type.Body).accept(this, arg);
 		hangingNodes.addAll(returnSet);
@@ -175,6 +176,7 @@ public final class ControlFlowGenerator extends VoidVisitor<Void> implements Gen
 	{
 		new EDG(graph).getChild(n, Node.Type.Iterator).accept(this, arg);
 		new EDG(graph).getChild(n, Node.Type.Variable).accept(this, arg);
+		//connectTo(n);
 	}
 
 	@Override
@@ -336,7 +338,8 @@ public final class ControlFlowGenerator extends VoidVisitor<Void> implements Gen
 		new EDG(graph).getChild(n, Node.Type.Then).accept(this, arg);
 		Set<Node> thenHanging = Set.copyOf(hangingNodes);
 
-		if (graph.getChildren(n).size() == 3) { // TODO: IMPROVE CONDITION
+		Node _else = new EDG(graph).getChild(n, Node.Type.Else);
+		if (graph.getChildren(_else).size() != 0) { // TODO: IMPROVE CONDITION
 			// if --> *else*
 			clearHanging();
 			hangingNodes.addAll(condHanging);

@@ -69,6 +69,11 @@ public class ControlEdgeGenerator extends EdgeGenerator {
 	public boolean hasControlDependence(Node a, Node b) {
 		int yes = 0;
 		List<Node> list = edg.getNodes(a, LAST.Direction.Forwards, Edge.Type.ControlFlow);
+
+		// ADDED FOR APDG && PPDG
+		// Add Edge.Type.NonExecControlFlow to the variable list containing "a" nextCFG nodes
+		list.addAll(edg.getNodes(a, LAST.Direction.Forwards, Edge.Type.NonExecControlFlow));
+
 		// Nodes with less than 1 outgoing arc cannot control another node.
 		if (list.size() < 2)
 			return false;
@@ -89,6 +94,11 @@ public class ControlEdgeGenerator extends EdgeGenerator {
 		if (a.equals(b) || visited.contains(a))
 			return true;
 		List<Node> following = edg.getNodes(a, LAST.Direction.Forwards, Edge.Type.ControlFlow);
+
+		// ADD line for APDG / REMOVE line for PPDG
+		// Add Edge.Type.NonExecControlFlow to the variable following containing "a" nextCFG nodes
+		// following.addAll(edg.getNodes(a, LAST.Direction.Forwards, Edge.Type.NonExecControlFlow));
+
 		// Stop w/ failure if there are no edges to traverse from a
 		if (following.isEmpty())
 			return false;

@@ -58,6 +58,7 @@ public class JavaCodeTest {
 		argList.add(Arguments.of("forTest.java", new SlicingCriterion("forTest.java", 6, "i", 2)));
 		argList.add(Arguments.of("forTest.java", new SlicingCriterion("forTest.java", 15, "i")));
 		argList.add(Arguments.of("forTest.java", new SlicingCriterion("forTest.java", 16, "total")));
+		argList.add(Arguments.of("forTest.java", new SlicingCriterion("forTest.java", 22, "j")));
 
 		argList.add(Arguments.of("foreachTest.java", new SlicingCriterion("foreachTest.java", 7, "array")));
 		argList.add(Arguments.of("foreachTest.java", new SlicingCriterion("foreachTest.java", 7, "i")));

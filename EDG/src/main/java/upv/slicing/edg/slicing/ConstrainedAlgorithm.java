@@ -70,9 +70,10 @@ public class ConstrainedAlgorithm implements SlicingAlgorithm
 		final Node currentNode = work.getCurrentNode();
 		final Constraints constraints = work.getConstraints();
 		final Set<NodeConstraint> nodeConstraints = constraints.getNodeConstraints();
-		final Set<Edge> edges = edg.incomingEdgesOf(currentNode);
 
-		edges.removeIf(edge -> edge.getType() == Edge.Type.ControlFlow);
+		final Set<Edge> edges = edg.incomingEdgesOf(currentNode);
+		edges.removeIf(edge -> edge.getType() == Edge.Type.ControlFlow ||
+								edge.getType() == Edge.Type.NonExecControlFlow);
 		if(phase == Phase.SummaryGeneration)
 			edges.removeIf(edge -> edge.getType() == Edge.Type.Exception);
 		

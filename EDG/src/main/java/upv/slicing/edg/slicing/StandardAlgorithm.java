@@ -33,6 +33,7 @@ public class StandardAlgorithm implements SlicingAlgorithm
 		final Deque<Node> pendingNodes = new LinkedList<>(slice);
 		final Set<Edge.Type> ignoreEdgeTypesSet = new HashSet<>(Arrays.asList(ignoreEdgeTypes));
 		ignoreEdgeTypesSet.add(Edge.Type.ControlFlow);
+		ignoreEdgeTypesSet.add(Edge.Type.NonExecControlFlow);
 
 		while (!pendingNodes.isEmpty())
 		{

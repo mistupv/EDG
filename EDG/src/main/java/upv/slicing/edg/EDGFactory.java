@@ -154,7 +154,7 @@ public class EDGFactory {
 
 		// Modify CFG Arcs to add Results to the CFG
 		final Set<Edge> outgoingCFGEdges = edg.outgoingEdgesOf(node);
-		outgoingCFGEdges.removeIf(edge -> edge.getType() != Edge.Type.ControlFlow);
+		outgoingCFGEdges.removeIf(edge -> edge.getType() != Edge.Type.ControlFlow && edge.getType() != Edge.Type.NonExecControlFlow);
 
 		if (!outgoingCFGEdges.isEmpty())
 			edg.addEdge(node, result, Edge.Type.ControlFlow);
@@ -163,7 +163,7 @@ public class EDGFactory {
 		{
 			final Node to = edg.getEdgeTarget(CFGEdge);
 			edg.removeEdge(CFGEdge);
-			edg.addEdge(result, to, Edge.Type.ControlFlow);
+			edg.addEdge(result, to, CFGEdge.getType());
 		}
 
 

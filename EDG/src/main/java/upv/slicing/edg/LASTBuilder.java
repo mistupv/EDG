@@ -245,9 +245,9 @@ public class LASTBuilder {
 	{
 		final Node parent = LASTBuilder.getParentNode(last, parentId, where);
 		final Node exHandler = LASTBuilder.addNode(last, parent, Node.Type.ExHandler, "exHandler", info);
-		LASTBuilder.addNode(last, exHandler, Node.Type.Try, "try", null);
-		LASTBuilder.addNode(last, exHandler, Node.Type.Catch, "catch", null);
-		LASTBuilder.addNode(last, exHandler, Node.Type.Finally, "finally", null);
+		LASTBuilder.addNode(last, exHandler, Node.Type.Body, "try", null);
+		LASTBuilder.addNode(last, exHandler, Node.Type.Body, "catch", null);
+		LASTBuilder.addNode(last, exHandler, Node.Type.Body, "finally", null);
 
 		return exHandler.getId();
 	}
@@ -670,18 +670,31 @@ public class LASTBuilder {
 	// Child node
 	private static Node getClauseChildNode(LAST last, Node clause, Where where)
 	{
-		switch (where)
+		if (clause.getType() == Node.Type.Clause)
+			switch (where)
+			{
+				case ParameterIn:
+					return last.getChild(clause, 0);
+				case Parameters:
+					return last.getChild(clause, 1);
+				case ParameterOut:
+					return last.getChild(clause, 2);
+				case Guard:
+					return last.getChild(clause, 3);
+				case Body:
+					return last.getChild(clause, 4);
+				default:
+					throw new RuntimeException("A clause cannot contain " + where);
+			}
+		// If it's not a CLAUSE it is a CATCHCLAUSE, which have less children
+		switch (where) // TODO: CHANGE STRUCTURE OF CATCHCLAUSE TO THE ONE IN CLAUSE IF NECESSARY
 		{
-			case ParameterIn:
-				return last.getChild(clause, 0);
 			case Parameters:
-				return last.getChild(clause, 1);
-			case ParameterOut:
-				return last.getChild(clause, 2);
+				return last.getChild(clause, 0);
 			case Guard:
-				return last.getChild(clause, 3);
+				return last.getChild(clause, 1);
 			case Body:
-				return last.getChild(clause, 4);
+				return last.getChild(clause, 2);
 			default:
 				throw new RuntimeException("A clause cannot contain " + where);
 		}

@@ -10,7 +10,7 @@ import java.util.Random;
 public class Edge
 {
 	public enum Type {
-		ControlFlow,
+		ControlFlow, NonExecControlFlow,
 		Structural, Control,
 		Value, Flow,
 		Call, Input, Output, Summary,

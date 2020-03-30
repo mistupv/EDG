@@ -165,6 +165,12 @@ public class DotFactory {
 					attrs.put("penwidth", THREE);
 					attrs.put("constraint", FALSE);
 					break;
+				case NonExecControlFlow:
+					attrs.put("color", RED);
+					attrs.put("penwidth", THREE);
+					attrs.put("constraint", FALSE);
+					attrs.put("style", DASHED);
+					break;
 				case Control:
 					attrs.put("color", ORANGE);
 					attrs.put("constraint", FALSE);
