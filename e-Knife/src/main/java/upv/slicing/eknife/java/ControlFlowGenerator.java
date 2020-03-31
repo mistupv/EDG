@@ -266,7 +266,7 @@ public class ControlFlowGenerator extends VoidVisitor<Void> implements Generator
 		super.visitReturn(n, arg);
 		connectTo(n);
 		returnSet.add(n);
-		clearHanging(); // ACFG: delete this
+		clearHanging();
 	}
 
 	@Override
@@ -279,7 +279,7 @@ public class ControlFlowGenerator extends VoidVisitor<Void> implements Generator
 			String label = graph.getChild(n, Node.Type.Label).getLabel();
 			breakMap.get(label).add(n);
 		}
-		clearHanging(); // ACFG: delete this
+		clearHanging();
 	}
 
 	@Override
@@ -292,7 +292,7 @@ public class ControlFlowGenerator extends VoidVisitor<Void> implements Generator
 			String label = graph.getChild(n, Node.Type.Label).getLabel();
 			continueMap.get(label).add(n);
 		}
-		clearHanging(); // ACFG: delete this
+		clearHanging();
 	}
 
 	@Override

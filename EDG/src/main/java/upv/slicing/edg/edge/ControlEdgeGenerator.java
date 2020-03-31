@@ -1,5 +1,6 @@
 package upv.slicing.edg.edge;
 
+import upv.slicing.edg.Config;
 import upv.slicing.edg.graph.EDG;
 import upv.slicing.edg.graph.Edge;
 import upv.slicing.edg.graph.LAST;
@@ -70,9 +71,9 @@ public class ControlEdgeGenerator extends EdgeGenerator {
 		int yes = 0;
 		List<Node> list = edg.getNodes(a, LAST.Direction.Forwards, Edge.Type.ControlFlow);
 
-		// ADDED FOR APDG && PPDG
 		// Add Edge.Type.NonExecControlFlow to the variable list containing "a" nextCFG nodes
-		list.addAll(edg.getNodes(a, LAST.Direction.Forwards, Edge.Type.NonExecControlFlow));
+		if (Config.APDG || Config.PPDG)
+			list.addAll(edg.getNodes(a, LAST.Direction.Forwards, Edge.Type.NonExecControlFlow));
 
 		// Nodes with less than 1 outgoing arc cannot control another node.
 		if (list.size() < 2)
@@ -95,9 +96,9 @@ public class ControlEdgeGenerator extends EdgeGenerator {
 			return true;
 		List<Node> following = edg.getNodes(a, LAST.Direction.Forwards, Edge.Type.ControlFlow);
 
-		// ADD line for APDG / REMOVE line for PPDG
 		// Add Edge.Type.NonExecControlFlow to the variable following containing "a" nextCFG nodes
-		// following.addAll(edg.getNodes(a, LAST.Direction.Forwards, Edge.Type.NonExecControlFlow));
+		if (Config.APDG)
+			following.addAll(edg.getNodes(a, LAST.Direction.Forwards, Edge.Type.NonExecControlFlow));
 
 		// Stop w/ failure if there are no edges to traverse from a
 		if (following.isEmpty())

@@ -9,6 +9,7 @@ import com.github.javaparser.ast.type.ArrayType;
 import com.github.javaparser.ast.type.ClassOrInterfaceType;
 import com.github.javaparser.ast.type.PrimitiveType;
 import com.github.javaparser.ast.type.Type;
+import upv.slicing.edg.Config;
 import upv.slicing.edg.LASTBuilder.Where;
 import upv.slicing.edg.LASTFactory;
 import upv.slicing.edg.LDASTNodeInfo;
@@ -67,8 +68,10 @@ public class JavaLASTFactory extends LASTFactory {
 			final LAST last = super.createLAST(generateArcs, classes, ldNodeInfo);
 			if (generateArcs)
 			{
-				new AugmentedControlFlowGenerator(last).generate();
-				//new ControlFlowGenerator(last).generate();
+				if (Config.APDG || Config.PPDG)
+					new AugmentedControlFlowGenerator(last).generate();
+				if (Config.PDG)
+					new ControlFlowGenerator(last).generate();
 				new ValueEdgeGenerator(last).generate();
 			}
 			return last;
