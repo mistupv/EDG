@@ -41,12 +41,17 @@ public class ControlFlowGenerator extends VoidVisitor<Void> implements Generator
 			return;
 		if (ttl > 0 || ttl == INFINITY)
 		{
-			for (Node src : hangingNodes)
-				graph.addEdge(src, n, Edge.Type.ControlFlow);
+			makeConnections(n);
 			if (ttl > 0) ttl--;
 		}
 		clearHanging();
 		hangingNodes.add(n);
+	}
+
+	protected void makeConnections(Node n)
+	{
+		for (Node src : hangingNodes)
+			graph.addEdge(src, n, Edge.Type.ControlFlow);
 	}
 
 	protected void clearHanging() {
