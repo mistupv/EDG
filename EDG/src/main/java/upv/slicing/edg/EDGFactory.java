@@ -159,11 +159,11 @@ public class EDGFactory {
 		if (!outgoingCFGEdges.isEmpty())
 			edg.addEdge(node, result, Edge.Type.ControlFlow);
 
-		for (Edge CFGEdge : outgoingCFGEdges)
+		for (Edge cfgEdge : outgoingCFGEdges)
 		{
-			final Node to = edg.getEdgeTarget(CFGEdge);
-			edg.removeEdge(CFGEdge);
-			edg.addEdge(result, to, CFGEdge.getType());
+			final Node to = edg.getEdgeTarget(cfgEdge);
+			edg.removeEdge(cfgEdge);
+			edg.addEdge(result, to, cfgEdge.getType());
 		}
 
 
@@ -177,38 +177,38 @@ public class EDGFactory {
 			case Routine:
 				final Set<Edge> incomingCFGEdges = edg.incomingEdgesOf(node);
 				incomingCFGEdges.removeIf(edge -> edge.getType() != Edge.Type.ControlFlow);
-				for (Edge CFGEdge : incomingCFGEdges)
+				for (Edge cfgEdge : incomingCFGEdges)
 				{
-					final Node from = edg.getEdgeSource(CFGEdge);
-					edg.removeEdge(CFGEdge);
+					final Node from = edg.getEdgeSource(cfgEdge);
+					edg.removeEdge(cfgEdge);
 					edg.addEdge(from,result, Edge.Type.ControlFlow);
 				}
 				break;
 			case Clause:
 				final Set<Edge> incomingClauseCFGEdges = edg.incomingEdgesOf(node);
 				incomingClauseCFGEdges.removeIf(edge -> edge.getType() != Edge.Type.ControlFlow);
-				for (Edge CFGEdge : incomingClauseCFGEdges)
+				for (Edge cfgEdge : incomingClauseCFGEdges)
 				{
-					final Node from = edg.getEdgeSource(CFGEdge);
+					final Node from = edg.getEdgeSource(cfgEdge);
 					if (from.getType() != Node.Type.Routine)
 					{
-						edg.removeEdge(CFGEdge);
+						edg.removeEdge(cfgEdge);
 						edg.addEdge(from, result, Edge.Type.ControlFlow);
 					}
 				}
 
 				final Set<Edge> outgoingClauseCFGEdges = edg.outgoingEdgesOf(node);
 				outgoingClauseCFGEdges.removeIf(edge -> edge.getType() != Edge.Type.ControlFlow);
-				for (Edge CFGEdge : outgoingClauseCFGEdges)
+				for (Edge cfgEdge : outgoingClauseCFGEdges)
 				{
-					final Node finalToDestination = edg.getEdgeTarget(CFGEdge);
+					final Node finalToDestination = edg.getEdgeTarget(cfgEdge);
 					Node to = finalToDestination;
 					if (to.getType() == Node.Type.Result)
 						to = edg.getNodeFromRes(to);
 
 					if (to.getType() == Node.Type.Routine)
 					{
-						edg.removeEdge(CFGEdge);
+						edg.removeEdge(cfgEdge);
 						edg.addEdge(result, finalToDestination, Edge.Type.ControlFlow);
 					}
 				}
