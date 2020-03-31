@@ -1,9 +1,11 @@
 package upv.slicing.edg.edge;
 
+import upv.slicing.edg.Config;
 import upv.slicing.edg.constraint.*;
 import upv.slicing.edg.graph.*;
 import upv.slicing.edg.slicing.ConstrainedAlgorithm;
 import upv.slicing.edg.slicing.Phase;
+import upv.slicing.edg.slicing.SlicingAlgorithm;
 import upv.slicing.edg.work.NodeWork;
 import upv.slicing.edg.work.Work;
 import upv.slicing.edg.work.WorkList;
@@ -57,7 +59,7 @@ public class SummaryEdgeGenerator extends EdgeGenerator {
 	{
 		final List<Work> initialWorks = this.getInitialWorks();
 		final WorkList workList = new WorkList(initialWorks);
-		final ConstrainedAlgorithm slicingAlgorithm = new ConstrainedAlgorithm(edg);
+		final ConstrainedAlgorithm slicingAlgorithm = (ConstrainedAlgorithm) Config.CREATE_SLICING_ALGORITHM.apply(edg);
 
 		while (workList.hasMore())
 		{

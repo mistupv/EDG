@@ -3,6 +3,7 @@ package upv.slicing.eknife.java;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
+import upv.slicing.edg.Config;
 import upv.slicing.edg.DotFactory;
 import upv.slicing.edg.EDGFactory;
 import upv.slicing.edg.PdfFactory;
@@ -118,7 +119,7 @@ public class JavaCodeTest {
 		final EDG edg = new EDGFactory(last).createEDG();
 
 		final Node SC = edg.getNode(slicingCriterion);
-		final SlicingAlgorithm slicingAlgorithm = new ConstrainedAlgorithm(edg);
+		final SlicingAlgorithm slicingAlgorithm = Config.CREATE_SLICING_ALGORITHM.apply(edg);
 		final Set<Node> slice = slicingAlgorithm.slice(SC);
 
 		DotFactory.createDot(outputDotFile, edg, SC, slice);

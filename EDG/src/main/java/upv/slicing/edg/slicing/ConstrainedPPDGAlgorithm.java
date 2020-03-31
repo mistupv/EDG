@@ -33,8 +33,7 @@ public class ConstrainedPPDGAlgorithm extends ConstrainedAlgorithm
             return newWorks;
 
         final Set<Edge> edges = edg.incomingEdgesOf(currentNode);
-        edges.removeIf(edge -> edge.getType() == Edge.Type.ControlFlow ||
-                edge.getType() == Edge.Type.NonExecControlFlow);
+        edges.removeIf(Edge::isControlFlowEdge);
         if(phase == Phase.SummaryGeneration)
             edges.removeIf(edge -> edge.getType() == Edge.Type.Exception);
 

@@ -29,7 +29,7 @@ public final class AugmentedControlFlowGenerator extends ControlFlowGenerator {
 	protected void makeConnections(Node n) {
 		super.makeConnections(n);
 		for (Node src : nonExecHangingNodes)
-			graph.addEdge(src, n, Edge.Type.NonExecControlFlow);
+			graph.addEdge(src, n, new Edge.NonTraversable(Edge.Type.NonExecControlFlow));
 	}
 
 	@Override

@@ -1,11 +1,13 @@
 package upv.slicing.eknife.test;
 
+import upv.slicing.edg.Config;
 import upv.slicing.edg.DotFactory;
 import upv.slicing.edg.EDGFactory;
 import upv.slicing.edg.PdfFactory;
 import upv.slicing.edg.graph.EDG;
 import upv.slicing.edg.graph.LAST;
 import upv.slicing.edg.graph.Node;
+import upv.slicing.edg.slicing.ConstrainedAlgorithm;
 import upv.slicing.edg.slicing.ConstrainedPPDGAlgorithm;
 import upv.slicing.edg.slicing.SlicingAlgorithm;
 import upv.slicing.edg.slicing.SlicingCriterion;
@@ -36,7 +38,7 @@ public class LASTest {
 		final EDG edg = new EDGFactory(last).createEDG();
 
 		final Node SC = edg.getNode(slicingCriterion);
-		final SlicingAlgorithm slicingAlgorithm = new ConstrainedPPDGAlgorithm(edg);
+		final SlicingAlgorithm slicingAlgorithm = Config.CREATE_SLICING_ALGORITHM.apply(edg);
 		final Set<Node> slice = slicingAlgorithm.slice(SC);
 
 		DotFactory.createDot(new File(outputDotFile.getParentFile(), "output-whole.dot"), edg);

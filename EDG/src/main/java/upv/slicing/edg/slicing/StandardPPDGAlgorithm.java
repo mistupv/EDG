@@ -17,8 +17,6 @@ public class StandardPPDGAlgorithm extends StandardAlgorithm{
     {
         final Deque<Node> pendingNodes = new LinkedList<>(slice);
         final Set<Edge.Type> ignoreEdgeTypesSet = new HashSet<>(Arrays.asList(ignoreEdgeTypes));
-        ignoreEdgeTypesSet.add(Edge.Type.ControlFlow);
-        ignoreEdgeTypesSet.add(Edge.Type.NonExecControlFlow);
 
         while (!pendingNodes.isEmpty())
         {
@@ -31,6 +29,7 @@ public class StandardPPDGAlgorithm extends StandardAlgorithm{
             final Set<Edge> incomingEdges = edg.incomingEdgesOf(pendingNode);
 
             incomingEdges.removeIf(e -> ignoreEdgeTypesSet.contains(e.getType()));
+            incomingEdges.removeIf(Edge::isControlFlowEdge);
             incomingEdges.removeIf(e -> !e.isTraversable());
             for (Edge incomingEdge : incomingEdges)
             {

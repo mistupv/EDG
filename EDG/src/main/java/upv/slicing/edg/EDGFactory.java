@@ -14,6 +14,7 @@ import upv.slicing.edg.graph.Node;
 
 import java.util.List;
 import java.util.Set;
+import java.util.function.Predicate;
 
 public class EDGFactory {
 	private final LAST last;
@@ -154,7 +155,7 @@ public class EDGFactory {
 
 		// Modify CFG Arcs to add Results to the CFG
 		final Set<Edge> outgoingCFGEdges = edg.outgoingEdgesOf(node);
-		outgoingCFGEdges.removeIf(edge -> edge.getType() != Edge.Type.ControlFlow && edge.getType() != Edge.Type.NonExecControlFlow);
+		outgoingCFGEdges.removeIf(Predicate.not(Edge::isControlFlowEdge));
 
 		if (!outgoingCFGEdges.isEmpty())
 			edg.addEdge(node, result, Edge.Type.ControlFlow);
@@ -176,29 +177,29 @@ public class EDGFactory {
 		{
 			case Routine:
 				final Set<Edge> incomingCFGEdges = edg.incomingEdgesOf(node);
-				incomingCFGEdges.removeIf(edge -> edge.getType() != Edge.Type.ControlFlow);
+				incomingCFGEdges.removeIf(Predicate.not(Edge::isControlFlowEdge));
 				for (Edge cfgEdge : incomingCFGEdges)
 				{
 					final Node from = edg.getEdgeSource(cfgEdge);
 					edg.removeEdge(cfgEdge);
-					edg.addEdge(from,result, Edge.Type.ControlFlow);
+					edg.addEdge(from,result, cfgEdge.getType());
 				}
 				break;
 			case Clause:
 				final Set<Edge> incomingClauseCFGEdges = edg.incomingEdgesOf(node);
-				incomingClauseCFGEdges.removeIf(edge -> edge.getType() != Edge.Type.ControlFlow);
+				incomingClauseCFGEdges.removeIf(Predicate.not(Edge::isControlFlowEdge));
 				for (Edge cfgEdge : incomingClauseCFGEdges)
 				{
 					final Node from = edg.getEdgeSource(cfgEdge);
 					if (from.getType() != Node.Type.Routine)
 					{
 						edg.removeEdge(cfgEdge);
-						edg.addEdge(from, result, Edge.Type.ControlFlow);
+						edg.addEdge(from, result, cfgEdge.getType());
 					}
 				}
 
 				final Set<Edge> outgoingClauseCFGEdges = edg.outgoingEdgesOf(node);
-				outgoingClauseCFGEdges.removeIf(edge -> edge.getType() != Edge.Type.ControlFlow);
+				outgoingClauseCFGEdges.removeIf(Predicate.not(Edge::isControlFlowEdge));
 				for (Edge cfgEdge : outgoingClauseCFGEdges)
 				{
 					final Node finalToDestination = edg.getEdgeTarget(cfgEdge);
@@ -209,7 +210,7 @@ public class EDGFactory {
 					if (to.getType() == Node.Type.Routine)
 					{
 						edg.removeEdge(cfgEdge);
-						edg.addEdge(result, finalToDestination, Edge.Type.ControlFlow);
+						edg.addEdge(result, finalToDestination, cfgEdge.getType());
 					}
 				}
 				break;
@@ -225,7 +226,6 @@ public class EDGFactory {
 		
 		for (Edge valueEdge : outgoingEdges)
 		{
-			final Node from = edg.getEdgeSource(valueEdge);
 			final Node to = edg.getEdgeTarget(valueEdge);
 			final EdgeConstraint edgeConstraint = valueEdge.getConstraint();
 			edg.removeEdge(valueEdge);

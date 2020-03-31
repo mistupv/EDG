@@ -1,5 +1,6 @@
 package upv.slicing.eknife;
 
+import upv.slicing.edg.Config;
 import upv.slicing.edg.DotFactory;
 import upv.slicing.edg.EDGFactory;
 import upv.slicing.edg.PdfFactory;
@@ -200,7 +201,7 @@ public class EKnife {
 		final EDG edg = new EDGFactory(last).createEDG();
 		final SlicingCriterion slicingCriterion = new SlicingCriterion(file, line, name, occurrence);
 		final Node SC = edg.getNode(slicingCriterion);
-		final SlicingAlgorithm slicingAlgorithm = new ConstrainedAlgorithm(edg);
+		final SlicingAlgorithm slicingAlgorithm = Config.CREATE_SLICING_ALGORITHM.apply(edg);
 		final Set<Node> slice = slicingAlgorithm.slice(SC);
 
 		CodeFactory.createCode(language, outputFile, edg, slice);
