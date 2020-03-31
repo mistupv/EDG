@@ -103,9 +103,10 @@ public class JavaCodeTest {
 
 		String outName = className + "_" + slicingCriterion.getLine() + "_" + slicingCriterion.getName();
 
-		final String outputDotPath = CODE_ROOT + outName + ".dot";
-		final String outputPdfPath = CODE_ROOT + outName + ".pdf";
-		final String outputJavaPath = CODE_ROOT + outName + ".java";
+		new File("./out/" + CODE_ROOT + "/").mkdirs();
+		final String outputDotPath = "./out/" + CODE_ROOT + outName + ".dot";
+		final String outputPdfPath = "./out/" + CODE_ROOT + outName + ".pdf";
+		final String outputJavaPath = "./out/" + CODE_ROOT + outName + ".java";
 		final File outputDotFile = new File(outputDotPath);
 		final File outputPdfFile = new File(outputPdfPath);
 		final File outputJavaFile = new File(outputJavaPath);

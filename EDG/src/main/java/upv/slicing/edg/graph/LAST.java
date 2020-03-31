@@ -8,7 +8,7 @@ import java.util.stream.Collectors;
  * A labelled AST graph. The AST itself is kept in a copy within, and can
  * be accessed via {@link #structuralOutgoingEdgesOf(Node)} and {@link #structuralIncomingEdgesOf(Node)}.
  */
-public class LAST extends GraphWithRoot {
+public class LAST extends GraphWithRoot<Node, Edge> {
 
 	/** Map connecting each node to its corresponding result node. */
 	private Map<Node, Node> resultFromNode = new HashMap<>();

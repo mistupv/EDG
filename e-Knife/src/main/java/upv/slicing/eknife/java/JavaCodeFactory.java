@@ -1,5 +1,6 @@
 package upv.slicing.eknife.java;
 
+import com.github.javaparser.StaticJavaParser;
 import com.github.javaparser.ast.ArrayCreationLevel;
 import com.github.javaparser.ast.CompilationUnit;
 import com.github.javaparser.ast.Modifier;
@@ -94,10 +95,10 @@ public class JavaCodeFactory {
 
 		//NodeList<ClassOrInterfaceType> extendedTypes = (NodeList<ClassOrInterfaceType>) module.getInfo().getInfo()[0];
 		// TODO ENCONTRAR UNA SOLUCION MEJOR
-		String extendedTypes0 = (String) module.getInfo().getInfo()[0]; // Si hay mas de un extends no funcionara, solo vale para extends de 1 clase
+		String extendedTypesStr = (String) module.getInfo().getInfo()[0]; // Si hay mas de un extends no funcionara, solo vale para extends de 1 clase
 		NodeList<ClassOrInterfaceType> extendedTypes = new NodeList<>();
-		if (!extendedTypes0.equals(""))
-			extendedTypes.add(new ClassOrInterfaceType(extendedTypes0));
+		if (!extendedTypesStr.equals(""))
+			extendedTypes.add(StaticJavaParser.parseClassOrInterfaceType(extendedTypesStr));
 
 		NodeList<ClassOrInterfaceType> implementedTypes = (NodeList<ClassOrInterfaceType>) module.getInfo().getInfo()[1];
 
@@ -217,8 +218,8 @@ public class JavaCodeFactory {
 	private Parameter parseParameter(Node parameter)
 	{
 		final LDASTNodeInfo ldNodeInfo = parameter.getInfo();
-		final Type type = this.slice != null && !this.slice.contains(parameter) ? new ClassOrInterfaceType(
-				"Object") : (Type) ldNodeInfo.getInfo()[0];
+		final Type type = this.slice != null && !this.slice.contains(parameter) ?
+				StaticJavaParser.parseClassOrInterfaceType("Object") : (Type) ldNodeInfo.getInfo()[0];
 		final String name = this.slice != null && !this.slice.contains(parameter) ? "sliced" : parameter.getName();
 
 		return new Parameter(type, name);
@@ -1151,15 +1152,15 @@ public class JavaCodeFactory {
 			// DIRIA QUE ESTO NUNCA SE EJECUTA
 			Object info = type.getInfo().getInfo()[0];
 			if (info.equals("arrayType"))
-				return new ArrayType(new ClassOrInterfaceType(type.getName()));
+				return new ArrayType(StaticJavaParser.parseClassOrInterfaceType(type.getName()));
 			if (info instanceof PrimitiveType.Primitive)
 				return new PrimitiveType((Primitive) info);
 			return new PrimitiveType();
 
 		}
 		if (this.slice != null && !this.slice.contains(type))
-			return new ClassOrInterfaceType("Object");
-		return new ClassOrInterfaceType(type.getName());
+			return StaticJavaParser.parseClassOrInterfaceType("Object");
+		return StaticJavaParser.parseClassOrInterfaceType(type.getName());
 	}
 
 	/**
@@ -1317,10 +1318,10 @@ public class JavaCodeFactory {
 	{
 		final NodeList<Modifier> modifiers = new NodeList<>(Modifier.privateModifier(), Modifier.staticModifier());
 		final MethodDeclaration funundef;
-		final NodeList<Parameter> parameters = new NodeList<>();
 
-		parameters.add(new Parameter(new ClassOrInterfaceType("Object..."), "params"));
-		funundef = new MethodDeclaration(modifiers, "funundef", new VoidType(), parameters);
+		Parameter param = new Parameter(StaticJavaParser.parseClassOrInterfaceType("Object"), new SimpleName("params"));
+		param.setVarArgs(true);
+		funundef = new MethodDeclaration(modifiers, "funundef", new VoidType(), NodeList.nodeList(param));
 
 		return funundef;
 	}
@@ -1389,17 +1390,17 @@ public class JavaCodeFactory {
 	private Expression generateReturnExpr(Type type)
 	{
 		if (type.equals(PrimitiveType.intType()))
-			return new IntegerLiteralExpr(0);
+			return new IntegerLiteralExpr("0");
 		if (type.equals(PrimitiveType.shortType()))
-			return new IntegerLiteralExpr(0);
+			return new IntegerLiteralExpr("0");
 		if (type.equals(PrimitiveType.longType()))
-			return new LongLiteralExpr(0);
+			return new LongLiteralExpr("0");
 		if (type.equals(PrimitiveType.floatType()))
-			return new DoubleLiteralExpr(0);
+			return new DoubleLiteralExpr("0");
 		if (type.equals(PrimitiveType.doubleType()))
-			return new DoubleLiteralExpr(0);
+			return new DoubleLiteralExpr("0");
 		if (type.equals(PrimitiveType.byteType()))
-			return new IntegerLiteralExpr(0);
+			return new IntegerLiteralExpr("0");
 		if (type.equals(PrimitiveType.charType()))
 			return new CharLiteralExpr(' ');
 		if (type.equals(PrimitiveType.booleanType()))

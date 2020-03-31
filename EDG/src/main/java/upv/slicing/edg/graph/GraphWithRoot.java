@@ -11,16 +11,16 @@ import java.util.function.Predicate;
 /**
  * A graph with the following properties:
  * <ul>
- *     <li>Nodes are of type {@link Node}.</li>
+ *     <li>Nodes are of type {@link N}.</li>
  *     <li>A root node (can be set any number of times).</li>
- *     <li>Directed, unweighted edges of type {@link Edge}.</li>
+ *     <li>Directed, unweighted edges of type {@link E}.</li>
  *     <li>Self-loops and parallel edges.</li>
  *     <li>Both nodes and edges must be unique (stored on sets).</li>
  * </ul>
  */
-public class GraphWithRoot extends DirectedPseudograph<Node, Edge> {
+public class GraphWithRoot<N, E> extends DirectedPseudograph<N, E> {
 	/** The vertex identified as the root of the graph. */
-	protected Node rootNode;
+	protected N rootNode;
 
 	/** Construct a new graph without any vertices or edges */
 	public GraphWithRoot()
@@ -29,7 +29,7 @@ public class GraphWithRoot extends DirectedPseudograph<Node, Edge> {
 	}
 
 	/** Returns the root vertex if it exists, or null otherwise. */
-	public Node getRootNode()
+	public N getRootNode()
 	{
 		return rootNode;
 	}
@@ -40,7 +40,7 @@ public class GraphWithRoot extends DirectedPseudograph<Node, Edge> {
 	 *             exist in the graph.
 	 * @throws NullPointerException If the argument is null.
 	 */
-	public void setRootNode(Node root)
+	public void setRootNode(N root)
 	{
 		Objects.requireNonNull(root, "Root vertex can't be null!");
 		this.rootNode = root;
@@ -48,24 +48,13 @@ public class GraphWithRoot extends DirectedPseudograph<Node, Edge> {
 	}
 
 	/**
-	 * Insert a directed Edge into the graph of the corresponding type.
-	 * @return true if the edge was added, false if from already has this edge
-	 * @throws IllegalArgumentException if {@code from} or {@code to} are not vertices in the graph
-	 * @throws NullPointerException if {@code from} or {@code to} are null
-	 */
-	public boolean addEdge(Node from, Node to, Edge.Type type)
-	{
-		return this.addEdge(from, to, new Edge(type));
-	}
-
-	/**
 	 * Search the vertices' data against an arbitrary criterion.
 	 * @param predicate A condition that must be fulfilled
 	 * @return the first vertex with a matching data, null if no matches are found
 	 */
-	public Node findFirstNode(Predicate<Node> predicate)
+	public N findFirstNode(Predicate<N> predicate)
 	{
-		for (Node v : vertexSet())
+		for (N v : vertexSet())
 			if (predicate.test(v))
 				return v;
 		return null;
@@ -76,10 +65,10 @@ public class GraphWithRoot extends DirectedPseudograph<Node, Edge> {
 	 * @param predicate A condition that must be fulfilled to be included in the result
 	 * @return all vertex with a matching data, empty list if no matches are found
 	 */
-	public List<Node> findAllNodes(Predicate<Node> predicate)
+	public List<N> findAllNodes(Predicate<N> predicate)
 	{
-		List<Node> matches = new LinkedList<>();
-		for (Node v : vertexSet())
+		List<N> matches = new LinkedList<>();
+		for (N v : vertexSet())
 			if (predicate.test(v))
 				matches.add(v);
 		return matches;
@@ -89,7 +78,7 @@ public class GraphWithRoot extends DirectedPseudograph<Node, Edge> {
 	public String toString()
 	{
 		String str = "Graph[";
-		Optional<String> vertices = vertexSet().stream().map(Node::toString).reduce((a, b) -> a + ", " + b);
+		Optional<String> vertices = vertexSet().stream().map(Object::toString).reduce((a, b) -> a + ", " + b);
 		if (vertices.isPresent())
 			str += vertices;
 		str += ']';
