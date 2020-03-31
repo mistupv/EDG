@@ -32,7 +32,7 @@ public class ConstrainedAlgorithm implements SlicingAlgorithm
 			return slice;
 
 		final WorkList workList = new WorkList();
-		workList.pend(new NodeWork(null, node, new Constraints()));
+		workList.pend(new NodeWork(node, node, new Constraints()));
 		this.traverse(Phase.Input, workList);
 		workList.repend();
 		this.traverse(Phase.Output, workList);
@@ -63,7 +63,7 @@ public class ConstrainedAlgorithm implements SlicingAlgorithm
 		throw new RuntimeException("Work type not contemplated");
 	}
 
-	private List<Work> processWork(Phase phase, NodeWork work)
+	protected List<Work> processWork(Phase phase, NodeWork work)
 	{
 		final List<Work> newWorks = new LinkedList<>();
 		final Node initialNode = work.getInitialNode();

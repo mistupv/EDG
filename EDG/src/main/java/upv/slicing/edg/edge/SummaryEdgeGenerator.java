@@ -72,7 +72,7 @@ public class SummaryEdgeGenerator extends EdgeGenerator {
 				final Node currentNode = nodeWork.getCurrentNode();
 
 				// ESTO SE USA PARA EVITAR BUCLES INFINITOS AL GENERAR SUMMARIES, SE PIERDE PRECISION Y PUEDE DAR COMO RESULTADO GRAMATICAS INCOMPLETAS O INCLUSO ERRONEAS
-				if (workList.getDoneNodes().contains(currentNode) && edg.getResFromNode(initialNode).getType() != Node.Type.Clause)
+				if (workList.getDoneNodes().contains(currentNode) && edg.getNodeFromRes(initialNode).getType() != Node.Type.Clause)
 					continue;
 
 				if (isFormalIn = this.isFormalIn(currentNode, initialNode))

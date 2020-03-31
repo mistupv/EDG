@@ -6,28 +6,14 @@ import upv.slicing.edg.graph.Node;
 
 import java.util.*;
 
-public class StandardPPDGAlgorithm {
-    protected final EDG edg;
+public class StandardPPDGAlgorithm extends StandardAlgorithm{
 
-    public StandardPPDGAlgorithm(EDG edg)
-    {
-        this.edg = edg;
+    public StandardPPDGAlgorithm(EDG edg) {
+        super(edg);
     }
 
-    public Set<Node> slice(Node slicingCriterion)
-    {
-        final Set<Node> slice = new HashSet<>();
-        if (slicingCriterion == null)
-            return slice;
-
-        slice.add(slicingCriterion);
-        this.traverse(slicingCriterion, slice, Edge.Type.Output);
-        this.traverse(slicingCriterion, slice, Edge.Type.Input);
-
-        return slice;
-    }
-
-    private void traverse(Node slicingCriterion, Set<Node> slice, Edge.Type... ignoreEdgeTypes)
+    @Override
+    protected void traverse(Node slicingCriterion, Set<Node> slice, Edge.Type... ignoreEdgeTypes)
     {
         final Deque<Node> pendingNodes = new LinkedList<>(slice);
         final Set<Edge.Type> ignoreEdgeTypesSet = new HashSet<>(Arrays.asList(ignoreEdgeTypes));
