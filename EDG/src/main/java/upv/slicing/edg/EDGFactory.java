@@ -239,7 +239,6 @@ public class EDGFactory {
 		for (Edge valueEdge : incomingEdges)
 		{
 			final Node from = edg.getEdgeSource(valueEdge);
-			final Node to = edg.getEdgeTarget(valueEdge);
 			final EdgeConstraint edgeConstraint = valueEdge.getConstraint();
 			edg.removeEdge(valueEdge);
 			final Edge e = new Edge(Edge.Type.Value, edgeConstraint);
