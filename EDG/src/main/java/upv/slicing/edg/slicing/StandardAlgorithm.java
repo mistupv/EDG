@@ -15,24 +15,28 @@ public class StandardAlgorithm implements SlicingAlgorithm
 		this.edg = edg;
 	}
 
-	public Set<Node> slice(Node node)
+	public Set<Node> slice(Node slicingCriterion)
 	{
 		final Set<Node> slice = new HashSet<>();
-		if (node == null)
+		if (slicingCriterion == null)
 			return slice;
 
-		slice.add(node);
-		this.traverse(slice, Edge.Type.Output);
-		this.traverse(slice, Edge.Type.Input);
+		slice.add(slicingCriterion);
+		this.traverse(slicingCriterion, slice, Edge.Type.Output);
+		this.traverse(slicingCriterion, slice, Edge.Type.Input);
 
 		return slice;
+	}
+
+	protected void traverse(Node slicingCriterion, Set<Node> slice, Edge.Type... ignoreEdgeTypes)
+	{
+		this.traverse(slice, ignoreEdgeTypes);
 	}
 
 	private void traverse(Set<Node> slice, Edge.Type... ignoreEdgeTypes)
 	{
 		final Deque<Node> pendingNodes = new LinkedList<>(slice);
 		final Set<Edge.Type> ignoreEdgeTypesSet = new HashSet<>(Arrays.asList(ignoreEdgeTypes));
-		ignoreEdgeTypesSet.add(Edge.Type.ControlFlow);
 
 		while (!pendingNodes.isEmpty())
 		{
@@ -40,6 +44,7 @@ public class StandardAlgorithm implements SlicingAlgorithm
 			final Set<Edge> incomingEdges = edg.incomingEdgesOf(pendingNode);
 
 			incomingEdges.removeIf(e -> ignoreEdgeTypesSet.contains(e.getType()));
+			incomingEdges.removeIf(Edge::isControlFlowEdge);
 			incomingEdges.removeIf(e -> !e.isTraversable());
 			for (Edge incomingEdge : incomingEdges)
 			{

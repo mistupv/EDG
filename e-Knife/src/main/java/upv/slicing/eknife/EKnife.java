@@ -1,5 +1,6 @@
 package upv.slicing.eknife;
 
+import upv.slicing.edg.Config;
 import upv.slicing.edg.DotFactory;
 import upv.slicing.edg.EDGFactory;
 import upv.slicing.edg.PdfFactory;
@@ -142,7 +143,10 @@ public class EKnife {
 		if (file != null)
 			file = new File(file).getName();
 
-		if (language == null || inputPath == null || outputPath == null || file == null || line <= 0 || name == null || occurrence <= 0)
+		// Pick up the first occurrence if not defined
+		occurrence = occurrence == 0 ? 1 : occurrence;
+
+		if (inputPath == null || outputPath == null || file == null || line <= 0 || name == null || occurrence <= 0)
 			return null;
 		return new Object[] { language, inputPath, outputPath, file, line, name, occurrence, dot, pdf, omitedges, controlFlow, control, value, flow, call, input, output, summary };
 	}
@@ -155,7 +159,7 @@ public class EKnife {
 				"  -ar <file>          To specify the file (relative to -ip) where the slicing criterion is\n" +
 				"  -li <num>           To specify the line of the slicing criterion\n" +
 				"  -na <name>          To specify the name of the slicing criterion (must be a variable)\n" +
-				"  -oc <num>           To specify the occurrence of the slicing criterion in that line\n" +
+				"  -oc <num>           To specify the occurrence of the slicing criterion in that line (1 by default)\n" +
 				"  -dot <file>         To generate a dot that represents the EDG\n" +
 				"  -pdf <file>         To generate a pdf that represents the EDG\n" +
 				"  -omitarcs           To omit the generation of arcs\n" +
@@ -200,10 +204,10 @@ public class EKnife {
 		final EDG edg = new EDGFactory(last).createEDG();
 		final SlicingCriterion slicingCriterion = new SlicingCriterion(file, line, name, occurrence);
 		final Node SC = edg.getNode(slicingCriterion);
-		final SlicingAlgorithm slicingAlgorithm = new ConstrainedAlgorithm(edg);
+		final SlicingAlgorithm slicingAlgorithm = Config.CREATE_SLICING_ALGORITHM.apply(edg);
 		final Set<Node> slice = slicingAlgorithm.slice(SC);
 
-		CodeFactory.createCode(language, outputFile, edg, slice);
+		CodeFactory.createCode(Language.Java, outputFile, edg, slice);
 		if (dotFile != null)
 			DotFactory.createDot(dotFile, edg, SC, slice, edgeFlags);
 		if (pdfFile != null && dotFile != null)

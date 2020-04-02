@@ -2,7 +2,7 @@ class doWhileTest{
 	public static void main(String[] args)
 	{
 		int x = 2;
-		int y;
+		int y = 5;
 		do
 			y = 1;
 		while((x = 3) > 4);

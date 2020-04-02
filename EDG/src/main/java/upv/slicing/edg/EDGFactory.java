@@ -14,6 +14,7 @@ import upv.slicing.edg.graph.Node;
 
 import java.util.List;
 import java.util.Set;
+import java.util.function.Predicate;
 
 public class EDGFactory {
 	private final LAST last;
@@ -154,16 +155,16 @@ public class EDGFactory {
 
 		// Modify CFG Arcs to add Results to the CFG
 		final Set<Edge> outgoingCFGEdges = edg.outgoingEdgesOf(node);
-		outgoingCFGEdges.removeIf(edge -> edge.getType() != Edge.Type.ControlFlow);
+		outgoingCFGEdges.removeIf(Predicate.not(Edge::isControlFlowEdge));
 
 		if (!outgoingCFGEdges.isEmpty())
 			edg.addEdge(node, result, Edge.Type.ControlFlow);
 
-		for (Edge CFGEdge : outgoingCFGEdges)
+		for (Edge cfgEdge : outgoingCFGEdges)
 		{
-			final Node to = edg.getEdgeTarget(CFGEdge);
-			edg.removeEdge(CFGEdge);
-			edg.addEdge(result, to, Edge.Type.ControlFlow);
+			final Node to = edg.getEdgeTarget(cfgEdge);
+			edg.removeEdge(cfgEdge);
+			edg.addEdge(result, to, cfgEdge.getType());
 		}
 
 
@@ -176,40 +177,40 @@ public class EDGFactory {
 		{
 			case Routine:
 				final Set<Edge> incomingCFGEdges = edg.incomingEdgesOf(node);
-				incomingCFGEdges.removeIf(edge -> edge.getType() != Edge.Type.ControlFlow);
-				for (Edge CFGEdge : incomingCFGEdges)
+				incomingCFGEdges.removeIf(Predicate.not(Edge::isControlFlowEdge));
+				for (Edge cfgEdge : incomingCFGEdges)
 				{
-					final Node from = edg.getEdgeSource(CFGEdge);
-					edg.removeEdge(CFGEdge);
-					edg.addEdge(from,result, Edge.Type.ControlFlow);
+					final Node from = edg.getEdgeSource(cfgEdge);
+					edg.removeEdge(cfgEdge);
+					edg.addEdge(from,result, cfgEdge.getType());
 				}
 				break;
 			case Clause:
 				final Set<Edge> incomingClauseCFGEdges = edg.incomingEdgesOf(node);
-				incomingClauseCFGEdges.removeIf(edge -> edge.getType() != Edge.Type.ControlFlow);
-				for (Edge CFGEdge : incomingClauseCFGEdges)
+				incomingClauseCFGEdges.removeIf(Predicate.not(Edge::isControlFlowEdge));
+				for (Edge cfgEdge : incomingClauseCFGEdges)
 				{
-					final Node from = edg.getEdgeSource(CFGEdge);
+					final Node from = edg.getEdgeSource(cfgEdge);
 					if (from.getType() != Node.Type.Routine)
 					{
-						edg.removeEdge(CFGEdge);
-						edg.addEdge(from, result, Edge.Type.ControlFlow);
+						edg.removeEdge(cfgEdge);
+						edg.addEdge(from, result, cfgEdge.getType());
 					}
 				}
 
 				final Set<Edge> outgoingClauseCFGEdges = edg.outgoingEdgesOf(node);
-				outgoingClauseCFGEdges.removeIf(edge -> edge.getType() != Edge.Type.ControlFlow);
-				for (Edge CFGEdge : outgoingClauseCFGEdges)
+				outgoingClauseCFGEdges.removeIf(Predicate.not(Edge::isControlFlowEdge));
+				for (Edge cfgEdge : outgoingClauseCFGEdges)
 				{
-					final Node finalToDestination = edg.getEdgeTarget(CFGEdge);
+					final Node finalToDestination = edg.getEdgeTarget(cfgEdge);
 					Node to = finalToDestination;
 					if (to.getType() == Node.Type.Result)
 						to = edg.getNodeFromRes(to);
 
 					if (to.getType() == Node.Type.Routine)
 					{
-						edg.removeEdge(CFGEdge);
-						edg.addEdge(result, finalToDestination, Edge.Type.ControlFlow);
+						edg.removeEdge(cfgEdge);
+						edg.addEdge(result, finalToDestination, cfgEdge.getType());
 					}
 				}
 				break;
@@ -225,7 +226,6 @@ public class EDGFactory {
 		
 		for (Edge valueEdge : outgoingEdges)
 		{
-			final Node from = edg.getEdgeSource(valueEdge);
 			final Node to = edg.getEdgeTarget(valueEdge);
 			final EdgeConstraint edgeConstraint = valueEdge.getConstraint();
 			edg.removeEdge(valueEdge);
@@ -239,7 +239,6 @@ public class EDGFactory {
 		for (Edge valueEdge : incomingEdges)
 		{
 			final Node from = edg.getEdgeSource(valueEdge);
-			final Node to = edg.getEdgeTarget(valueEdge);
 			final EdgeConstraint edgeConstraint = valueEdge.getConstraint();
 			edg.removeEdge(valueEdge);
 			final Edge e = new Edge(Edge.Type.Value, edgeConstraint);
@@ -247,7 +246,7 @@ public class EDGFactory {
 		}
 	}
 
-	private void treatDataConstructorExpressions(Node dataConstructor, Node result) // TODO: REVIEW AFTER DELETING "EXPRESSION" NODES
+	private void treatDataConstructorExpressions(Node dataConstructor, Node result)
 	{
 		deleteIncomingValueArcs(dataConstructor);
 		modifyDataConstructorArcs(dataConstructor, result);
@@ -263,16 +262,16 @@ public class EDGFactory {
 	private void modifyDataConstructorArcs(Node dataConstructor, Node result)
 	{
 		final List<Node> dataConstructorChildren = edg.getChildren(dataConstructor);
+		dataConstructorChildren.removeIf(n -> n.getType() == Node.Type.Result);
+
 		final int dataConstructorChildrenCount = dataConstructorChildren.size();
 
 		for (int childIndex = 0; childIndex < dataConstructorChildrenCount; childIndex++)
 		{
-			final Node dataConstructorChild = dataConstructorChildren.get(childIndex);
-			final Node from = dataConstructorChild.getType() == Node.Type.Expression ?
-					edg.getChild(dataConstructorChild, Node.Type.Result) : dataConstructorChild;
+			final Node dataConstructorChild = edg.getResFromNode(dataConstructorChildren.get(childIndex));
 			final DataConstructorConstraint constraint = new DataConstructorConstraint(
 					AccessConstraint.Operation.Remove, childIndex + "");
-			edg.addEdge(from, result, new Edge(Edge.Type.Value, constraint));
+			edg.addEdge(dataConstructorChild, result, new Edge(Edge.Type.Value, constraint));
 		}
 		
 		final Set<Edge> outgoingEdges = edg.outgoingEdgesOf(dataConstructor);
@@ -285,7 +284,7 @@ public class EDGFactory {
 			final EdgeConstraint edgeConstraint = valueEdge.getConstraint();
 			edg.removeEdge(valueEdge);
 			final Edge e = new Edge(Edge.Type.Value, edgeConstraint);
-			edg.addEdge(from, to, e);
+			edg.addEdge(result, to, e);
 		}
 	}
 }

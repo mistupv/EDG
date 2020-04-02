@@ -62,7 +62,7 @@ public class LAST extends GraphWithRoot {
 	public Set<Edge> structuralIncomingEdgesOf(Node node)
 	{
 		return super.incomingEdgesOf(node).stream()
-				.filter(Edge.NonTraversable.class::isInstance)
+				.filter(Edge::isAST)
 				.collect(Collectors.toSet());
 	}
 
@@ -74,7 +74,7 @@ public class LAST extends GraphWithRoot {
 	public Set<Edge> structuralOutgoingEdgesOf(Node node)
 	{
 		return super.outgoingEdgesOf(node).stream()
-			.filter(Edge.NonTraversable.class::isInstance)
+			.filter(Edge::isAST)
 			.collect(Collectors.toSet());
 	}
 
@@ -82,16 +82,15 @@ public class LAST extends GraphWithRoot {
 	public Set<Edge> incomingEdgesOf(Node node)
 	{
 		return super.incomingEdgesOf(node).stream()
-				.filter(e -> !(e instanceof Edge.NonTraversable))
+				.filter(Predicate.not(Edge::isAST))
 				.collect(Collectors.toSet());
 	}
 
 	@Override
 	public Set<Edge> outgoingEdgesOf(Node node)
 	{
-
 		return super.outgoingEdgesOf(node).stream()
-				.filter(e -> !(e instanceof Edge.NonTraversable))
+				.filter(Predicate.not(Edge::isAST))
 				.collect(Collectors.toSet());
 	}
 
@@ -162,8 +161,9 @@ public class LAST extends GraphWithRoot {
 	{
 		if (!node.getInfo().isExpression())
 			return node;
-		assert resultFromNode.containsKey(node);
-		return resultFromNode.get(node);
+		if (resultFromNode.containsKey(node))
+			return resultFromNode.get(node);
+		return node;
 	}
 
 	/**

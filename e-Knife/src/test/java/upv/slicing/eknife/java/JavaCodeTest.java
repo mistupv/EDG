@@ -3,6 +3,7 @@ package upv.slicing.eknife.java;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
+import upv.slicing.edg.Config;
 import upv.slicing.edg.DotFactory;
 import upv.slicing.edg.EDGFactory;
 import upv.slicing.edg.PdfFactory;
@@ -40,11 +41,13 @@ public class JavaCodeTest {
 		argList.add(Arguments.of("operationTest.java", new SlicingCriterion("operationTest.java", 8, "c", 2)));
 		argList.add(Arguments.of("operationTest.java", new SlicingCriterion("operationTest.java", 9, "f")));
 		argList.add(Arguments.of("operationTest.java", new SlicingCriterion("operationTest.java", 10, "e")));
+		argList.add(Arguments.of("operationTest.java", new SlicingCriterion("operationTest.java", 12, "j")));
 
 		argList.add(Arguments.of("callTest.java", new SlicingCriterion("callTest.java", 6, "z")));
 		argList.add(Arguments.of("callTest.java", new SlicingCriterion("callTest.java", 7, "w")));
 		argList.add(Arguments.of("callTest.java", new SlicingCriterion("callTest.java", 10, "a")));
 		argList.add(Arguments.of("callTest.java", new SlicingCriterion("callTest.java", 13, "d")));
+		argList.add(Arguments.of("callTest.java", new SlicingCriterion("callTest.java", 16, "f")));
 
 		argList.add(Arguments.of("whileTest.java", new SlicingCriterion("whileTest.java", 9, "x")));
 		argList.add(Arguments.of("whileTest.java", new SlicingCriterion("whileTest.java", 10, "y")));
@@ -56,6 +59,7 @@ public class JavaCodeTest {
 		argList.add(Arguments.of("forTest.java", new SlicingCriterion("forTest.java", 6, "i", 2)));
 		argList.add(Arguments.of("forTest.java", new SlicingCriterion("forTest.java", 15, "i")));
 		argList.add(Arguments.of("forTest.java", new SlicingCriterion("forTest.java", 16, "total")));
+		argList.add(Arguments.of("forTest.java", new SlicingCriterion("forTest.java", 22, "j")));
 
 		argList.add(Arguments.of("foreachTest.java", new SlicingCriterion("foreachTest.java", 7, "array")));
 		argList.add(Arguments.of("foreachTest.java", new SlicingCriterion("foreachTest.java", 7, "i")));
@@ -103,9 +107,10 @@ public class JavaCodeTest {
 
 		String outName = className + "_" + slicingCriterion.getLine() + "_" + slicingCriterion.getName();
 
-		final String outputDotPath = CODE_ROOT + outName + ".dot";
-		final String outputPdfPath = CODE_ROOT + outName + ".pdf";
-		final String outputJavaPath = CODE_ROOT + outName + ".java";
+		new File("./out/" + CODE_ROOT + "/").mkdirs();
+		final String outputDotPath = "./out/" + CODE_ROOT + outName + ".dot";
+		final String outputPdfPath = "./out/" + CODE_ROOT + outName + ".pdf";
+		final String outputJavaPath = "./out/" + CODE_ROOT + outName + ".java";
 		final File outputDotFile = new File(outputDotPath);
 		final File outputPdfFile = new File(outputPdfPath);
 		final File outputJavaFile = new File(outputJavaPath);
@@ -114,7 +119,7 @@ public class JavaCodeTest {
 		final EDG edg = new EDGFactory(last).createEDG();
 
 		final Node SC = edg.getNode(slicingCriterion);
-		final SlicingAlgorithm slicingAlgorithm = new ConstrainedAlgorithm(edg);
+		final SlicingAlgorithm slicingAlgorithm = Config.CREATE_SLICING_ALGORITHM.apply(edg);
 		final Set<Node> slice = slicingAlgorithm.slice(SC);
 
 		DotFactory.createDot(outputDotFile, edg, SC, slice);

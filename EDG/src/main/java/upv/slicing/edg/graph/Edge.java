@@ -10,7 +10,7 @@ import java.util.Random;
 public class Edge
 {
 	public enum Type {
-		ControlFlow,
+		ControlFlow, NonExecControlFlow,
 		Structural, Control,
 		Value, Flow,
 		Call, Input, Output, Summary,
@@ -67,6 +67,16 @@ public class Edge
 		return traversable;
 	}
 
+	public boolean isControlFlowEdge()
+	{
+		return type == Type.ControlFlow || type == Type.NonExecControlFlow;
+	}
+
+	public boolean isAST()
+	{
+		return this instanceof NonTraversable && type == Type.Structural;
+	}
+
 	@Override
 	public String toString()
 	{
@@ -101,6 +111,12 @@ public class Edge
 		{
 			super(edge.getType(), edge.getConstraint());
 			mark();
+			traversable = false;
+		}
+
+		public NonTraversable(Edge.Type type)
+		{
+			super(type);
 			traversable = false;
 		}
 

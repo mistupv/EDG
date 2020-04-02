@@ -315,6 +315,12 @@ public class JavaCodeFactory {
 			case Foreach:
 				parserFunc = this::parseForeach;
 				break;
+			case Break:
+				parserFunc = this::parseBreak;
+				break;
+			case Continue:
+				parserFunc = this::parseContinue;
+				break;
 			default:
 				parserFunc = this::parseExpressionStmt;
 				break;
@@ -440,7 +446,7 @@ public class JavaCodeFactory {
 		final List<Statement> statements = this.parseStatements(bodyChildren, false);
 
 		final NodeList<Statement> bodyStatements = new NodeList<>();
-		statements.addAll(statements);
+		bodyStatements.addAll(statements);
 
 		return List.of(new SwitchEntry(new NodeList<>(), SwitchEntry.Type.STATEMENT_GROUP, bodyStatements));
 	}
@@ -455,6 +461,9 @@ public class JavaCodeFactory {
 	{
 		// Condition
 		final Node conditionNode = edg.getChild(loop, Node.Type.Condition);
+		if (slice != null && !slice.contains(conditionNode))
+			return List.of();
+
 		final Node conditionExprNode = edg.getChild(conditionNode, Node.Type.Value);
 		final List<Expression> conditionExpression = this.parseExpression(conditionExprNode);
 
@@ -462,8 +471,8 @@ public class JavaCodeFactory {
 		final Node body = edg.getChild(loop, Node.Type.Body);
 		final List<Node> bodyChildren = edg.getChildren(body);
 		final List<Statement> bodyStatements = this.parseStatements(bodyChildren, false);
-		if (bodyStatements.isEmpty())
-			return conditionExpression.stream().map(ExpressionStmt::new).collect(Collectors.toList());
+//		if (bodyStatements.isEmpty())
+//			return conditionExpression.stream().map(ExpressionStmt::new).collect(Collectors.toList());
 
 		final BlockStmt bodyBlock = new BlockStmt();
 		for (Statement bodyStatement : bodyStatements)
@@ -513,8 +522,8 @@ public class JavaCodeFactory {
 		updateChildren.removeIf(node -> node.getType() == Node.Type.Result);
 		final List<Expression> updateExpressions = this.parseExpressions(updateChildren, false);
 
-		if (slice != null && slice.contains(conditionNode) && bodyStatements.isEmpty() && updateExpressions.isEmpty())
-			return Util.join(initExprs,conditionExpressions).stream().map(ExpressionStmt::new).collect(Collectors.toList());
+//		if (slice != null && slice.contains(conditionNode) && bodyStatements.isEmpty() && updateExpressions.isEmpty())
+//			return Util.join(initExprs,conditionExpressions).stream().map(ExpressionStmt::new).collect(Collectors.toList());
 
 		// ForStmt structure is only required if any statement of the body or update is necessary in the slice
 		final NodeList<Expression> initBlock = new NodeList<>();
@@ -571,9 +580,10 @@ public class JavaCodeFactory {
 		return List.of(new ForEachStmt((VariableDeclarationExpr) variableDeclarationExpr.get(0), iterableExpr.get(0), bodyBlock));
 	}
 
-	/** PENDING **/
+	/* *** PENDING *** */
 	private List<Statement> parseExHandler(Node exHandler)
 	{
+		assert false;	// TODO: @serperu generate code for try-catch-finally when properly implemented
 		// Try
 		final Node tryNode = edg.getChild(exHandler, Node.Type.Try);
 
@@ -627,6 +637,20 @@ public class JavaCodeFactory {
 
 		return List.of(new ThrowStmt(throwExpression.get(0)));
 
+	}
+
+	private List<Statement> parseBreak(Node _break)
+	{
+		if (this.slice != null && !this.slice.contains(_break))
+			return List.of();
+		return List.of(new BreakStmt(null, null));
+	}
+
+	private List<Statement> parseContinue(Node _continue)
+	{
+		if (this.slice != null && !this.slice.contains(_continue))
+			return List.of();
+		return List.of(new ContinueStmt());
 	}
 
 	private List<Statement> parseReturn(Node _return)
@@ -845,9 +869,10 @@ public class JavaCodeFactory {
 	 * Parse to javaparser a Variable declaration node of the EDG (only the parts contained in the slice).
 	 * @param declaration Declaration node to be parsed.
 	 * @return A list of javaparser expressions inside the given node contained in the slice.
-	 * @apiNote This method parses variable declaration nodes and returns the single declaration if the variable
-	 * 			type is Primitive Type or an initialization with the constructor without arguments if the variable
-	 * 			type is a ClassOrInterfaceType. This would not work if the ClassOrInterfaceType has no empty constructor.
+	 * @apiNote This method parses variable declaration nodes and returns the variable declaration if the variable
+	 * 			type is Primitive Type or an initialization with the empty constructor if the variable type is a
+	 * 			ClassOrInterfaceType.
+	 * 			The produced code may not compile if the ClassOrInterfaceType has no empty constructor.
 	 */
 	private List<Expression> parseDeclarationNonEmpty(Node declaration)
 	{
@@ -904,8 +929,11 @@ public class JavaCodeFactory {
 	{
 		final List<Node> elements = edg.getChildren(dataConstructor);
 		elements.removeIf(node -> node.getType() == Node.Type.Result);
-		final List<Expression> expressions = this.parseExpressions(elements, true);
 
+		if (slice != null && !slice.contains(dataConstructor))
+			return this.parseExpressions(elements, false);
+
+		final List<Expression> expressions = this.parseExpressions(elements, true);
 		return List.of(new ArrayInitializerExpr(NodeList.nodeList(expressions)));
 	}
 
@@ -1029,17 +1057,11 @@ public class JavaCodeFactory {
 				final List<Expression> rightExpression = this.parseExpression(rightNode);
 
 				if (slice != null && slice.contains(operation))
-				{
-					final Expression leftOperator = isEnclosedExpr(leftExpression.get(0), binaryOperator, true) ?
-							new EnclosedExpr(leftExpression.get(0)) : leftExpression.get(0);
-					final Expression rightOperator = isEnclosedExpr(rightExpression.get(0), binaryOperator, false) ?
-							new EnclosedExpr(rightExpression.get(0)) : rightExpression.get(0);
-					return List.of(new BinaryExpr(leftOperator, rightOperator, binaryOperator));
-				}
+					return List.of(new BinaryExpr(leftExpression.get(0), rightExpression.get(0), binaryOperator));
 
-				if (slice != null && slice.contains(leftNode))
+				if (slice != null && !leftExpression.isEmpty())
 				{
-					if (slice.contains(rightNode))
+					if (!rightExpression.isEmpty())
 						return Util.join(leftExpression,rightExpression);
 					return leftExpression;
 				}
@@ -1050,6 +1072,11 @@ public class JavaCodeFactory {
 		}
 	}
 
+	/**
+	 * Parse to javaparser a parenthesis node of the EDG (only the parts contained in the slice).
+	 * @param enclosed Parenthesis node containing the expression to be parsed.
+	 * @return A list of javaparser expressions of the given node contained in the slice.
+	 */
 	private List<Expression> parseEnclosed(Node enclosed)
 	{
 		final Node exprNode = edg.getChild(enclosed, Node.Type.Value);
@@ -1367,51 +1394,6 @@ public class JavaCodeFactory {
 		throw new IllegalArgumentException("Invalid operator: " + sign);
 	}
 
-	private boolean isEnclosedExpr(Expression expr, BinaryExpr.Operator operator, boolean isLeftExpr)
-	{
-		if (expr instanceof BinaryExpr)
-		{
-			BinaryExpr.Operator opChild = ((BinaryExpr) expr).getOperator();
-			switch (operator)
-			{
-				case PLUS:
-				case MINUS:
-					switch (opChild)
-					{
-						case PLUS:
-						case MINUS:
-							return !isLeftExpr;
-						case MULTIPLY:
-						case DIVIDE:
-						case REMAINDER:
-							return false;
-						default:
-							break;
-					}
-					break;
-				case MULTIPLY:
-				case DIVIDE:
-				case REMAINDER:
-					switch (opChild)
-					{
-						case PLUS:
-						case MINUS:
-							return true;
-						case MULTIPLY:
-						case DIVIDE:
-						case REMAINDER:
-							return !isLeftExpr;
-						default:
-							break;
-					}
-					break;
-				default:
-					break;
-			}
-		}
-		return false;
-	}
-
 	private Expression generateReturnExpr(Type type)
 	{
 		if (type.equals(PrimitiveType.intType()))
@@ -1492,6 +1474,12 @@ public class JavaCodeFactory {
 			case Switch:
 			case Selector:
 			case Enclosed:
+			case TypeTransformation:
+			case TypeCheck:
+			case Generator:
+			case Iterator:
+			case DataConstructor:
+			case DataConstructorAccess:
 				return true;
 			default:
 				return false;
