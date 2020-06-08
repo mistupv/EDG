@@ -75,9 +75,11 @@ public class ControlFlowGenerator extends VoidVisitor<Void> implements Generator
 	{
 		connectTo(n);
 		assert returnSet.isEmpty();
+		graph.getChild(n, Node.Type.ParameterIn).accept(this, arg);
 		graph.getChild(n, Node.Type.Parameters).accept(this, arg);
 		graph.getChild(n, Node.Type.Guard).accept(this, arg);
 		graph.getChild(n, Node.Type.Body).accept(this, arg);
+		graph.getChild(n, Node.Type.ParameterOut).accept(this, arg);
 		hangingNodes.addAll(returnSet);
 		returnSet.clear();
 		connectTo(n);
@@ -355,5 +357,17 @@ public class ControlFlowGenerator extends VoidVisitor<Void> implements Generator
 			hangingNodes.addAll(condHanging);
 		}
 		// {then else|if} --> <after>
+	}
+
+	@Override
+	public void visitParameterIn(Node n, Void arg)
+	{
+		connectTo(n);
+	}
+
+	@Override
+	public void visitParameterOut(Node n, Void arg)
+	{
+		connectTo(n);
 	}
 }

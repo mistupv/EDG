@@ -50,7 +50,7 @@ public class InterproceduralEdgeGenerator extends EdgeGenerator {
 			final List<Node> parameters = edg.getChildren(parametersNode);
 			parameters.removeIf(n -> n.getType() == Node.Type.Result);
 
-			this.edg.addEdge(calleeResultNode, matchingClause, new Edge(Edge.Type.Input, new PhaseConstraint(Phase.Input)));
+			this.edg.addEdge(calleeResultNode, matchingClause, new Edge(Edge.Type.Call, new PhaseConstraint(Phase.Input)));
 			for (int argumentIndex = 0; argumentIndex < arguments.size(); argumentIndex++)
 			{
 				final Node argument = arguments.get(argumentIndex);

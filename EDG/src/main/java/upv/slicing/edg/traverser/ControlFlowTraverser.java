@@ -316,4 +316,13 @@ public class ControlFlowTraverser {
 				throw new RuntimeException("Direction not contemplated: " + direction);
 		}
 	}
+
+
+	// FlowEdgeGeneratorNew
+
+	public static Set<Node> step(LAST last, Node node, LAST.Direction direction)
+	{
+		return new HashSet<>(last.getNodes(node, direction, Edge.Type.ControlFlow));
+	}
+
 }

@@ -776,6 +776,15 @@ public abstract class LASTFactory {
 		LASTBuilder.addSuperReference(this.last, parentId, where, value, info);
 	}
 
+	protected void addReference(String value, LDASTNodeInfo info)
+	{
+		final Branch parent = this.branches.peek();
+		final int parentId = parent.getNodeId();
+		final Where where = parent.getWhere();
+
+		LASTBuilder.addReference(this.last, parentId, where, value, info);
+	}
+
 	protected <R> void addLabel(String labelText, R labeledExpr, LDASTNodeInfo info)
 	{
 		final Branch parent = this.branches.peek();
