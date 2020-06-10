@@ -58,7 +58,6 @@ public class LASTBuilder {
 
 		final LDASTNodeInfo expInfo = new LDASTNodeInfo(info, true);
 		final Node clause = LASTBuilder.addNode(last, parent, Node.Type.Clause, "clause", expInfo);
-		//ASTBuilder.addNode(last, clause, Node.Info.Type.Parameters, "parameters", null);
 		LASTBuilder.addNode(last, clause, Node.Type.ParameterIn, "paramIn", info);
 		LASTBuilder.addNode(last, clause, Node.Type.Parameters, "parameters", info); // ADDED info to parameters to obtain the name of the class
 		LASTBuilder.addNode(last, clause, Node.Type.ParameterOut, "paramOut", info);
