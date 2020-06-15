@@ -14,9 +14,7 @@ import com.github.javaparser.ast.type.*;
 import com.github.javaparser.ast.type.PrimitiveType.Primitive;
 import com.github.javaparser.printer.Printable;
 import upv.slicing.edg.LDASTNodeInfo;
-import upv.slicing.edg.graph.EDG;
-import upv.slicing.edg.graph.Node;
-import upv.slicing.edg.graph.Variable;
+import upv.slicing.edg.graph.*;
 import upv.slicing.eknife.Util;
 
 import java.io.File;
@@ -26,6 +24,7 @@ import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+import static upv.slicing.edg.graph.Node.Type.CLoop;
 import static upv.slicing.edg.graph.Node.Type.Value;
 
 public class JavaCodeFactory {
@@ -110,12 +109,17 @@ public class JavaCodeFactory {
 	private void parseMembers(ClassOrInterfaceDeclaration clazz, Node module)
 	{
 		final List<Node> members = edg.getChildren(module);
+		members.removeIf(node -> node.getType() == Node.Type.Result);
 
 		this.funundef = false;
 		for (Node member : members)
 		{
-			if (this.slice != null && !this.slice.contains(member))
-				continue;
+
+			if (member.getType() == Node.Type.Routine) {
+				if (this.slice != null && !this.slice.contains(member))
+					continue;
+				this.parseRoutine(clazz, member);
+			}
 
 			if (member.getType() != Node.Type.Routine)
 			{
@@ -123,8 +127,7 @@ public class JavaCodeFactory {
 				for (FieldDeclaration globalVar : globalVars)
 					clazz.addMember(globalVar);
 			}
-			else // TODO No pasar el clazz en la llamada
-				this.parseRoutine(clazz, member);
+
 		}
 
 		if (this.funundef)
@@ -142,7 +145,7 @@ public class JavaCodeFactory {
 			// TODO: This can be a list of Expressions without any FieldDeclaration
 			variableDeclaratorExprs = parseDeclaration(globalVariable);
 
-		if (variableDeclarators.isEmpty())
+		if (variableDeclaratorExprs.isEmpty())
 			return List.of();
 
 		assert variableDeclaratorExprs.size() == 1;
@@ -343,6 +346,9 @@ public class JavaCodeFactory {
 	 */
 	private List<Statement> parseIf(Node _if)
 	{
+		Context ctx = context.peek();
+		context.push(new Context(_if.getType(), ctx.returnType, ctx.returnReq));
+
 		final Node conditionNode = edg.getChild(_if, Node.Type.Condition);
 		final Node conditionExprNode = edg.getChild(conditionNode, Node.Type.Value);
 		final List<Expression> conditionExpression = this.parseExpression(conditionExprNode);
@@ -355,20 +361,25 @@ public class JavaCodeFactory {
 		final List<Node> elseChildren = edg.getChildren(_else);
 		final List<Statement> elseStatements = this.parseStatements(elseChildren, false);
 
-		if (thenStatements.isEmpty() && elseStatements.isEmpty())
+		if (thenStatements.isEmpty() && elseStatements.isEmpty()) {
+			context.pop();
 			return conditionExpression.stream().map(ExpressionStmt::new).collect(Collectors.toList());
+		}
 
 		final BlockStmt thenBlock = new BlockStmt();
 		for (Statement thenStatement : thenStatements)
 			thenBlock.addStatement(thenStatement);
 
-		if (elseStatements.isEmpty())
+		if (elseStatements.isEmpty()) {
+			context.pop();
 			return List.of(new IfStmt(conditionExpression.get(0), thenBlock, null));
+		}
 
 		final BlockStmt elseBlock = new BlockStmt();
 		for (Statement elseStatement : elseStatements)
 			elseBlock.addStatement(elseStatement);
 
+		context.pop();
 		assert conditionExpression.size() == 1;
 		return List.of(new IfStmt(conditionExpression.get(0), thenBlock, elseBlock));
 	}
@@ -379,7 +390,7 @@ public class JavaCodeFactory {
 	 * @return A list of javaparser statements containing a switch statement or
 	 * 		   a list of statements of the selector node, which are part of the slice.
 	 */
-	private List<Statement> parseSwitch(Node _switch)
+	private List<Statement> parseSwitch(Node _switch) // TODO: Control return required environment
 	{
 		// Selector
 		final Node selectorNode = edg.getChild(_switch, Node.Type.Selector);
@@ -459,10 +470,17 @@ public class JavaCodeFactory {
 	 */
 	private List<Statement> parseWhile_DoWhileLoop(Node loop)
 	{
+		if (loop.getType() == CLoop) {
+			Context ctx = context.peek();
+			context.push(new Context(loop.getType(), ctx.returnType, ctx.returnReq));
+		}
 		// Condition
 		final Node conditionNode = edg.getChild(loop, Node.Type.Condition);
-		if (slice != null && !slice.contains(conditionNode))
+		if (slice != null && !slice.contains(conditionNode)) {
+			if (loop.getType() == CLoop)
+				context.pop();
 			return List.of();
+		}
 
 		final Node conditionExprNode = edg.getChild(conditionNode, Node.Type.Value);
 		final List<Expression> conditionExpression = this.parseExpression(conditionExprNode);
@@ -479,8 +497,10 @@ public class JavaCodeFactory {
 			bodyBlock.addStatement(bodyStatement);
 
 		assert conditionExpression.size() == 1;
-		if (loop.getType() == Node.Type.CLoop)
+		if (loop.getType() == Node.Type.CLoop) {
+			context.pop();
 			return List.of(new WhileStmt(conditionExpression.get(0), bodyBlock));
+		}
 		return List.of(new DoStmt(bodyBlock, conditionExpression.get(0)));
 	}
 
@@ -492,21 +512,28 @@ public class JavaCodeFactory {
 	 */
 	private List<Statement> parseForLoop(Node loop)
 	{
+		Context ctx = context.peek();
+		context.push(new Context(loop.getType(), ctx.returnType, ctx.returnReq));
+
 		final Node initNode = edg.getChild(loop, Node.Type.Init);
 		final Node conditionNode = edg.getChild(loop, Node.Type.Condition);
 		final Node bodyNode = edg.getChild(loop, Node.Type.Body);
 		final Node updateNode = edg.getChild(loop, Node.Type.Update);
 
-		if (slice != null && !slice.contains(initNode) && !slice.contains(conditionNode))
+		if (slice != null && !slice.contains(initNode) && !slice.contains(conditionNode)) {
+			context.pop();
 			return List.of();
+		}
 
 		// init: N expressions or 1 variable declaration with initialization (can be multiple)
 		final List<Node> initChildren = edg.getChildren(initNode);
 		initChildren.removeIf(node -> node.getType() == Node.Type.Result);
 		final List<Expression> initExprs = this.parseExpressions(initChildren, false);
 
-		if (slice != null && slice.contains(initNode) && !slice.contains(conditionNode))
+		if (slice != null && slice.contains(initNode) && !slice.contains(conditionNode)) {
+			context.pop();
 			return initExprs.stream().map(ExpressionStmt::new).collect(Collectors.toList());
+		}
 
 		// Condition slice part
 		final Node conditionExprNode = edg.getChild(conditionNode, Node.Type.Value);
@@ -538,6 +565,7 @@ public class JavaCodeFactory {
 		final NodeList<Expression> updateBlock = new NodeList<>();
 		updateBlock.addAll(updateExpressions);
 
+		context.pop();
 		assert conditionExpressions.size() == 1;
 		return List.of(new ForStmt(initBlock, conditionExpressions.get(0), updateBlock, bodyBlock));
 	}
@@ -550,22 +578,29 @@ public class JavaCodeFactory {
 	 */
 	private List<Statement> parseForeach(Node foreach)
 	{
-		// TODO: UPDATE AFTER DELETING ITERATOR NODE
-		final Node iterator = edg.getChild(foreach, 0);
-		final Node generator = edg.getChild(iterator, 0);
-		final Node variableDeclaration = edg.getChild(generator, 0);
-		final Node iterable = edg.getChild(generator, 1);
+		Context ctx = context.peek();
+		context.push(new Context(foreach.getType(), ctx.returnType, ctx.returnReq));
 
-		if (slice != null && !slice.contains(iterable))
+		// TODO: UPDATE AFTER DELETING ITERATOR NODE
+		final Node iterator = edg.getChild(foreach, Node.Type.Iterator);
+		final Node generator = edg.getChild(iterator, Node.Type.Iterator);
+		final Node variableDeclaration = edg.getChild(generator, Node.Type.Variable);
+		final Node iterable = edg.getChild(generator, Node.Type.Iterator);
+
+		if (slice != null && !slice.contains(iterable)) {
+			context.pop();
 			return List.of();
+		}
 
 		final List<Expression> variableDeclarationExpr = this.parseExpression(variableDeclaration);
 		final List<Expression> iterableExpr = this.parseExpression(iterable);
 
-		if (slice != null && !slice.contains(variableDeclaration) && slice.contains(iterable))
+		if (slice != null && !slice.contains(variableDeclaration) && slice.contains(iterable)) {
+			context.pop();
 			return iterableExpr.stream().map(ExpressionStmt::new).collect(Collectors.toList());
+		}
 
-		final Node body = edg.getChild(foreach, 1);
+		final Node body = edg.getChild(foreach, Node.Type.Body);
 		final List<Node> bodyChildren = edg.getChildren(body);
 		final List<Statement> bodyStatements = this.parseStatements(bodyChildren, false);
 
@@ -576,6 +611,7 @@ public class JavaCodeFactory {
 		if(bodyBlock.isEmpty())
 			bodyBlock.addStatement(new EmptyStmt());
 
+		context.pop();
 		assert variableDeclarationExpr.size() == 1 && iterableExpr.size() == 1;
 		return List.of(new ForEachStmt((VariableDeclarationExpr) variableDeclarationExpr.get(0), iterableExpr.get(0), bodyBlock));
 	}
@@ -675,7 +711,15 @@ public class JavaCodeFactory {
 		final Node returnChild = returnChildren.get(0);
 		final List<Expression> returnExpression = this.parseExpression(returnChild);
 
+		Context ctx = context.peek();
 		updateReturnContext();
+
+		if (returnExpression.isEmpty())
+		{
+			final Type type = ctx.returnType;
+			final Expression returnExpr = generateReturnExpr(type);
+			return List.of(new ReturnStmt(returnExpr));
+		}
 
 		return List.of(new ReturnStmt(returnExpression.get(0)));
 	}
@@ -1017,12 +1061,28 @@ public class JavaCodeFactory {
 	 */
 	private List<Expression> parseArguments(Node argsNode, boolean transformUnused)
 	{
-		if (this.slice != null && !this.slice.contains(argsNode))
+		if (this.slice != null && !this.slice.contains(argsNode) && !transformUnused)
 			return List.of();
 
 		final List<Node> argumentsChildren = edg.getChildren(argsNode);
 		argumentsChildren.removeIf(node -> node.getType() == Node.Type.Result);
-		return this.parseExpressions(argumentsChildren, transformUnused); // Discard sliced arguments
+
+		final List<Expression> argExpressions = new LinkedList<>();
+		if (transformUnused) {
+			for (Node argument : argumentsChildren){
+				Set<Edge> inputEdges = edg.getEdges(edg.getResFromNode(argument),
+						LAST.Direction.Forwards, Edge.Type.Input);
+				if (inputEdges.isEmpty()) // TODO generar un argumento del mismo tipo que lo que haya
+					return this.parseExpressions(argumentsChildren, true);
+				final Node target = edg.getNodeFromRes(edg.getEdgeTarget(inputEdges.iterator().next()));
+				// target is a variable
+				final Type type = (Type) target.getInfo().getInfo()[0];
+				argExpressions.add(this.generateReturnExpr(type));
+			}
+			return argExpressions;
+		}
+
+		return this.parseExpressions(argumentsChildren, false); // Discard sliced arguments
 	}
 
 	/**

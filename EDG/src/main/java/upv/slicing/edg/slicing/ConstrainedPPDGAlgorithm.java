@@ -28,11 +28,13 @@ public class ConstrainedPPDGAlgorithm extends ConstrainedAlgorithm
         final Constraints constraints = work.getConstraints();
         final Set<NodeConstraint> nodeConstraints = constraints.getNodeConstraints();
 
-        // PPDG Traversal limiting pseudo-predicates
-        if (isPseudoPredicate(currentNode) && initialNode != currentNode)
-            return newWorks;
+        // PPDG Traversal limiting pseudo-predicates for Control Edges
+        boolean pseudoPredicate = isPseudoPredicate(currentNode) && initialNode != currentNode;
 
-        final Set<Edge> edges = edg.incomingEdgesOf(currentNode);
+        final Set<Edge> edges = edg.getEdges(currentNode, sliceDirection);
+        if (pseudoPredicate)
+            edges.removeIf(edge -> edge.getType() == Edge.Type.Control);
+
         edges.removeIf(Edge::isControlFlowEdge);
         if(phase == Phase.SummaryGeneration)
             edges.removeIf(edge -> edge.getType() == Edge.Type.Exception);

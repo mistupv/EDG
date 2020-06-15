@@ -79,8 +79,9 @@ public class EDGFactory {
 	{
 		new ControlEdgeGenerator(edg).generate();
 
+		InterproceduralEdgeGeneratorNew ieg = new InterproceduralEdgeGeneratorNew(edg);
 		if (isOOLanguage)
-			new InterproceduralEdgeGenerator(edg).generate(); // Specially Generated for OOPrograms
+			ieg.generateCallEdges(); // Specially Generated for OOPrograms
 		else
 			new InterproceduralEdgeGenerator(edg).generateNoInheritance(); // TODO Implement without module analysis
 

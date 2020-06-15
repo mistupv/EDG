@@ -1,6 +1,5 @@
 package upv.slicing.edg.edge;
 
-import org.antlr.v4.runtime.misc.NotNull;
 import upv.slicing.edg.LASTBuilder;
 import upv.slicing.edg.LDASTNodeInfo;
 import upv.slicing.edg.graph.*;
@@ -88,19 +87,21 @@ public class FlowEdgeGeneratorNew extends EdgeGenerator {
 			return Objects.hash(traversalNode.getId(), defUseState);
 		}
 	}
-	private static class edgeGenState {
+	public static class EdgeGenState {
 		private final Node node;
 		private final Map <String,Node> defMap;
+		private final Map <String,Node> decMap;
 
-		private edgeGenState(Node node)
+		private EdgeGenState(Node node)
 		{
-			this(node, new HashMap<>());
+			this(node, new HashMap<>(), new HashMap<>());
 		}
 
-		private edgeGenState(Node node, Map<String,Node> definitions)
+		private EdgeGenState(Node node, Map<String,Node> definitions, Map<String,Node> declarations)
 		{
 			this.node = node;
 			this.defMap = definitions;
+			this.decMap = declarations;
 		}
 		public String toString() {
 			return "Node" + this.node.getId() + ", DefVars" + this.defMap.keySet().toString();
@@ -109,13 +110,17 @@ public class FlowEdgeGeneratorNew extends EdgeGenerator {
 		{
 			if (o == this)
 				return true;
-			if (!(o instanceof edgeGenState))
+			if (!(o instanceof EdgeGenState))
 				return false;
 
-			final edgeGenState state = (edgeGenState) o;
+			final EdgeGenState state = (EdgeGenState) o;
 
 			return Objects.equals(this.node, state.node) &&
-					Objects.equals(this.defMap, state.defMap);
+					Objects.equals(this.defMap, state.defMap) &&
+					Objects.equals(this.decMap, state.decMap);
+		}
+		public int hashCode() {
+			return Objects.hash(node.getId(), defMap, decMap);
 		}
 	}
 
@@ -209,6 +214,7 @@ public class FlowEdgeGeneratorNew extends EdgeGenerator {
 		this.createParamInOutNodes(); // Add defined and used GV to param-in and param-out nodes modifying the CFG
 		this.createArgInOutNodes(); // Add defined and used GV to arg-in and arg-out nodes modifying the CFG
 		this.addEdges();
+		this.addOrphanClauseEdges();
 	}
 
 	/** Map that contains each clause with definitions and uses of global variables */
@@ -343,7 +349,11 @@ public class FlowEdgeGeneratorNew extends EdgeGenerator {
 				definitions.add(def);
 	}
 
-	/** Adds definitions and uses of global variabels to the clauseMap after resolving a CFG path */
+	/** Adds definitions and uses of global variabels to the clauseMap after resolving a CFG path
+	 * @implNote Every time a new global variable definition is added by traversing a method declaration,
+	 * if there is any another path of the method that does not define this global variable, a use of
+	 * this global variable is needed in order to preserve the correct value of the variable in both
+	 * possible executions. */
 	public void addDefUsesToMap(State work, Map<Node,DefUseState> usedClauseMap)
 	{
 		DefUseState clauseDefUse = usedClauseMap.get(work.clauseNode);
@@ -616,7 +626,7 @@ public class FlowEdgeGeneratorNew extends EdgeGenerator {
 		{
 			final LDASTNodeInfo ldNodeInfo = new LDASTNodeInfo(parent.getInfo().getFile(), parent.getInfo().getClassName(),
 					parent.getInfo().getLine(), true, "var", null);
-			final int nodeId = LASTBuilder.addVariable(this.edg, container.getId(), null, item, false, isDefinition, !isDefinition, false, ldNodeInfo);
+			final int nodeId = LASTBuilder.addVariable(this.edg, container.getId(), null, item, false, isDefinition, !isDefinition, true, ldNodeInfo);
 			final Node paramVar = this.edg.getNode(nodeId);
 
 			final LDASTNodeInfo resultInfo = new LDASTNodeInfo(parent.getInfo().getFile(), parent.getInfo().getClassName(),
@@ -663,6 +673,9 @@ public class FlowEdgeGeneratorNew extends EdgeGenerator {
 				final Node argIn = edg.getChild(call, Node.Type.ArgumentIn);
 				final Node argOut = edg.getChild(call, Node.Type.ArgumentOut);
 
+				// Edge from the callee result to the ArgOut node
+				edg.addEdge(edg.getEdgeSource(edge), argOut, Edge.Type.Flow);
+
 				final Set<Edge> incomingArgInCFGEdges = edg.getEdges(argIn, LAST.Direction.Backwards, Edge.Type.ControlFlow);
 				final Set<Edge> incomingArgOutCFGEdges = edg.getEdges(argOut, LAST.Direction.Backwards, Edge.Type.ControlFlow);
 
@@ -690,13 +703,13 @@ public class FlowEdgeGeneratorNew extends EdgeGenerator {
 	public void generateFlowEdges(Node startNode)
 	{
 		final Node lastNode = edg.getResFromNode(startNode);
-		final Set<edgeGenState> doneWorks = new HashSet<>();
-		final Set<edgeGenState> pendingWorks = new HashSet<>();
-		pendingWorks.add(new edgeGenState(startNode, new HashMap<>()));
+		final Set<EdgeGenState> doneWorks = new HashSet<>();
+		final Set<EdgeGenState> pendingWorks = new HashSet<>();
+		pendingWorks.add(new EdgeGenState(startNode, new HashMap<>(), new HashMap<>()));
 
 		while(!pendingWorks.isEmpty())
 		{
-			final edgeGenState work =  pendingWorks.iterator().next();
+			final EdgeGenState work =  pendingWorks.iterator().next();
 			final Node workNode = work.node;
 			final Map<String, Node> workMap = work.defMap;
 			pendingWorks.remove(work);
@@ -709,6 +722,8 @@ public class FlowEdgeGeneratorNew extends EdgeGenerator {
 			if (workNode.getType() == Node.Type.Variable)
 			{
 				final Variable v = (Variable) workNode;
+				if (v.isDeclaration())
+					work.decMap.put(v.getName(),workNode);
 				switch(v.getContext())
 				{
 					case Def_Use:
@@ -719,6 +734,20 @@ public class FlowEdgeGeneratorNew extends EdgeGenerator {
 							throw new RuntimeException("The definition node cannot be null");
 					case Definition:
 						workMap.put(v.getName(),workNode);
+						if (!v.isDeclaration()){
+							 if (!v.isGlobal()) {
+								 Node decNode = work.decMap.get(v.getName());
+								 edg.addEdge(decNode, workNode, Edge.Type.Flow);
+							 }
+							 else{
+							 	final Node clazz = edg.getAncestor(workNode, Node.Type.Module);
+							 	final LASTBuilder.ClassInfo ci = (LASTBuilder.ClassInfo) clazz.getInfo().getInfo()[2];
+							 	final Map<String,Node> varMap = ci.getVariables();
+							 	final Node gVarDec = varMap.get(v.getName());
+							 	edg.addEdge(gVarDec, workNode, Edge.Type.Flow);
+							 }
+						}
+
 						break;
 					case Use:
 						final Node definition = workMap.get(v.getName());
@@ -734,9 +763,39 @@ public class FlowEdgeGeneratorNew extends EdgeGenerator {
 
 			doneWorks.add(work);
 			final Set<Node> nextNodes = ControlFlowTraverser.step(this.edg, workNode, LAST.Direction.Forwards);
-			nextNodes.forEach(nextNode -> pendingWorks.add(new edgeGenState(nextNode, new HashMap<>(workMap))));
+			nextNodes.forEach(nextNode -> pendingWorks.add(new EdgeGenState(nextNode, new HashMap<>(workMap), new HashMap<>(work.decMap))));
 		}
 	}
+
+	// ------------------------------------------------------------------- //
+	// ------ ADD EDGES FORM NON-CALLED CLAUSES TO GLOBAL VARIABLES ------ //
+	// ------------------------------------------------------------------- //
+
+	/** Connects the paramIn global variables to the initial definition of the module for those
+	 * clauses that are not called.
+	 * @implNote Currently they are directly linked to the declaration of the data member,
+	 * 			 but they should be linked to them through the constructor (if exists) */
+	public void addOrphanClauseEdges()
+	{
+		final List<Node> clauses = edg.getNodes(Node.Type.Clause);
+		clauses.removeIf(clause -> !edg.getEdges(clause, LAST.Direction.Backwards, Edge.Type.Call).isEmpty());
+
+		for (Node clause : clauses) {
+			final Node paramIn = edg.getChild(clause, Node.Type.ParameterIn);
+			final Node module = edg.getAncestor(clause, Node.Type.Module);
+			final LASTBuilder.ClassInfo ci = (LASTBuilder.ClassInfo) module.getInfo().getInfo()[2];
+
+			final List<Node> children = edg.getChildren(paramIn);
+			children.removeIf(node -> node.getType() == Node.Type.Result);
+
+			for (Node child : children)
+			{
+				final Node varDef = ci.getVariables().get(child.getName());
+				edg.addEdge(edg.getResFromNode(varDef), edg.getResFromNode(child), Edge.Type.Flow);
+			}
+		}
+	}
+
 
 	// METHOD FOR Set<String> : Algun archivo rollo utils/miscelanea?
 	/** Given two sets, returns another set with their symmetric difference */

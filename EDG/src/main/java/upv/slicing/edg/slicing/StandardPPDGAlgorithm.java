@@ -22,11 +22,12 @@ public class StandardPPDGAlgorithm extends StandardAlgorithm{
         {
             final Node pendingNode = pendingNodes.removeFirst();
 
-            // PPDG Traversal limiting pseudo-predicates
-            if (isPseudoPredicate(pendingNode) && slicingCriterion != pendingNode)
-                continue;
+            // PPDG Traversal limiting pseudo-predicates for Control Edges
+            boolean pseudoPredicate = isPseudoPredicate(pendingNode) && slicingCriterion != pendingNode;
 
-            final Set<Edge> incomingEdges = edg.incomingEdgesOf(pendingNode);
+            final Set<Edge> nextEdges = edg.getEdges(pendingNode, sliceDirection);
+            if (pseudoPredicate)
+                nextEdges.removeIf(edge -> edge.getType() == Edge.Type.Control);
 
             incomingEdges.removeIf(e -> ignoreEdgeTypesSet.contains(e.getType()));
             incomingEdges.removeIf(Edge::isControlFlowEdge);

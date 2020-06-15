@@ -583,23 +583,21 @@ public class LASTBuilder {
 	public static void addNonExtendedClassInfo(LAST last, Node node)
 	{
 		final List<Node> children = last.getChildren(node);
-		
+		children.removeIf(n -> n.getType() == Node.Type.Result);
+
 		final Map<String, List<Node>> methods = new HashMap<>();
 		final Map<String, Node> variables = new HashMap<>();
 		
 		for (Node child : children)
 		{
-			if (child.getType() == Node.Type.Expression || child.getType() == Node.Type.Variable)
-			{
-				final Node expressionInstanceNode = child.getType() == Node.Type.Expression ? last.getChild(child,0) : child;
-				final Node variableNode = expressionInstanceNode.getType() == Node.Type.Variable ?
-							expressionInstanceNode : last.getChild(last.getChild(expressionInstanceNode,0),0);
-				final String name = variableNode.getName();
-				
-				variables.put(name, variableNode);
+			if (child.getType() == Node.Type.Variable)
+				variables.put(child.getName(), child);
+			else if (child.getType() == Node.Type.Equality) {
+				Node dataMemberNode =last.getChild(child, Node.Type.Pattern);
+				variables.put(dataMemberNode.getName(), dataMemberNode);
 			}
 			else
-			{ 
+			{
 				final String methodName = child.getName();
 				final List<Node> methodClauses = last.getChildren(child);
 				methodClauses.removeIf(n -> n.getType() != Node.Type.Clause);
