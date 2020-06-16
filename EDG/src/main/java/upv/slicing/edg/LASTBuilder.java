@@ -10,7 +10,6 @@ import java.util.*;
 // TODO Caracteristicas de los lenguajes: single assignment, orden metodos y atributos, bloque aisla contextos
 // TODO Hay que crear las siguientes expresiones: compound pattern
 public class LASTBuilder {
-    public static int nextId = 0;
 
     public enum Where {
         ParameterIn, Parameters, ParameterOut, ArgumentIn, Arguments, ArgumentOut, Guard, Scope, Name, Body, Condition, Then, Else, Selector, Cases, Selectable, Restrictions, Value,
@@ -20,10 +19,8 @@ public class LASTBuilder {
     // LAST
     public static LAST createLAST(LDASTNodeInfo info)
     {
-        LASTBuilder.nextId = 0;
-
         final LAST last = new LAST();
-        final Node rootNode = new Node("LAST", LASTBuilder.nextId++, Node.Type.Root, "LAST", info);
+        final Node rootNode = new Node("LAST", last.getNextId(), Node.Type.Root, "LAST", info);
 
 		last.setRootNode(rootNode);
 
@@ -60,9 +57,9 @@ public class LASTBuilder {
 		final Node clause = LASTBuilder.addNode(last, parent, Node.Type.Clause, "clause", expInfo);
 		LASTBuilder.addNode(last, clause, Node.Type.ParameterIn, "paramIn", info);
 		LASTBuilder.addNode(last, clause, Node.Type.Parameters, "parameters", info); // ADDED info to parameters to obtain the name of the class
-		LASTBuilder.addNode(last, clause, Node.Type.ParameterOut, "paramOut", info);
 		LASTBuilder.addNode(last, clause, Node.Type.Guard, "guard", null);
 		LASTBuilder.addNode(last, clause, Node.Type.Body, "body", null);
+		LASTBuilder.addNode(last, clause, Node.Type.ParameterOut, "paramOut", info);
 
 		return clause.getId();
 	}
@@ -478,6 +475,14 @@ public class LASTBuilder {
 		return reference.getId();
 
 	}
+
+	public static int addReference(LAST last, int parentId, Where where, String value, LDASTNodeInfo info)
+	{
+		final Node parent = LASTBuilder.getParentNode(last, parentId, where);
+		final Node reference = LASTBuilder.addNode(last, parent, Node.Type.Reference, value, "reference" + "\\n" + value, info);
+		return reference.getId();
+	}
+
 	public static int addType(LAST last, int parentId, Where where, String value, LDASTNodeInfo info)
 	{
 		final Node parent = LASTBuilder.getParentNode(last, parentId, where);
@@ -696,11 +701,11 @@ public class LASTBuilder {
 					return last.getChild(clause, 0);
 				case Parameters:
 					return last.getChild(clause, 1);
-				case ParameterOut:
-					return last.getChild(clause, 2);
 				case Guard:
-					return last.getChild(clause, 3);
+					return last.getChild(clause, 2);
 				case Body:
+					return last.getChild(clause, 3);
+				case ParameterOut:
 					return last.getChild(clause, 4);
 				default:
 					throw new RuntimeException("A clause cannot contain " + where);
@@ -944,34 +949,28 @@ public class LASTBuilder {
 			case Enclosed:
 			case Label:
 			case FieldAccess:
+			case ParameterIn:
+			case ParameterOut:
+			case ArgumentIn:
+			case ArgumentOut:
 				if (where == null)
 					return parentNode;
 			default:
 				throw new RuntimeException(type + " does not contain " + where);
 		}
 	}
-	public static Node getNode(Node.Type type, boolean isVariable, String name, LDASTNodeInfo info)
-	{
-		if (isVariable)
-			return new Variable(LASTBuilder.nextId++, type, name, info);
-		return new Node(LASTBuilder.nextId++, type, name, info);
-	}
-	static Node getNode(LAST last, Node.Type type, Node parent, boolean isVariable, String name, LDASTNodeInfo info)
+//	public static Node getNode(Node.Type type, boolean isVariable, String name, LDASTNodeInfo info)
+//	{
+//		if (isVariable)
+//			return new Variable(last.getNextId(), type, name, info);
+//		return new Node(last.getNextId(), type, name, info);
+//	}
+	static Node getNode(LAST last, Node.Type type, Node parent, String name, LDASTNodeInfo info)
 	{
 		switch(type)
 		{
-			case Routine:
-			case Clause:
-			case Module:
-			case Return:
-			case Continue:
-			case Break:
-			case Case:
-			case CatchClause:
-			case Callee:
-			case ArgumentIn:
-			case ArgumentOut:
-				return new Node(LASTBuilder.nextId++, type, name, info);
+			case Variable:
+				return new Variable(last.getNextId(), type, name, info);
 			case Result:
 				final Node firstSibling = last.getChild(parent, 0);
 				final Node.Type siblingType = firstSibling.getType();
@@ -983,48 +982,34 @@ public class LASTBuilder {
                     case DataConstructorAccess:
                     case DataConstructor:
                     case Operation:
-                        if (isVariable)
-                            return new Variable(LASTBuilder.nextId++, type, name, info);
-                        return new Node(LASTBuilder.nextId++, type, name, info);
                     default:
-                        return new Node(LASTBuilder.nextId++, type, name, info);
+                        return new Node(last.getNextId(), type, name, info);
                 }
 			case DefaultCase:
 
                 final List<Node> children = last.getChildren(parent);
                 if (children.size() == 1)
-                    return new Node(LASTBuilder.nextId++, type, name, info);
+                    return new Node(last.getNextId(), type, name, info);
 
                 final Node lastChild = children.get(children.size() - 1);
                 if (lastChild.getType() != Node.Type.DefaultCase)
-                    return new Node(LASTBuilder.nextId++, type, name, info);
+                    return new Node(last.getNextId(), type, name, info);
 
-                final Node penultimateChild = children.get(children.size() - 2);
-                return new Node(LASTBuilder.nextId++, type, name, info);
+                return new Node(last.getNextId(), type, name, info);
 
-            case Expression:
-                switch (parentType)
-                {
-                    case Parameters:
-                        final Node grandParent = last.getParent(parent);
-                        if (grandParent.getType() == Node.Type.CatchClause)
-                            return new Node(LASTBuilder.nextId++, type, name, info);
-                    case Arguments:
-                    case Body:
-					case Block:
-					case Module:
-                    case Init:
-                    case Update:
-                    case Try:
-                    case Finally:
-                        return new Node(LASTBuilder.nextId++, type, name, info);
-                    default:
-                        break;
-                }
+			case Routine:
+			case Clause:
+			case Module:
+			case Return:
+			case Continue:
+			case Break:
+			case Case:
+			case CatchClause:
+			case Callee:
+			case ArgumentIn:
+			case ArgumentOut:
             default:
-                if (isVariable)
-                    return new Variable(LASTBuilder.nextId++, type, name, info);
-                return new Node(LASTBuilder.nextId++, type, name, info);
+                return new Node(last.getNextId(), type, name, info);
         }
 	}
 

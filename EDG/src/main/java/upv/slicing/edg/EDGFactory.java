@@ -3,10 +3,7 @@ package upv.slicing.edg;
 import upv.slicing.edg.constraint.AccessConstraint;
 import upv.slicing.edg.constraint.DataConstructorConstraint;
 import upv.slicing.edg.constraint.EdgeConstraint;
-import upv.slicing.edg.edge.ControlEdgeGenerator;
-import upv.slicing.edg.edge.FlowEdgeGenerator;
-import upv.slicing.edg.edge.InterproceduralEdgeGenerator;
-import upv.slicing.edg.edge.SummaryEdgeGenerator;
+import upv.slicing.edg.edge.*;
 import upv.slicing.edg.graph.EDG;
 import upv.slicing.edg.graph.Edge;
 import upv.slicing.edg.graph.LAST;
@@ -19,7 +16,7 @@ import java.util.function.Predicate;
 public class EDGFactory {
 	private final LAST last;
 	private EDG edg;
-	private int fictitiousId = -1;
+
 
 	public EDGFactory(LAST last)
 	{
@@ -88,7 +85,8 @@ public class EDGFactory {
 		else
 			new InterproceduralEdgeGenerator(edg).generateNoInheritance(); // TODO Implement without module analysis
 
-		new FlowEdgeGenerator(edg).generate(); // TODO Testear y verlo paso a paso con el ControlFlowTraverser
+		new FlowEdgeGeneratorNew(edg).generate(); // TODO Testear y verlo paso a paso con el ControlFlowTraverser
+		ieg.generateIO();
 		new SummaryEdgeGenerator(edg).generate();
 //		new ExceptionEdgeGenerator(edg).generate();
 	}
@@ -101,7 +99,7 @@ public class EDGFactory {
 														   nodeInfo.getLine(), nodeInfo.getConstruction());
 
 		// Result Node
-		final Node result = new Node("result", fictitiousId--, Node.Type.Result, "", ldNodeInfo);
+		final Node result = new Node("result", edg.getNextFictitiousId(), Node.Type.Result, "", ldNodeInfo);
 
 		final Node parent = last.getParent(node);
 
@@ -113,7 +111,7 @@ public class EDGFactory {
 		{
 			// THIS IS AN EXCEPTION IN ORDER TO INCLUDE ROUTINES IN THE SLICE
 			// WHEN CFG IS FINISHED THEY WILL BE INCLUDED BY CONTROL
-			if (parent.getType() != Node.Type.Routine && parent.getType() != Node.Type.Enclosed)
+			if (parent.getType() != Node.Type.Routine)
 			{
 				edg.removeEDGEdge(parent, node, Edge.Type.Structural);
 				edg.setRemovableEdge(parent, node, Edge.Type.Structural);
@@ -170,8 +168,6 @@ public class EDGFactory {
 			edg.removeEdge(cfgEdge);
 			edg.addEdge(result, to, cfgEdge.getType());
 		}
-
-
 	}
 
 	private void createThreeNodeStructuresSpecial(Node node, Node result)

@@ -9,7 +9,10 @@ import java.util.stream.Collectors;
  * be accessed via {@link #structuralOutgoingEdgesOf(Node)} and {@link #structuralIncomingEdgesOf(Node)}.
  */
 public class LAST extends GraphWithRoot {
-
+	/** Id of the next node to be inserted */
+	protected int nextId = 0;
+	/** Id of the next fictitious node to be inserted */
+	protected int fictitiousId = -1;
 	/** Map connecting each node to its corresponding result node. */
 	private Map<Node, Node> resultFromNode = new HashMap<>();
 	/** Map connecting each result node to its corresponding node. */
@@ -499,11 +502,11 @@ public class LAST extends GraphWithRoot {
 						return getChild(node, 0);
 					case Parameters:
 						return getChild(node, 1);
-					case ParameterOut:
-						return getChild(node, 2);
 					case Guard:
-						return getChild(node, 3);
+						return getChild(node, 2);
 					case Body:
+						return getChild(node, 3);
+					case ParameterOut:
 						return getChild(node, 4);
 				}
 				break;
@@ -687,5 +690,17 @@ public class LAST extends GraphWithRoot {
 		final Node parent = getParent(node);
 
 		return getChild(parent, type);
+	}
+
+	/** Returns the id of the next inserted node and update it */
+	public int getNextId()
+	{
+		return nextId++;
+	}
+
+	/** Returns the id of the next fictitious node inserted  and update it */
+	public int getNextFictitiousId()
+	{
+		return fictitiousId--;
 	}
 }

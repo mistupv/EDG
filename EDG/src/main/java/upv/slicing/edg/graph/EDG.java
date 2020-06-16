@@ -21,6 +21,8 @@ public class EDG extends LAST {
 		last.vertexSet().forEach(this::addVertex);
 		last.edgeSet().forEach(e -> addEdge(last.getEdgeSource(e), last.getEdgeTarget(e), e));
 		this.rootNode = last.rootNode;
+		this.nextId = last.nextId;
+		this.fictitiousId = last.fictitiousId;
 	}
 
 	// ================================================= //
