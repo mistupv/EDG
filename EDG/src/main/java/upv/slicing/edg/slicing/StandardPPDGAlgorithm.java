@@ -2,6 +2,7 @@ package upv.slicing.edg.slicing;
 
 import upv.slicing.edg.graph.EDG;
 import upv.slicing.edg.graph.Edge;
+import upv.slicing.edg.graph.LAST.Direction;
 import upv.slicing.edg.graph.Node;
 
 import java.util.*;
@@ -29,16 +30,17 @@ public class StandardPPDGAlgorithm extends StandardAlgorithm{
             if (pseudoPredicate)
                 nextEdges.removeIf(edge -> edge.getType() == Edge.Type.Control);
 
-            incomingEdges.removeIf(e -> ignoreEdgeTypesSet.contains(e.getType()));
-            incomingEdges.removeIf(Edge::isControlFlowEdge);
-            incomingEdges.removeIf(e -> !e.isTraversable());
-            for (Edge incomingEdge : incomingEdges)
+            nextEdges.removeIf(e -> ignoreEdgeTypesSet.contains(e.getType()));
+            nextEdges.removeIf(Edge::isControlFlowEdge);
+            nextEdges.removeIf(e -> !e.isTraversable());
+            for (Edge nextEdge : nextEdges)
             {
-                final Node nodeFrom = edg.getEdgeSource(incomingEdge);
-                if (!slice.contains(nodeFrom))
+                final Node nextNode = sliceDirection == Direction.Backwards ?
+                        edg.getEdgeSource(nextEdge): edg.getEdgeTarget(nextEdge);
+                if (!slice.contains(nextNode))
                 {
-                    pendingNodes.addLast(nodeFrom);
-                    slice.add(nodeFrom);
+                    pendingNodes.addLast(nextNode);
+                    slice.add(nextNode);
                 }
             }
         }

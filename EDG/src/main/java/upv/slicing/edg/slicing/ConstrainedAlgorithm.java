@@ -5,6 +5,7 @@ import upv.slicing.edg.constraint.EdgeConstraint;
 import upv.slicing.edg.constraint.NodeConstraint;
 import upv.slicing.edg.graph.EDG;
 import upv.slicing.edg.graph.Edge;
+import upv.slicing.edg.graph.LAST.Direction;
 import upv.slicing.edg.graph.Node;
 import upv.slicing.edg.work.EdgeWork;
 import upv.slicing.edg.work.NodeWork;
@@ -20,10 +21,7 @@ public class ConstrainedAlgorithm implements SlicingAlgorithm
 {
 	protected final EDG edg;
 
-	public ConstrainedAlgorithm(EDG edg)
-	{
-		this.edg = edg;
-	}
+	public ConstrainedAlgorithm(EDG edg) { this.edg = edg; }
 
 	public Set<Node> slice(Node node)
 	{
@@ -71,7 +69,7 @@ public class ConstrainedAlgorithm implements SlicingAlgorithm
 		final Constraints constraints = work.getConstraints();
 		final Set<NodeConstraint> nodeConstraints = constraints.getNodeConstraints();
 
-		final Set<Edge> edges = edg.incomingEdgesOf(currentNode);
+		final Set<Edge> edges = edg.getEdges(currentNode, sliceDirection);
 		edges.removeIf(Edge::isControlFlowEdge);
 		if(phase == Phase.SummaryGeneration)
 			edges.removeIf(edge -> edge.getType() == Edge.Type.Exception);
@@ -92,7 +90,8 @@ public class ConstrainedAlgorithm implements SlicingAlgorithm
 		final List<Work> newWorks = new LinkedList<>();
 		final Node initialNode = work.getInitialNode();
 		final Edge currentEdge = work.getCurrentEdge();
-		final Node nodeFrom = edg.getEdgeSource(currentEdge);
+		final Node nextNode = sliceDirection == Direction.Backwards ?
+				edg.getEdgeSource(currentEdge) : edg.getEdgeTarget(currentEdge);
 
 		// NECESSARY TO CONTROL THE OUTPUT EDGES WITH LET_THROUGH_CONSTRAINTS
 		final Edge.Type edgeType = currentEdge.getType();
@@ -115,7 +114,7 @@ public class ConstrainedAlgorithm implements SlicingAlgorithm
 			final List<Constraints> newConstraintsList = constraint.resolve(phase, edg, currentEdge, constraintsClone, lastConstraint, 0);
 
 			for (Constraints newConstraints : newConstraintsList)
-				newWorks.add(new NodeWork(initialNode, nodeFrom, newConstraints));
+				newWorks.add(new NodeWork(initialNode, nextNode, newConstraints));
 
 			return newWorks;
 		}
@@ -123,7 +122,7 @@ public class ConstrainedAlgorithm implements SlicingAlgorithm
 		{
 			if (!phase.isInstanceof(Phase.Slicing))
 				throw new RuntimeException("Constraint situation not contemplated");
-			newWorks.add(new NodeWork(initialNode, nodeFrom, new Constraints()));
+			newWorks.add(new NodeWork(initialNode, nextNode, new Constraints()));
 		}
 
 		return newWorks;

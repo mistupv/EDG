@@ -1,6 +1,7 @@
 package upv.slicing.edg;
 
 import upv.slicing.edg.graph.EDG;
+import upv.slicing.edg.graph.LAST.Direction;
 import upv.slicing.edg.slicing.ConstrainedAlgorithm;
 import upv.slicing.edg.slicing.ConstrainedPPDGAlgorithm;
 import upv.slicing.edg.slicing.SlicingAlgorithm;
@@ -14,6 +15,7 @@ public final class Config
 	public static final boolean PDG = false;
 	public static final boolean APDG = false;
 	public static final boolean PPDG = true;
+	public static final Direction SLICE_DIRECTION = Direction.Backwards;
 	public static final Function<EDG, SlicingAlgorithm> CREATE_SLICING_ALGORITHM;
 
 	static {
