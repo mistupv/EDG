@@ -9,8 +9,11 @@ import com.github.javaparser.ast.type.ArrayType;
 import com.github.javaparser.ast.type.ClassOrInterfaceType;
 import com.github.javaparser.ast.type.PrimitiveType;
 import com.github.javaparser.ast.type.Type;
+import com.github.javaparser.symbolsolver.JavaSymbolSolver;
+import com.github.javaparser.symbolsolver.resolution.typesolvers.CombinedTypeSolver;
+import com.github.javaparser.symbolsolver.resolution.typesolvers.ReflectionTypeSolver;
+import org.checkerframework.checker.units.qual.A;
 import upv.slicing.edg.Config;
-import upv.slicing.edg.LASTBuilder.Where;
 import upv.slicing.edg.LASTFactory;
 import upv.slicing.edg.LDASTNodeInfo;
 import upv.slicing.edg.graph.LAST;
@@ -244,20 +247,17 @@ public class JavaLASTFactory extends LASTFactory {
 			final Type type = variable.getType();
 			final Expression initializer = variable.getInitializer().isPresent() ? variable.getInitializer()
 																						   .get() : null;
-
 			if (initializer == null)
 			{
 				final String name = variable.getName().getIdentifier();
 				final LDASTNodeInfo ldNodeInfo = new LDASTNodeInfo(line, "field", modifiers, type);
-				// TODO Incorrecto, este tipo de fields ("private int v;") no son definiciones, solo declaraciones... TABUM
-				//super.addVariable(name, true, true, true, ldNodeInfo); 
 				this.addVariableToContext(new VariableRecord(name, modifiers, type)); // Añadir Global Vars al contexto
-				super.addVariable(name, true, false, false, true,
+				super.addVariable(name, type.asString(), true, false, false, true,
 								  ldNodeInfo); // Son Globales y no son ni definicion ni uso, solo declaracion
 			} else
 			{
 				final LDASTNodeInfo ldNodeInfo0 = new LDASTNodeInfo(line, true, "name", modifiers, type);
-				final Variable name = new Variable(variable.getName(), true, true, false, ldNodeInfo0);
+				final Variable name = new Variable(variable.getName(), variable.getNameAsString(), type.asString(), true, true, false, ldNodeInfo0);
 				final LDASTNodeInfo ldNodeInfo = new LDASTNodeInfo(line, true, "field");
 				this.addVariableToContext(new VariableRecord(name.getName(), modifiers, type));
 				super.addEquality(name, initializer, ldNodeInfo);
@@ -423,7 +423,7 @@ public class JavaLASTFactory extends LASTFactory {
 		final long line = _return.getRange().get().begin.line;
 		final Object expression = !_return.getExpression().isPresent() ? null : this
 				.treatExpression(_return.getExpression().get(), false, false, true, line);
-		final int id = this.getJumpDestiny(info, upv.slicing.edg.graph.Node.Type.Clause);
+		final int id = this.getJumpDestination(info, upv.slicing.edg.graph.Node.Type.Clause);
 		final LDASTNodeInfo ldNodeInfo = new LDASTNodeInfo(line, "return");
 
 		super.addReturn(expression, id, ldNodeInfo);
@@ -432,7 +432,7 @@ public class JavaLASTFactory extends LASTFactory {
 	private void process(BreakStmt _break, Map<String, Object> info)
 	{
 		final long line = _break.getRange().get().begin.line;
-		final int id = this.getJumpDestiny(info, upv.slicing.edg.graph.Node.Type.Switch, upv.slicing.edg.graph.Node.Type.CLoop, upv.slicing.edg.graph.Node.Type.RLoop,
+		final int id = this.getJumpDestination(info, upv.slicing.edg.graph.Node.Type.Switch, upv.slicing.edg.graph.Node.Type.CLoop, upv.slicing.edg.graph.Node.Type.RLoop,
 										   upv.slicing.edg.graph.Node.Type.FLoop); // Y un break en un loop?
 		final LDASTNodeInfo ldNodeInfo = new LDASTNodeInfo(line, "break");
 
@@ -451,7 +451,7 @@ public class JavaLASTFactory extends LASTFactory {
 			else
 				jumpId = -1; // When the label is not found, return label -1
 		else
-			jumpId = this.getJumpDestiny(info, upv.slicing.edg.graph.Node.Type.CLoop, upv.slicing.edg.graph.Node.Type.RLoop, upv.slicing.edg.graph.Node.Type.FLoop);
+			jumpId = this.getJumpDestination(info, upv.slicing.edg.graph.Node.Type.CLoop, upv.slicing.edg.graph.Node.Type.RLoop, upv.slicing.edg.graph.Node.Type.FLoop);
 
 		final LDASTNodeInfo ldNodeInfo = new LDASTNodeInfo(line, "continue");
 
@@ -576,11 +576,11 @@ public class JavaLASTFactory extends LASTFactory {
 				final String name = variable.getName().getIdentifier();
 				final LDASTNodeInfo ldNodeInfo = new LDASTNodeInfo(line, true, "var", modifiers, type);
 				this.addVariableToContext(new VariableRecord(name, modifiers, type));
-				super.addVariable(name, true, true, false, false, ldNodeInfo);
+				super.addVariable(name, type.asString(),true, true, false, false, ldNodeInfo);
 			} else
 			{
 				final LDASTNodeInfo ldNodeInfo0 = new LDASTNodeInfo(line, true, "name", modifiers, type);
-				final Variable name = new Variable(variable.getName(), true, true, false,
+				final Variable name = new Variable(variable.getName(), variable.getNameAsString(), type.asString(),true, true, false,
 												   ldNodeInfo0); // TODO THIS IS NOT ALWAYS A VARIABLE
 				final Object initializer0 = this.treatExpression(initializer, false, false, true, line);
 				final LDASTNodeInfo ldNodeInfo = new LDASTNodeInfo(line, true, "var");
@@ -800,51 +800,86 @@ public class JavaLASTFactory extends LASTFactory {
 //		this.addVariableToContext(name); TYPE VARIABLE 
 		this.addVariableToContext(new VariableRecord(name, type));
 
-		super.addVariable(name, true, true, false, false, ldNodeInfo);
+		super.addVariable(name, type.asString(), true, true, false, false, ldNodeInfo);
 	}
 
 	private void process(FieldAccessExpr fieldAccessExpression, Map<String, Object> info)
-	{
+	{   // 					Scope				Data Member			Static ScopeType
+		// a.x -> 			NameExpr			SimpleName				a Type
+		// ((A) o).x		EnclosedExpr		SimpleName				Casting Type
+		// a[3].x			ArrayAccessExpr		SimpleName				a[] type
+		// f(5).x			MethodCallExpr		SimpleName				return type
+
+		// TODO: Any kind of expression can be allowed here Example: TernaryExpr.
+		//  We need a mechanism to obtain the final type of an expression and a correct
+		//  representation of the data member and the associated object.
+
 		final long line = fieldAccessExpression.getRange().get().begin.line;
-		//final String value = fieldAccessExpression.toString();
-
-		final Expression scopeExpr = fieldAccessExpression.getScope();
-		final SimpleName nameExpr = fieldAccessExpression.getName();
-
-		// Definition has been set to true to pick up the object declaration in a field access as a declaration.
-		final Variable scopeVar = new Variable(scopeExpr, false, true, true, new LDASTNodeInfo(line, true, "var"));
-		final Variable nameVar;
-
-		if ((boolean) info.get("patternZone"))
-			nameVar = new Variable(nameExpr, false, true, false, new LDASTNodeInfo(line, true, "var"));
-		else
-			nameVar = new Variable(nameExpr, false, false, true, new LDASTNodeInfo(line, true, "var"));
+		final Expression initialScopeExpr = fieldAccessExpression.getScope();
+		Expression scopeExpr = fieldAccessExpression.getScope();
 
 		final LDASTNodeInfo ldNodeInfo = new LDASTNodeInfo(line, true, "field");
-		super.addFieldAccess(scopeVar, nameVar, ldNodeInfo);
+		//TODO: CODE TO TREAT System.something as REFERENCES, not as VARIABLES
+		if (scopeExpr.toString().equals("System")) {
+			super.addReference(fieldAccessExpression.toString(), ldNodeInfo);
 
-//		final VariableRecord newContextVariable = this.getVarByName(this.variableContexts.peek(), scopeVar.name);
-//		final boolean global = (this.variableContexts.size() == 1 || newContextVariable == null);
-//		
-//		final VariableRecord newContextVariable0 = global ? this.getVarByName(this.variableContexts.firstElement(), value) : newContextVariable;	
-//		final boolean isStaticClassname = newContextVariable0 == null;
-//		
-//		final Object[] varInfo;
-//		if (!isStaticClassname)
-//		{
-//			varInfo = new Object[2];
-//			varInfo[0] = newContextVariable0.varModifiers; 
-//			varInfo[1] = newContextVariable0.varType;
-//		}
-//		else
-//		{
-//			varInfo = new Object[2];
-//			varInfo[0] = null; // TODO must be an empty list of modifiers
-//			varInfo[1] = value;
-//		}
-//		
-//		
-//		super.addVariable(value, false, false, true, true, ldNodeInfo);
+			return;
+		}
+
+		while(scopeExpr.isEnclosedExpr())
+			scopeExpr = ((EnclosedExpr) scopeExpr).getInner();
+
+		// var nameExpr is SimpleName and has no type attribute
+		final SimpleName nameExpr = fieldAccessExpression.getName();
+
+		// We store the scopeType in the field and access its name in a post-process
+		// after associating classes and data members in the ClassInfo structure.
+		String scopeType = null;
+
+		if (scopeExpr.isNameExpr()) { // a.x
+			final NameExpr expr = (NameExpr) scopeExpr;
+			scopeType = expr.resolve().getType().describe();
+			final Variable scopeVar = new Variable(expr.getName(), expr.getNameAsString(), scopeType,
+					false, true, true, new LDASTNodeInfo(line, true, "var"));
+
+			final boolean patternZone = (boolean) info.get("patternZone");
+			final Variable nameVar = new Variable(nameExpr, expr.getNameAsString() + "." + nameExpr.asString(), scopeType,false, patternZone, !patternZone, new LDASTNodeInfo(line, true, "var"));
+			super.addFieldAccess(scopeVar, nameVar, ldNodeInfo);
+		}
+		else if (scopeExpr.isMethodCallExpr()) { // f(5).x
+			final MethodCallExpr expr = (MethodCallExpr) scopeExpr;
+			scopeType = expr.resolve().getReturnType().describe();
+
+			final boolean patternZone = (boolean) info.get("patternZone");
+			final Variable nameVar = new Variable(nameExpr, expr.toString() + "." + nameExpr.asString(), scopeType,false, patternZone, !patternZone, new LDASTNodeInfo(line, true, "var"));
+			super.addFieldAccess(initialScopeExpr, nameVar, ldNodeInfo);
+		}
+		else if ( scopeExpr.isCastExpr()){ // ((A) o).x
+			final CastExpr expr = (CastExpr) scopeExpr;
+			Expression castedExpr = expr.getExpression();
+			// TODO: A casting may be of any kind of expression
+			String exprName = castedExpr.isNameExpr() ? ((NameExpr) castedExpr).getName().asString(): null;
+
+			scopeType = expr.getType().asString();
+
+			final boolean patternZone = (boolean) info.get("patternZone");
+			final Variable nameVar = new Variable(nameExpr, exprName + "." + nameExpr.asString(), scopeType,false, patternZone, !patternZone, new LDASTNodeInfo(line, true, "var"));
+			super.addFieldAccess(initialScopeExpr, nameVar, ldNodeInfo);
+		}
+		else if (scopeExpr.isArrayAccessExpr()) { // b[1].x
+			ArrayAccessExpr expr = (ArrayAccessExpr) scopeExpr;
+
+			if (expr.getName().isNameExpr())
+				scopeType = ((NameExpr) expr.getName()).resolve().getType().
+						asArrayType().getComponentType().describe();
+
+			final boolean patternZone = (boolean) info.get("patternZone");
+			final Variable nameVar = new Variable(nameExpr, expr.toString() + "." + nameExpr.asString(), scopeType,false, patternZone, !patternZone, new LDASTNodeInfo(line, true, "var"));
+			super.addFieldAccess(initialScopeExpr, nameVar, ldNodeInfo);
+
+		}
+		else
+			throw new RuntimeException("The provided scope type has not been considered");
 	}
 
 	private void process(NameExpr nameExpression)
@@ -876,7 +911,7 @@ public class JavaLASTFactory extends LASTFactory {
 // 		super.addVariable(name, false, true, true, global, ldNodeInfo);
 
 		// Variables sueltas son usos, no definiciones y usos. Esto afecta a llamadas con objetos (b.foo() define b? Esto habrá que analizarlo y generar nodos en funcion de ello)
-		super.addVariable(name, false, false, true, global, ldNodeInfo);
+		super.addVariable(name, nameExpression.resolve().getType().describe(),false, false, true, global, ldNodeInfo);
 	}
 
 	private void process(SimpleName simpleName)
@@ -892,7 +927,8 @@ public class JavaLASTFactory extends LASTFactory {
 		final Object[] info = {newContextVariable0.varModifiers, newContextVariable0.varType};
 		final LDASTNodeInfo ldNodeInfo = new LDASTNodeInfo(line, true, "var", info);
 
-		super.addVariable(name, false, false, true, false, ldNodeInfo);  // TODO REVISAR SimpleName
+		// TODO REVISAR SimpleName
+		super.addVariable(name, null, false, false, true, false, ldNodeInfo);
 	}
 
 	private void process(Variable variable)
@@ -906,6 +942,7 @@ public class JavaLASTFactory extends LASTFactory {
 	private void processVar(Variable variable)
 	{
 		final String name = variable.getName();
+		final String varType = variable.getType();
 		final boolean declaration = variable.declaration;
 		final boolean definition = variable.definition;
 		final boolean use = variable.use;
@@ -927,7 +964,7 @@ public class JavaLASTFactory extends LASTFactory {
 										   variable.ldNodeInfo.getConstruction(), info);
 		} else
 			ldNodeInfo = variable.ldNodeInfo;
-		super.addVariable(name, declaration, definition, use, global, ldNodeInfo);
+		super.addVariable(name, varType, declaration, definition, use, global, ldNodeInfo);
 	}
 
 	private void processArrayAccess(Variable variable)
@@ -1060,14 +1097,17 @@ public class JavaLASTFactory extends LASTFactory {
 	private Object treatExpression(Expression expression, boolean declaration, boolean definition, boolean use,
 								   long line)
 	{
-		if (expression instanceof NameExpr)
-			return new Variable(expression, declaration, definition, use, new LDASTNodeInfo(line, true, "var"));
+		if (expression instanceof NameExpr) {
+			NameExpr expr = (NameExpr) expression;
+			return new Variable(expression, expr.getNameAsString(), expr.resolve().getType().describe(),
+					declaration, definition, use, new LDASTNodeInfo(line, true, "var"));
+		}
 //		if (expression instanceof ArrayAccessExpr)
 //			return new Variable(expression, declaration, definition, new LDASTNodeInfo(line, "array access"));
 		return expression;
 	}
 
-	private int getJumpDestiny(Map<String, Object> info, upv.slicing.edg.graph.Node.Type... seekingTypes)
+	private int getJumpDestination(Map<String, Object> info, upv.slicing.edg.graph.Node.Type... seekingTypes)
 	{
 		@SuppressWarnings("unchecked")
 		final Deque<LASTFactory.Branch> ancestors = (Deque<LASTFactory.Branch>) info.get("ancestors");
@@ -1099,14 +1139,22 @@ public class JavaLASTFactory extends LASTFactory {
 		private final boolean declaration;
 		private final boolean definition;
 		private final boolean use;
+		private final String type;
+
 		private final LDASTNodeInfo ldNodeInfo;
+
 
 		public Variable(Node node, boolean declaration, boolean definition, boolean use, LDASTNodeInfo ldNodeInfo)
 		{
-			this(node, null, declaration, definition, use, ldNodeInfo);
+			this(node, null, null, declaration, definition, use, ldNodeInfo);
 		}
 
-		public Variable(Node node, String name, boolean declaration, boolean definition, boolean use,
+		public Variable(Node node, String name, boolean declaration, boolean definition, boolean use, LDASTNodeInfo ldNodeInfo)
+		{
+			this(node, name, null, declaration, definition, use, ldNodeInfo);
+		}
+
+		public Variable(Node node, String name, String type, boolean declaration, boolean definition, boolean use,
 						LDASTNodeInfo ldNodeInfo)
 		{
 			this.node = node;
@@ -1114,6 +1162,7 @@ public class JavaLASTFactory extends LASTFactory {
 			this.declaration = declaration;
 			this.definition = definition;
 			this.use = use;
+			this.type = type;
 			this.ldNodeInfo = ldNodeInfo;
 		}
 
@@ -1129,6 +1178,10 @@ public class JavaLASTFactory extends LASTFactory {
 			if (this.node instanceof ArrayAccessExpr)
 				return (((ArrayAccessExpr) this.node).getName()).toString();
 			return this.node.toString();
+		}
+		public String getType()
+		{
+			return this.type;
 		}
 	}
 
@@ -1197,7 +1250,6 @@ public class JavaLASTFactory extends LASTFactory {
 
 	// Variable global/local
 	private Stack<List<VariableRecord>> variableContexts = new Stack<>();
-
 
 	private void createContext()
 	{

@@ -149,13 +149,13 @@ public abstract class LASTFactory {
 		this.branches.pop();
 	}
 
-	protected void addVariable(String name, boolean declaration, boolean definition, boolean use, boolean global, LDASTNodeInfo info)
+	protected void addVariable(String name, String varType, boolean declaration, boolean definition, boolean use, boolean global, LDASTNodeInfo info)
 	{
 		final Branch parent = this.branches.peek();
 		final int parentId = parent.getNodeId();
 		final Where where = parent.getWhere();
 
-		LASTBuilder.addVariable(this.last, parentId, where, name, declaration, definition, use, global, info);
+		LASTBuilder.addVariable(this.last, parentId, where, name, varType, declaration, definition, use, global, info);
 	}
 
 	protected void addLiteral(String value, LDASTNodeInfo info)

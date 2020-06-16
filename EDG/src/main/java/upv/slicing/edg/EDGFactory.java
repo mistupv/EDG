@@ -33,8 +33,11 @@ public class EDGFactory {
 	{
 		initializeEDG();
 		transformExpressionNodes();
-		if (isOOLanguage)
-			LASTBuilder.addInheritanceInfomation(edg); // Only For OOPrograms With Inheritance
+		if (isOOLanguage) {
+			// Only For OOPrograms With Inheritance
+			LASTBuilder.addInheritanceInfomation(edg);
+			LASTBuilder.completeFieldAccessTypes(edg);
+		}
 		generateDependencies();
 		return edg;
 	}

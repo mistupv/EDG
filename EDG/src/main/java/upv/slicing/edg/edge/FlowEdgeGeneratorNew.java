@@ -13,19 +13,19 @@ public class FlowEdgeGeneratorNew extends EdgeGenerator {
 
 	private static class DefUseState {
 		private int numOfPaths = 0;
-		private final Set<String> uses;
-		private final Set<String> definitions;
+		private final Set<VarTypeInfo> uses;
+		private final Set<VarTypeInfo> definitions;
 
 		private DefUseState()
 		{
 			this(new HashSet<>(), new HashSet<>());
 		}
-		private DefUseState(Set<String> uses, Set<String> definitions)
+		private DefUseState(Set<VarTypeInfo> uses, Set<VarTypeInfo> definitions)
 		{
 			this.uses = uses.stream().collect(Collectors.toSet());
 			this.definitions = definitions.stream().collect(Collectors.toSet());
 		}
-		private DefUseState(Set<String> uses, Set<String> definitions, int paths)
+		private DefUseState(Set<VarTypeInfo> uses, Set<VarTypeInfo> definitions, int paths)
 		{
 			this.uses = uses.stream().collect(Collectors.toSet());
 			this.definitions = definitions.stream().collect(Collectors.toSet());
@@ -123,19 +123,47 @@ public class FlowEdgeGeneratorNew extends EdgeGenerator {
 			return Objects.hash(node.getId(), defMap, decMap);
 		}
 	}
+	private static class VarTypeInfo
+	{
+		String variable;
+		String type;
 
-	/*	private static class Variable
+		private VarTypeInfo(String var, String type)
 		{
-			private final VariableId variableId;
-			private final Node node;
-
-			private Variable(VariableId variableId, Node node)
-			{
-				this.variableId = variableId;
-				this.node = node;
-			}
+			this.variable = var;
+			this.type = type;
 		}
-		*/
+		public String toString() {
+			return this.type + " " + this.variable;
+		}
+
+		public boolean equals(Object o) {
+			if (o == this)
+				return true;
+			if (!(o instanceof VarTypeInfo))
+				return false;
+
+			final VarTypeInfo vti = (VarTypeInfo) o;
+			return Objects.equals(this.variable, vti.variable) &&
+					Objects.equals(this.type, vti.type);
+		}
+
+		public int hashCode() {
+			return Objects.hash(variable, type);
+		}
+
+	}
+	/*private static class Variable
+	{
+		private final VariableId variableId;
+		private final Node node;
+
+		private Variable(VariableId variableId, Node node)
+		{
+			this.variableId = variableId;
+			this.node = node;
+		}
+	}*/
 	/*private static class VariableId {
 		private final String variableId;
 		private final Node index;
@@ -311,22 +339,22 @@ public class FlowEdgeGeneratorNew extends EdgeGenerator {
 	/** Add a global variable to the corresponding DEF or USE set if necessary */
 	public void treatVariable(Variable v, DefUseState workState)
 	{
-		String varName = v.getName();
+		VarTypeInfo var = new VarTypeInfo(v.getName(),v.getStaticType());
 		switch (v.getContext())
 		{
 			case Definition:
-				if (!workState.definitions.contains(varName))
-					workState.definitions.add(varName);
+				if (!workState.definitions.contains(var))
+					workState.definitions.add(var);
 				break;
 			case Use:
-				if (!workState.uses.contains(varName) && !workState.definitions.contains(varName))
-					workState.uses.add(varName);
+				if (!workState.uses.contains(var) && !workState.definitions.contains(var))
+					workState.uses.add(var);
 				break;
 			case Def_Use:
-				if (!workState.uses.contains(varName) && !workState.definitions.contains(varName))
-					workState.uses.add(varName);
-				if (!workState.definitions.contains(varName))
-					workState.definitions.add(varName);
+				if (!workState.uses.contains(var) && !workState.definitions.contains(var))
+					workState.uses.add(var);
+				if (!workState.definitions.contains(var))
+					workState.definitions.add(var);
 				break;
 			default:
 				break;
@@ -337,14 +365,14 @@ public class FlowEdgeGeneratorNew extends EdgeGenerator {
 	 * @apiNote This method is used to add the DEF of USE sets of a method call in the CFG traversal */
 	public void treatCall(State work, DefUseState callDefUses)
 	{
-		Set<String> uses = work.defUseState.uses;
-		Set<String> definitions = work.defUseState.definitions;
+		Set<VarTypeInfo> uses = work.defUseState.uses;
+		Set<VarTypeInfo> definitions = work.defUseState.definitions;
 
-		for (String use : callDefUses.uses)
+		for (VarTypeInfo use : callDefUses.uses)
 			if (!uses.contains(use) && !definitions.contains(use))
 				uses.add(use);
 
-		for (String def : callDefUses.definitions)
+		for (VarTypeInfo def : callDefUses.definitions)
 			if (!definitions.contains(def))
 				definitions.add(def);
 	}
@@ -358,14 +386,14 @@ public class FlowEdgeGeneratorNew extends EdgeGenerator {
 	{
 		DefUseState clauseDefUse = usedClauseMap.get(work.clauseNode);
 
-		Set<String> uses = work.defUseState.uses;
-		Set<String> definitions = work.defUseState.definitions;
+		Set<VarTypeInfo> uses = work.defUseState.uses;
+		Set<VarTypeInfo> definitions = work.defUseState.definitions;
 		//---------------------------------------------------------------------//
 		// Added for method paths that does not define every defined variable  //
 		//---------------------------------------------------------------------//
 		if (clauseDefUse.numOfPaths != 0) {
-			Set<String> symDiff = this.symmetricDifference(definitions, clauseDefUse.definitions);
-			for (String s : symDiff) {
+			Set<VarTypeInfo> symDiff = this.symmetricDifference(definitions, clauseDefUse.definitions);
+			for (VarTypeInfo s : symDiff) {
 				if (!uses.contains(s))
 					uses.add(s);
 				clauseMap.get(work.clauseNode).uses.add(s);
@@ -375,11 +403,11 @@ public class FlowEdgeGeneratorNew extends EdgeGenerator {
 		//---------------------------------------------------------------------//
 		//---------------------------------------------------------------------//
 
-		for (String use : uses) {
+		for (VarTypeInfo use : uses) {
 			if (!clauseDefUse.uses.contains(use))
 				clauseDefUse.uses.add(use);
 		}
-		for (String def : definitions) {
+		for (VarTypeInfo def : definitions) {
 			if (!clauseDefUse.definitions.contains(def))
 				clauseDefUse.definitions.add(def);
 		}
@@ -547,8 +575,8 @@ public class FlowEdgeGeneratorNew extends EdgeGenerator {
 				DefUseState dus = map.get(key);
 				DefUseState currentDUS = clauseMap.get(key);
 
-				Set<String> removableUses = new HashSet<>();
-				for (String s : dus.uses)
+				Set<VarTypeInfo> removableUses = new HashSet<>();
+				for (VarTypeInfo s : dus.uses)
 					if (!currentDUS.uses.contains(s))
 						removableUses.add(s);
 
@@ -568,11 +596,11 @@ public class FlowEdgeGeneratorNew extends EdgeGenerator {
 			DefUseState dus = map.get(key);
 			clauseMapDUS.numOfPaths += dus.numOfPaths;
 
-			for (String use : dus.uses)
+			for (VarTypeInfo use : dus.uses)
 				if(!clauseMapDUS.uses.contains(use))
 					clauseMapDUS.uses.add(use);
 
-			for (String def : dus.definitions)
+			for (VarTypeInfo def : dus.definitions)
 				if(!clauseMapDUS.definitions.contains(def))
 					clauseMapDUS.definitions.add(def);
 		}
@@ -616,17 +644,18 @@ public class FlowEdgeGeneratorNew extends EdgeGenerator {
 	/** Creates the corresponding Value and ControlFlow arcs when adding formal-in/value-in
 	 * and formal-out/value-out nodes in function definitions or function calls */
 	public void addGlobalVarsStructure(Node parent, Node container, Set<Edge> incomingEdges,
-									   Set<String> set, boolean isDefinition)
+									   Set<VarTypeInfo> set, boolean isDefinition) // TODO: Set must contain also VarType
 	{
 		Set<Node> hangingNodes = new HashSet<>();
 		for (Edge incomingEdge : incomingEdges)
 			hangingNodes.add(edg.getEdgeSource(incomingEdge));
 
-		for (String item : set)
+		for (VarTypeInfo item : set)
 		{
 			final LDASTNodeInfo ldNodeInfo = new LDASTNodeInfo(parent.getInfo().getFile(), parent.getInfo().getClassName(),
 					parent.getInfo().getLine(), true, "var", null);
-			final int nodeId = LASTBuilder.addVariable(this.edg, container.getId(), null, item, false, isDefinition, !isDefinition, true, ldNodeInfo);
+			// TODO: Extract Type
+			final int nodeId = LASTBuilder.addVariable(this.edg, container.getId(), null, item.variable, item.type, false, isDefinition, !isDefinition, true, ldNodeInfo);
 			final Node paramVar = this.edg.getNode(nodeId);
 
 			final LDASTNodeInfo resultInfo = new LDASTNodeInfo(parent.getInfo().getFile(), parent.getInfo().getClassName(),
@@ -744,7 +773,8 @@ public class FlowEdgeGeneratorNew extends EdgeGenerator {
 							 	final LASTBuilder.ClassInfo ci = (LASTBuilder.ClassInfo) clazz.getInfo().getInfo()[2];
 							 	final Map<String,Node> varMap = ci.getVariables();
 							 	final Node gVarDec = varMap.get(v.getName());
-							 	edg.addEdge(gVarDec, workNode, Edge.Type.Flow);
+							 	if (gVarDec != null) // Non declared variables
+							 		edg.addEdge(gVarDec, workNode, Edge.Type.Flow);
 							 }
 						}
 
@@ -791,7 +821,8 @@ public class FlowEdgeGeneratorNew extends EdgeGenerator {
 			for (Node child : children)
 			{
 				final Node varDef = ci.getVariables().get(child.getName());
-				edg.addEdge(edg.getResFromNode(varDef), edg.getResFromNode(child), Edge.Type.Flow);
+				if (varDef != null)
+					edg.addEdge(edg.getResFromNode(varDef), edg.getResFromNode(child), Edge.Type.Flow);
 			}
 		}
 	}
@@ -799,15 +830,15 @@ public class FlowEdgeGeneratorNew extends EdgeGenerator {
 
 	// METHOD FOR Set<String> : Algun archivo rollo utils/miscelanea?
 	/** Given two sets, returns another set with their symmetric difference */
-	public Set<String> symmetricDifference(Set<String> s1, Set<String> s2)
+	public Set<VarTypeInfo> symmetricDifference(Set<VarTypeInfo> s1, Set<VarTypeInfo> s2)
 	{
-		Set<String> s1Aux = new HashSet<>(s1);
-		Set<String> s2Aux = new HashSet<>(s2);
+		Set<VarTypeInfo> s1Aux = new HashSet<>(s1);
+		Set<VarTypeInfo> s2Aux = new HashSet<>(s2);
 
 		s1Aux.removeAll(s2);
 		s2Aux.removeAll(s1);
 
-		Set<String> res = new HashSet<>();
+		Set<VarTypeInfo> res = new HashSet<>();
 		res.addAll(s1Aux);
 		res.addAll(s2Aux);
 

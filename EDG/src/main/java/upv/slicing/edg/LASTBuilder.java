@@ -66,30 +66,24 @@ public class LASTBuilder {
 
 		return clause.getId();
 	}
-	public static int addVariable(LAST last, int parentId, Where where, String name, boolean declaration, boolean definition, boolean use, boolean global, LDASTNodeInfo info)
+
+	public static int addVariable(LAST last, int parentId, Where where, String name, String varType, boolean declaration, boolean definition, boolean use, boolean global, LDASTNodeInfo info)
 	{
 		final Node parent = LASTBuilder.getParentNode(last, parentId, where);
-		final Node variable = LASTBuilder.addVariableNode(last, parent, Node.Type.Variable, name, "variable" + "\\n" + name, info);
+		final Node variable = LASTBuilder.addVariableNode(last, parent, Node.Type.Variable, name, varType, "variable" + "\\n" + name, info);
 
 		final Variable variableInfo = (Variable) variable;
-		// final VariableInfo.Context context = definition ? VariableInfo.Context.Definition : VariableInfo.Context.Use; //ORIGINAL
-
-// ADDED UnaryOperations Variable are both Definition and Uses, consider this case
 		final Variable.Context context;
-		//final LDASTNodeInfo parentInfo = parent.getInfo(); //NOSE PARA QUE ES parentInfo
 		
-		//if (parentInfo != null)
-			if(definition && use)
-				context = Variable.Context.Def_Use;
-			else if (definition)
-				context = Variable.Context.Definition;
-			else if (use)
-				context = Variable.Context.Use;
-			else
-				context = Variable.Context.Declaration; // null context implica que no es ni definicion ni uso, solo declaraciones sueltas.
-				//throw new RuntimeException("The variable has not been defined, neither used...");
+		if (definition && use)
+			context = Variable.Context.Def_Use;
+		else if (definition)
+			context = Variable.Context.Definition;
+		else if (use)
+			context = Variable.Context.Use;
+		else
+			context = Variable.Context.Declaration;
 
-		
 		variableInfo.setDeclaration(declaration);
 		variableInfo.setContext(context);
 		variableInfo.setGlobal(global);
@@ -364,42 +358,38 @@ public class LASTBuilder {
 	{
 		return LASTBuilder.addNode(last, parent, type, name, name, info);
 	}
+
+	private static Node addVariableNode(LAST last, Node parent, Node.Type type, String name, String varType, String text, LDASTNodeInfo info)
+	{
+		copyFileAndClass(last, parent, info);
+		final Node node = new Variable(last.getNextId(), type, name, varType, info);
+		node.setLabel(text);
+		addNode(last, node, parent, Edge.Type.Structural);
+		return node;
+	}
+
 	private static Node addNode(LAST last, Node parent, Node.Type type, String name, String text, LDASTNodeInfo info)
 	{
-		return LASTBuilder.addNode(last, parent, type, false, name, text, info);
+		copyFileAndClass(last, parent, info);
+		final Node node = LASTBuilder.getNode(last, type, parent, name, info);
+		node.setLabel(text);
+		addNode(last, node, parent, Edge.Type.Structural);
+		return node;
 	}
-	private static Node addVariableNode(LAST last, Node parent, Node.Type type, String name, LDASTNodeInfo info)
-	{
-		return LASTBuilder.addVariableNode(last, parent, type, name, name, info);
-	}
-	private static Node addVariableNode(LAST last, Node parent, Node.Type type, String name, String text, LDASTNodeInfo info)
-	{
-		return LASTBuilder.addNode(last, parent, type, true, name, text, info);
-	}
-	private static Node addNode(LAST last, Node parent, Node.Type type, boolean isVariable, String name, String text, LDASTNodeInfo info)
-	{
+
+	private static void copyFileAndClass(LAST last, Node parent, LDASTNodeInfo info) {
 		if (info != null && info.getFile() == null)
 			info.setFile(LASTBuilder.getArchive(last, parent));
 		if (info != null && info.getClassName() == null)
 			info.setClassName(LASTBuilder.getClassName(last, parent));
-
-
-//final Node.Info nodeInfo0 = ASTBuilder.getNode(type, isVariable, name, info);
-// ADDED SDG NODE ID
-		//final Node.Info.Type parentType = parent.getType();
-		final Node node = LASTBuilder.getNode(last, type, parent, isVariable, name, info);
-		node.setLabel(text);
-
-		last.addVertex(node);
-		last.addEdge(parent, node, Edge.Type.Structural);
-
-		return node;
 	}
+
 	public static void addNode(LAST last, Node node, Node parent, Edge.Type type)
 	{
 		last.addVertex(node);
 		last.addEdge(parent, node, type);
 	}
+
 	private static String getArchive(LAST last, Node node)
 	{
 		Node ancestor = node;
@@ -418,6 +408,7 @@ public class LASTBuilder {
 
 		return null;
 	}
+
 	private static String getClassName(LAST last, Node node)
 	{
 		Node ancestor = node;
@@ -553,7 +544,7 @@ public class LASTBuilder {
 		final List<String> definedClasses = new LinkedList<>();
 		for (Node child : children)
 			definedClasses.add(child.getInfo().getClassName());
-		
+
 		final Map<String, Node> treatedClasses = new HashMap<>();
 		int index = 0;
 		while (!children.isEmpty())
@@ -663,7 +654,38 @@ public class LASTBuilder {
 		
 		parentClassInfo.addChildClass(nodeClassInfo);
 	}
-	
+	public static void completeFieldAccessTypes(LAST last)
+	{
+		List<Node> fieldAccesses = last.getNodes(Node.Type.FieldAccess);
+		List<Node> modules = last.getNodes(Node.Type.Module);
+		for (Node fieldAccess : fieldAccesses)
+		{
+			final Node index = last.getChild(fieldAccess, Node.Type.Index);
+			if (index instanceof Variable)
+			{
+				final Variable indexVar = (Variable) index;
+				final String classType = indexVar.getStaticType();
+				final String varName = indexVar.getName();
+				final String dataMemberName = varName.substring(varName.lastIndexOf(".") + 1);
+				boolean dataMemberFound = false;
+				for (Node module : modules)
+				{
+					if (module.getName().equals(classType))
+					{
+						ClassInfo ci = (ClassInfo) module.getInfo().getInfo()[2];
+						String dataMemberStaticType = ((Variable) ci.getVariables().get(dataMemberName)).getStaticType();
+						indexVar.setStaticType(dataMemberStaticType);
+						dataMemberFound = true;
+						break;
+					}
+				}
+				if (!dataMemberFound)
+					indexVar.setStaticType("unknown");
+			}
+		}
+	}
+
+
 	// Child node
 	private static Node getClauseChildNode(LAST last, Node clause, Where where)
 	{
@@ -936,7 +958,6 @@ public class LASTBuilder {
 	}
 	static Node getNode(LAST last, Node.Type type, Node parent, boolean isVariable, String name, LDASTNodeInfo info)
 	{
-		Node.Type parentType = parent.getType();
 		switch(type)
 		{
 			case Routine:
@@ -957,6 +978,7 @@ public class LASTBuilder {
 				switch(siblingType)
                 {
                     case Variable:
+						return new Variable(last.getNextId(), type, name, info);
                     case Literal:
                     case DataConstructorAccess:
                     case DataConstructor:
