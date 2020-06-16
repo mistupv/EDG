@@ -22,6 +22,7 @@ import upv.slicing.eknife.Util;
 import java.io.File;
 import java.util.*;
 
+
 public class JavaLASTFactory extends LASTFactory {
 
 	/********************************************************************************************************************************/
@@ -60,6 +61,15 @@ public class JavaLASTFactory extends LASTFactory {
 			for (File file : files)
 			{
 				final String path = file.getAbsolutePath();
+
+				// CONFIGURE SYMBOLSOLVER
+				CombinedTypeSolver combinedTypeSolver = new CombinedTypeSolver();
+				combinedTypeSolver.add(new ReflectionTypeSolver());
+
+				// Configure JavaParser to use type resolution
+				JavaSymbolSolver symbolSolver = new JavaSymbolSolver(combinedTypeSolver);
+				StaticJavaParser.getConfiguration().setSymbolResolver(symbolSolver);
+
 				final CompilationUnit cu = StaticJavaParser.parse(file);
 				final NodeList<TypeDeclaration<?>> types = cu.getTypes();
 
@@ -729,7 +739,7 @@ public class JavaLASTFactory extends LASTFactory {
 		final long line = thisExpr.getRange().get().begin.line;
 		final LDASTNodeInfo ldNodeInfo = new LDASTNodeInfo(line, true, "reference");
 
-		super.addSuperReference("this", ldNodeInfo);
+		super.addThisReference("this", ldNodeInfo);
 	}
 
 	private void process(ExplicitConstructorInvocationStmt eciExpr) // super(x)
@@ -1288,5 +1298,16 @@ public class JavaLASTFactory extends LASTFactory {
 				return vr;
 		return null;
 	}
+
+
+	// IDENTIFY STATIC METHODS FROM THE JAVAPARSER CALL NODES
+
+//	private boolean isStatic(MethodCallExpr expr)
+//	{
+//		boolean b = expr.resolve().isStatic();
+//		return b;
+//	}
+
+
 
 }
