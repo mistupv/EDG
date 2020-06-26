@@ -12,7 +12,6 @@ import com.github.javaparser.ast.type.Type;
 import com.github.javaparser.symbolsolver.JavaSymbolSolver;
 import com.github.javaparser.symbolsolver.resolution.typesolvers.CombinedTypeSolver;
 import com.github.javaparser.symbolsolver.resolution.typesolvers.ReflectionTypeSolver;
-import org.checkerframework.checker.units.qual.A;
 import upv.slicing.edg.Config;
 import upv.slicing.edg.LASTFactory;
 import upv.slicing.edg.LDASTNodeInfo;
@@ -586,7 +585,7 @@ public class JavaLASTFactory extends LASTFactory {
 				final String name = variable.getName().getIdentifier();
 				final LDASTNodeInfo ldNodeInfo = new LDASTNodeInfo(line, true, "var", modifiers, type);
 				this.addVariableToContext(new VariableRecord(name, modifiers, type));
-				super.addVariable(name, type.asString(),true, true, false, false, ldNodeInfo);
+				super.addVariable(name, type.asString(),true, false, false, false, ldNodeInfo);
 			} else
 			{
 				final LDASTNodeInfo ldNodeInfo0 = new LDASTNodeInfo(line, true, "name", modifiers, type);
@@ -659,7 +658,8 @@ public class JavaLASTFactory extends LASTFactory {
 		final Literal function = new Literal(methodCall.getName(), ldNodeInfo0);
 		final List<Object> arguments = this.treatExpressions(methodCall.getArguments(), false, false, true,
 															 line); // TODO Paso de argumentos por referencia, OJO!!
-		final LDASTNodeInfo ldNodeInfo = new LDASTNodeInfo(line, true, "method");
+		final String returnType = methodCall.resolve().getReturnType().describe();
+		final LDASTNodeInfo ldNodeInfo = new LDASTNodeInfo(line, true, "method", returnType);
 
 		super.addCall(scope, function, arguments, ldNodeInfo);
 	}

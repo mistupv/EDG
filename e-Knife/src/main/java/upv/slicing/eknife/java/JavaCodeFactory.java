@@ -159,12 +159,12 @@ public class JavaCodeFactory {
 		final Node parametersNode = edg.getChild(clause, Node.Type.Parameters);
 		final Node body = edg.getChild(clause, Node.Type.Body);
 		final Type returnType = (Type) routine.getInfo().getInfo()[1];
-		final boolean returnRequired = !(returnType instanceof VoidType);
+		final String name = routine.getName();
+		final boolean returnRequired = !(returnType instanceof VoidType) && !name.equals("<constructor>");
 
 		context.push(new Context(routine.getType(), returnType, returnRequired));
 
 		// Callable declaration
-		final String name = routine.getName();
 		final CallableDeclaration<?> callableDeclaration = name.equals("<constructor>") ? this
 				.parseConstructor(clazz, routine) : this.parseMethod(clazz, routine);
 
@@ -185,7 +185,7 @@ public class JavaCodeFactory {
 
 		if (context.peek().returnReq)
 		{
-			final Expression returnExpr = generateReturnExpr(returnType);
+			final Expression returnExpr = generateSlicedValueExpr(returnType);
 			statements.add(new ReturnStmt(returnExpr));
 		}
 
@@ -699,7 +699,7 @@ public class JavaCodeFactory {
 				updateReturnContext();
 
 				final Type type = ctx.returnType;
-				final Expression returnExpr = generateReturnExpr(type);
+				final Expression returnExpr = generateSlicedValueExpr(type);
 				return List.of(new ReturnStmt(returnExpr));
 			}
 		}
@@ -717,7 +717,7 @@ public class JavaCodeFactory {
 		if (returnExpression.isEmpty())
 		{
 			final Type type = ctx.returnType;
-			final Expression returnExpr = generateReturnExpr(type);
+			final Expression returnExpr = generateSlicedValueExpr(type);
 			return List.of(new ReturnStmt(returnExpr));
 		}
 
@@ -906,6 +906,9 @@ public class JavaCodeFactory {
 		final NodeList<Modifier> modifiers = (NodeList<Modifier>) ldNodeInfo.getInfo()[0];
 
 		final NodeList<VariableDeclarator> variableDeclarator = new NodeList<>();
+		if (slice != null && !slice.contains(declarationVariable))
+			return List.of();
+
 		variableDeclarator.add(new VariableDeclarator(type, name));
 		return List.of(new VariableDeclarationExpr(new NodeList<>(modifiers), variableDeclarator));
 	}
@@ -1007,6 +1010,8 @@ public class JavaCodeFactory {
 		if (this.slice != null && !this.slice.contains(callee) && !this.slice.contains(scope))
 			return this.parseArguments(args, false);
 
+		final Node name = edg.getChild(callee, Node.Type.Name);
+
 		if (this.slice != null && this.slice.contains(scope))
 		{
 			final Node scopeValue = edg.getChild(scope, Value);
@@ -1016,11 +1021,10 @@ public class JavaCodeFactory {
 				scopeExpr = this.parseExpression(scopeValue);
 
 			// Case 2
-			if (!this.slice.contains(args))
+			if (!this.slice.contains(name) && !this.slice.contains(args))
 				return scopeExpr;
 		}
 
-		final Node name = edg.getChild(callee, Node.Type.Name);
 		final NodeList<Expression> argumentsList = new NodeList<>();
 		argumentsList.addAll(this.parseArguments(args, true));
 
@@ -1070,14 +1074,17 @@ public class JavaCodeFactory {
 		final List<Expression> argExpressions = new LinkedList<>();
 		if (transformUnused) {
 			for (Node argument : argumentsChildren){
-				Set<Edge> inputEdges = edg.getEdges(edg.getResFromNode(argument),
-						LAST.Direction.Forwards, Edge.Type.Input);
-				if (inputEdges.isEmpty()) // TODO generar un argumento del mismo tipo que lo que haya
-					return this.parseExpressions(argumentsChildren, true);
-				final Node target = edg.getNodeFromRes(edg.getEdgeTarget(inputEdges.iterator().next()));
-				// target is a variable
-				final Type type = (Type) target.getInfo().getInfo()[0];
-				argExpressions.add(this.generateReturnExpr(type));
+				if (slice.contains(argument))
+					argExpressions.addAll(parseExpression(argument));
+				else {
+					Set<Edge> inputEdges = edg.getEdges(edg.getResFromNode(argument),
+							LAST.Direction.Forwards, Edge.Type.Input);
+					if (inputEdges.isEmpty()) // TODO: generar un argumento del mismo tipo que lo que haya
+						return this.parseExpressions(argumentsChildren, true);
+					final Node target = edg.getNodeFromRes(edg.getEdgeTarget(inputEdges.iterator().next()));
+					String type = ((Variable) target).getStaticType();
+					argExpressions.add(this.createDefaultTypeByString(type));
+				}
 			}
 			return argExpressions;
 		}
@@ -1374,27 +1381,56 @@ public class JavaCodeFactory {
 		final String value = literal.getName();
 		final String construction = ldNodeInfo.getConstruction();
 
+		return List.of(createTypeByString(construction, value));
+	}
+
+	private Expression createTypeByString(String construction, String value)
+	{
 		switch (construction)
 		{
 			case "boolean":
-				return List.of(new BooleanLiteralExpr(Boolean.parseBoolean(value)));
+				return new BooleanLiteralExpr(Boolean.parseBoolean(value));
 			case "char":
-				return List.of(new CharLiteralExpr(value));
+				return new CharLiteralExpr(value);
 			case "double":
-				return List.of(new DoubleLiteralExpr(value));
+				return new DoubleLiteralExpr(value);
 			case "int":
-				return List.of(new IntegerLiteralExpr(value));
+				return new IntegerLiteralExpr(value);
 			case "long":
-				return List.of(new LongLiteralExpr(value));
+				return new LongLiteralExpr(value);
 			case "String":
-				return List.of(new StringLiteralExpr(value));
+				return new StringLiteralExpr(value);
 			case "name":
-				return List.of(new NameExpr(value));
+				return new NameExpr(value);
 			case "object creation":
 			case "array creation":
 				return null; // TODO: CAMBIAR ESTE NULL QUE PETA TODO
 			default:
-				return List.of(new NullLiteralExpr());
+				return new NullLiteralExpr();
+		}
+	}
+
+	private Expression createDefaultTypeByString(String type)
+	{
+		switch (type)
+		{
+			case "boolean":
+				return new BooleanLiteralExpr(Boolean.parseBoolean("true"));
+			case "char":
+				return new CharLiteralExpr(' ');
+			case "double":
+				return new DoubleLiteralExpr(0);
+			case "int":
+				return new IntegerLiteralExpr(0);
+			case "long":
+				return new LongLiteralExpr(0);
+			case "String":
+				return new StringLiteralExpr("sliced");
+			case "object creation":
+			case "array creation": // TODO: TREAT THESE TYPES ACCORDINGLY
+				throw new RuntimeException("Returning a null also returns in a broken slicer :/");
+			default:
+				return new ObjectCreationExpr(null, new ClassOrInterfaceType(type), new NodeList<>());
 		}
 	}
 
@@ -1454,7 +1490,7 @@ public class JavaCodeFactory {
 		throw new IllegalArgumentException("Invalid operator: " + sign);
 	}
 
-	private Expression generateReturnExpr(Type type)
+	private Expression generateSlicedValueExpr(Type type)
 	{
 		if (type.equals(PrimitiveType.intType()))
 			return new IntegerLiteralExpr(0);
