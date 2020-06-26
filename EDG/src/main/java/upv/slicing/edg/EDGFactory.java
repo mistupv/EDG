@@ -4,13 +4,9 @@ import upv.slicing.edg.constraint.AccessConstraint;
 import upv.slicing.edg.constraint.DataConstructorConstraint;
 import upv.slicing.edg.constraint.EdgeConstraint;
 import upv.slicing.edg.edge.*;
-import upv.slicing.edg.graph.EDG;
-import upv.slicing.edg.graph.Edge;
-import upv.slicing.edg.graph.LAST;
-import upv.slicing.edg.graph.Node;
+import upv.slicing.edg.graph.*;
 
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 import java.util.function.Predicate;
 
 public class EDGFactory {
@@ -29,10 +25,12 @@ public class EDGFactory {
 	public EDG createEDG()
 	{
 		initializeEDG();
+		if (isOOLanguage)
+			new DynamicTypesGenerator(edg).generate();
 		transformExpressionNodes();
 		if (isOOLanguage) {
 			// Only For OOPrograms With Inheritance
-			LASTBuilder.addInheritanceInfomation(edg);
+			LASTBuilder.addInheritanceInformation(edg);
 			LASTBuilder.completeFieldAccessTypes(edg);
 		}
 		generateDependencies();
@@ -131,15 +129,6 @@ public class EDGFactory {
 					treatDataConstructorExpressions(node, result);
 					break;
 				}
-			case Variable: // Variables scope of a call, don't add the result node to the slice
-				// 3 levels (in case it is a casting)
-				final Node grandParent = edg.getParent(parent);
-				final Node grandGrandParent = edg.getParent(grandParent);
-				if (parent.getType() == Node.Type.Scope ||
-						grandParent.getType() == Node.Type.Scope ||
-						grandGrandParent.getType() == Node.Type.Scope)
-					break;
-				// When there is a result of a callee, the value arc is only joined from the name node, and there is another one from the scope to the name
 			default:
 				treatCommonNodes(node, result);
 				break;

@@ -2,6 +2,7 @@ package upv.slicing.edg.graph;
 
 import upv.slicing.edg.LDASTNodeInfo;
 
+import java.util.LinkedList;
 import java.util.List;
 
 public class Variable extends Node {
@@ -11,7 +12,7 @@ public class Variable extends Node {
 	private Context context;
 	private boolean global;
 	private String staticType;
-	private List<String> dynamicTypes; // TODO: Determine dynamic type in the last definition (may be difficult)
+	private List<String> dynamicTypes = new LinkedList<>(); // TODO: Determine dynamic type in the last definition (may be difficult)
 
 	public Variable(int id, Node.Type type, String name, LDASTNodeInfo ldASTNodeInfo)
 	{
@@ -42,6 +43,7 @@ public class Variable extends Node {
 		return this.global;
 	}
 	public String getStaticType() { return this.staticType; }
+	public List<String> getDynamicTypes() { return this.dynamicTypes; }
 
 	public void setDeclaration(boolean declaration)
 	{
@@ -56,4 +58,11 @@ public class Variable extends Node {
 		this.global = global;
 	}
 	public void setStaticType(String type) { this.staticType = type; }
+
+	public void setDynamicTypes(List<String> types) {
+		this.dynamicTypes.clear();
+		this.dynamicTypes.addAll(types);
+	}
+	public void addDynamicTypes(List<String> types) { this.dynamicTypes.addAll(types); }
+
 }
