@@ -118,6 +118,8 @@ public class InterproceduralEdgeGeneratorNew extends EdgeGenerator {
 				return this.getModuleByName(type.getName(), modules);
 			case Variable:
 				return this.getModuleByName(scopeExprNode.getInfo().getInfo()[1].toString(), modules);
+			case Type:
+				return this.getModuleByName(scopeExprNode.getName(), modules);
 			// TODO:
 			// case FieldAccess:
 			// case DataConstructorAccess:
@@ -152,8 +154,12 @@ public class InterproceduralEdgeGeneratorNew extends EdgeGenerator {
 	{
 		final Node parameters = edg.getChild(possibleClause, Node.Type.Parameters);
 		final List<Node> parameterNodes = edg.getChildren(parameters);
+		parameterNodes.removeIf(node -> node.getType() == Node.Type.Result);
+
 		final Node arguments = edg.getChild(call, Node.Type.Arguments);
 		final List<Node> argumentNodes = edg.getChildren(arguments);
+		argumentNodes.removeIf(node -> node.getType() == Node.Type.Result);
+
 		// TODO: Tratar el caso de el ultimo argumento con "..."
 		if (argumentNodes.size() < parameterNodes.size())
 			return false;
@@ -188,9 +194,9 @@ public class InterproceduralEdgeGeneratorNew extends EdgeGenerator {
 			this.generateInputOutput(call);
 	}
 
-	/************************************/
-	/************ Input edges ***********/
-	/************************************/
+	/* **************************************** */
+	/* *********** Input-Output edges ********* */
+	/* **************************************** */
 	private void generateInputOutput(Node call)
 	{
 		final Node callee = edg.getChild(call, Node.Type.Callee);
@@ -208,12 +214,13 @@ public class InterproceduralEdgeGeneratorNew extends EdgeGenerator {
 			this.generateInputArcs(argumentsNode, parametersNode);
 
 			// INPUT GLOBAL VARIABLES
-			final Node argInNode = edg.getChild(call, Node.Type.ArgumentIn);
+			final Node argInNode = edg.getPolymorphicNode(call, clause.getInfo().getClassName(),Edge.Type.Input);
 			final Node paramInNode = edg.getChild(clause, Node.Type.ParameterIn);
 			this.generateInputArcs(argInNode, paramInNode);
 
 			// OUTPUT GLOBAL VARIABLES
-			final Node argOutNode = edg.getChild(call, Node.Type.ArgumentOut);
+			// final Node argOutNode = edg.getChild(call, Node.Type.ArgumentOut);
+			final Node argOutNode = edg.getPolymorphicNode(call, clause.getInfo().getClassName(),Edge.Type.Output);
 			final Node paramOutNode = edg.getChild(clause, Node.Type.ParameterOut);
 			this.generateOutputArcs(argOutNode, paramOutNode);
 
@@ -270,13 +277,6 @@ public class InterproceduralEdgeGeneratorNew extends EdgeGenerator {
 		if (!routineName.equals("<constructor>"))
 			this.edg.addEdge(edg.getResFromNode(clause), edg.getResFromNode(call),
 					new Edge(Edge.Type.Output, new PhaseConstraint(Phase.Output)));
-
-		// TODO: Constructor treatment
-//		final GlobalVariableConstraint addConstraint = new GlobalVariableConstraint(
-//				SeekingConstraint.Operation.Add, "*");
-//		this.edg.addEdge(edg.getChild(callingFunction, Node.Type.ParameterOut), callResult,
-//				new Edge(Edge.Type.Output, addConstraint));
-
 	}
 
 

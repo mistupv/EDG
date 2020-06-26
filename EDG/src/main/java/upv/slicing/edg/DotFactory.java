@@ -93,6 +93,7 @@ public class DotFactory {
 	private static final Attribute ORANGE = DefaultAttribute.createAttribute("orange");
 	private static final Attribute PINK   = DefaultAttribute.createAttribute("pink");
 	private static final Attribute BROWN  = DefaultAttribute.createAttribute("brown");
+	private static final Attribute TURQUOISE  = DefaultAttribute.createAttribute("turquoise");
 	// Numbers
 	private static final Attribute ONE   = DefaultAttribute.createAttribute(1);
 	private static final Attribute THREE = DefaultAttribute.createAttribute(3);
@@ -206,6 +207,11 @@ public class DotFactory {
 					break;
 				case Exception:
 					attrs.put("color", ORANGE);
+					attrs.put("penwidth", THREE);
+					attrs.put("constraint", FALSE);
+					break;
+				case TotalDefinition:
+					attrs.put("color", TURQUOISE);
 					attrs.put("penwidth", THREE);
 					attrs.put("constraint", FALSE);
 					break;

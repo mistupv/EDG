@@ -703,4 +703,76 @@ public class LAST extends GraphWithRoot {
 	{
 		return fictitiousId--;
 	}
+
+	/** Returns the object variable node, if exists, of the scope of a function call
+	 * @implNote Only explicit object variables or casting expressions considered */
+	public Node getScopeLeaf(Node scopeNode)
+	{
+		List<Node> children = getChildren(scopeNode);
+		if (children.size() == 0)
+			return null;
+
+		final Node scopeExpr = children.get(0);
+		switch(scopeExpr.getType())
+		{
+			case Variable:
+				return scopeExpr;
+			case TypeTransformation:
+				Node variableNode = getChild(scopeExpr, Node.Type.Variable);
+				while(variableNode.getType() == Node.Type.TypeTransformation)
+					variableNode = getChild(variableNode, Node.Type.Variable);
+
+				if (variableNode.getType() == Node.Type.Variable)
+					return variableNode;
+				return null;
+			default:
+				return null;
+		}
+	}
+
+	/** Returns the argument node or the corresponding polymorphic call
+	 * node depending on the nature of the call */
+	public Node getPolymorphicNode(Node call, String className, Edge.Type edgeType){
+		final Node callee = this.getChild(call, Node.Type.Callee);
+		final Node name = this.getChild(callee, Node.Type.Name);
+		final String routineName = this.getChild(name, Node.Type.Value).getName();
+
+		Node objectVar;
+
+		if (edgeType == Edge.Type.Input) {
+			final Node scope = this.getChild(callee, Node.Type.Scope);
+			final List<Node> scopeChildren = this.getChildren(scope);
+
+			if (scopeChildren.size() == 0 || routineName.equals("<constructor>"))
+				return this.getChild(call, Node.Type.ArgumentIn);
+
+			objectVar = this.getScopeLeaf(scope);
+		} else {
+			final Node argOut = this.getChild(call, Node.Type.ArgumentOut);
+			final List<Node> argOutChildren = this.getChildren(argOut);
+			argOutChildren.removeIf(node -> node.getType() == Node.Type.Result);
+
+			if (argOutChildren.size() == 0 || argOutChildren.size() > 1 || routineName.equals("<constructor>"))
+				return argOut;
+
+			objectVar = this.getChildren(argOut).get(0);
+
+			if (argOutChildren.size() == 1)
+			{
+				 List<Node> objectVarChildren = this.getChildren(objectVar);
+				 if (objectVarChildren.size() == 0 || objectVarChildren.get(0).getType() != Node.Type.PolymorphicCall)
+				 	return argOut;
+			}
+		}
+
+		if (objectVar == null)
+			throw new RuntimeException("The scope expression type is not contemplated");
+
+		final List<Node> polymorphicNodes = this.getChildren(objectVar);
+		for (Node node : polymorphicNodes)
+			if (node.getName().startsWith(className + "."))
+				return node;
+
+		throw new RuntimeException("There is no polymorphic node for class " + className);
+	}
 }

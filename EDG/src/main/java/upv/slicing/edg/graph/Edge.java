@@ -14,7 +14,8 @@ public class Edge
 		Structural, Control,
 		Value, Flow,
 		Call, Input, Output, Summary,
-		Exception
+		Exception,
+		TotalDefinition
 	}
 
 	private boolean mark;

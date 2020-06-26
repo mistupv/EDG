@@ -542,7 +542,7 @@ public class LASTBuilder {
 	}
 
 	// Add class inheritance information
-	public static void addInheritanceInfomation(LAST last) {
+	public static void addInheritanceInformation(LAST last) {
 		final Node root = last.getRootNode();
 		final List<Node> children = last.getChildren(root);
 		
@@ -597,9 +597,9 @@ public class LASTBuilder {
 				final String methodName = child.getName();
 				final List<Node> methodClauses = last.getChildren(child);
 				methodClauses.removeIf(n -> n.getType() != Node.Type.Clause);
-				List<Node> previousClauses = methods.get(methodName);
-				if (previousClauses != null)
-					methodClauses.addAll(previousClauses);
+
+				if (methods.containsKey(methodName))
+					methodClauses.addAll(methods.get(methodName));
 				methods.put(methodName, methodClauses);
 			}
 		}
@@ -613,23 +613,20 @@ public class LASTBuilder {
 		ClassInfo nodeClassInfo = new ClassInfo(parentClassInfo);
 		
 		final List<Node> children = last.getChildren(node);
-		
+		children.removeIf(child -> child.getType() == Node.Type.Result);
+
 		for (Node child : children)
 		{
-			if (child.getType() == Node.Type.Expression || child.getType() == Node.Type.Variable)
-			{
-				final Node expressionInstanceNode = child.getType() == Node.Type.Expression ? last.getChild(child,0) : child;
-				final Node variableNode = expressionInstanceNode.getType() == Node.Type.Variable ?
-							expressionInstanceNode : last.getChild(last.getChild(expressionInstanceNode,0),0);
-				final String name = variableNode.getName();
-				
-				nodeClassInfo.variables.put(name, variableNode);
-			}
-			else
-			{ 
+			if (child.getType() == Node.Type.Variable)
+				nodeClassInfo.variables.put(child.getName(), child);
+			else if (child.getType() == Node.Type.Equality) {
+				Node dataMemberNode = last.getChild(child, Node.Type.Pattern);
+				nodeClassInfo.variables.put(dataMemberNode.getName(), dataMemberNode);
+			} else {
 				final String methodName = child.getName();
 				final List<Node> methodClauses = last.getChildren(child);
 				methodClauses.removeIf(n -> n.getType() == Node.Type.Result);
+
 				final List<Integer> resultArities = new LinkedList<>();
 				for (Node clause : methodClauses)
 				{	
@@ -637,7 +634,8 @@ public class LASTBuilder {
 					if (!resultArities.contains(arity))
 						resultArities.add(arity);
 				}
-				
+
+				// TODO: Con mas de un constructor esto falla
 				if (nodeClassInfo.methods.containsKey(methodName) && methodName.equals("<constructor>"))
 					nodeClassInfo.methods.put("super<constructor>", nodeClassInfo.methods.get("<constructor>"));
 				
@@ -953,6 +951,8 @@ public class LASTBuilder {
 			case ParameterOut:
 			case ArgumentIn:
 			case ArgumentOut:
+			case PolymorphicCall:
+			case Variable:
 				if (where == null)
 					return parentNode;
 			default:
@@ -1047,6 +1047,5 @@ public class LASTBuilder {
 		{
 			return this.variables;
 		}
-		
 	}
 }

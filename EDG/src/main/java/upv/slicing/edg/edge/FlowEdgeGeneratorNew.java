@@ -638,7 +638,6 @@ public class FlowEdgeGeneratorNew extends EdgeGenerator {
 
 		// Transformation of Global Vars in ParameterOut Node
 		this.addGlobalVarsStructure(clause, paramOut, paramOutIncomingCFGEdges, defUses.definitions, false);
-
 	}
 
 	/** Creates the corresponding Value and ControlFlow arcs when adding formal-in/value-in
@@ -655,7 +654,27 @@ public class FlowEdgeGeneratorNew extends EdgeGenerator {
 			final LDASTNodeInfo ldNodeInfo = new LDASTNodeInfo(parent.getInfo().getFile(), parent.getInfo().getClassName(),
 					parent.getInfo().getLine(), true, "var", null);
 			// TODO: Extract Type
-			final int nodeId = LASTBuilder.addVariable(this.edg, container.getId(), null, item.variable, item.type, false, isDefinition, !isDefinition, true, ldNodeInfo);
+			final int nodeId;
+			switch (container.getType()){
+				case ParameterIn:
+				case ParameterOut:
+				case ArgumentIn:
+				case ArgumentOut:
+					nodeId = LASTBuilder.addVariable(this.edg, container.getId(), null, item.variable,
+							item.type, false, isDefinition, !isDefinition, true, ldNodeInfo);
+					break;
+				default:
+					final Node objectVar;
+					if (container.getType() == Node.Type.PolymorphicCall)
+						objectVar = edg.getParent(container);
+					else
+						objectVar = container;
+
+					nodeId = LASTBuilder.addVariable(this.edg, container.getId(), null, objectVar.getName() + "." + item.variable,
+							item.type, false, isDefinition, !isDefinition, true, ldNodeInfo);
+					break;
+			}
+
 			final Node paramVar = this.edg.getNode(nodeId);
 
 			final LDASTNodeInfo resultInfo = new LDASTNodeInfo(parent.getInfo().getFile(), parent.getInfo().getClassName(),
@@ -688,30 +707,121 @@ public class FlowEdgeGeneratorNew extends EdgeGenerator {
 	// -------------------------------------------------------------------------- //
 
 	/** Creates the global var DEF and USE corresponding nodes in the actual-in and
-	 * actual-out nodes of a every function call of the program */
+	 * actual-out nodes at every function call of the program */
 	public void createArgInOutNodes()
 	{
 		for( Node clause : clauseMap.keySet())
 		{
-			final Set<Edge> callEdges = edg.getEdges(clause, LAST.Direction.Backwards, Edge.Type.Call);
-			final DefUseState defUses = clauseMap.get(clause);
-			for (Edge edge : callEdges)
-			{
-				final Node callee = edg.getNodeFromRes(edg.getEdgeSource(edge));
-				final Node call = edg.getParent(callee);
-				final Node argIn = edg.getChild(call, Node.Type.ArgumentIn);
-				final Node argOut = edg.getChild(call, Node.Type.ArgumentOut);
+			if (edg.getParent(clause).getName().equals("<constructor>"))
+				this.addConstructorCallStructures(clause);
+			else
+				this.addCallStructures(clause);
+		}
+	}
 
-				// Edge from the callee result to the ArgOut node
-				edg.addEdge(edg.getEdgeSource(edge), argOut, Edge.Type.Flow);
+	public void addConstructorCallStructures(Node clause)
+	{
+		final Set<Edge> callEdges = edg.getEdges(clause, LAST.Direction.Backwards, Edge.Type.Call);
+		final DefUseState defUses = clauseMap.get(clause);
 
-				final Set<Edge> incomingArgInCFGEdges = edg.getEdges(argIn, LAST.Direction.Backwards, Edge.Type.ControlFlow);
-				final Set<Edge> incomingArgOutCFGEdges = edg.getEdges(argOut, LAST.Direction.Backwards, Edge.Type.ControlFlow);
+		for (Edge edge : callEdges) {
+			final Node callee = edg.getNodeFromRes(edg.getEdgeSource(edge));
+			final Node call = edg.getParent(callee);
+			final Node argOut = edg.getChild(call, Node.Type.ArgumentOut);
 
-				this.addGlobalVarsStructure(call, argIn, incomingArgInCFGEdges, defUses.uses, false);
-				this.addGlobalVarsStructure(call, argOut, incomingArgOutCFGEdges, defUses.definitions, true);
+			final Node callParent = edg.getParent(call);
+
+			// Edge from the callee result to the ArgOut node
+			edg.addEdge(edg.getEdgeSource(edge), argOut, Edge.Type.Flow);
+
+			// If the object is created and not assigned cannot be referenced
+			if (callParent.getType() != Node.Type.Equality)
+				continue;
+
+			final Node objectVar = edg.getChild(callParent, Node.Type.Pattern);
+			for (VarTypeInfo def : defUses.definitions){
+				final Node varDataMember = this.addDefinitionVarCopy(objectVar, objectVar,objectVar.getName() + "." + def.variable, def.type);
+				final Node argOutVar = this.addDefinitionVarCopy(argOut, objectVar,objectVar.getName() + "." + def.variable, def.type);
+				edg.addEdge(edg.getResFromNode(argOutVar), edg.getResFromNode(varDataMember), Edge.Type.Value);
 			}
 		}
+	}
+
+	public void addCallStructures(Node clause)
+	{
+		final Set<Edge> callEdges = edg.getEdges(clause, LAST.Direction.Backwards, Edge.Type.Call);
+		final DefUseState defUses = clauseMap.get(clause);
+
+		for (Edge edge : callEdges) {
+			final Node callee = edg.getNodeFromRes(edg.getEdgeSource(edge));
+			final Node call = edg.getParent(callee);
+			final Node scope = edg.getChild(callee, Node.Type.Scope);
+			final Node objectVar =  edg.getScopeLeaf(scope);
+			final Node argOut = edg.getChild(call, Node.Type.ArgumentOut);
+
+			// Edge from the callee result to the ArgOut node
+			edg.addEdge(edg.getEdgeSource(edge), argOut, Edge.Type.Flow);
+
+			final Set<Edge> incomingInCFGEdges, incomingOutCFGEdges;
+			final Node containerIn, containerOut;
+
+			if (objectVar == null) { // The caller is not an object variable
+				final Node argIn = edg.getChild(call, Node.Type.ArgumentIn);
+
+				incomingInCFGEdges = edg.getEdges(argIn, LAST.Direction.Backwards, Edge.Type.ControlFlow);
+				incomingOutCFGEdges = edg.getEdges(argOut, LAST.Direction.Backwards, Edge.Type.ControlFlow);
+
+				containerIn = argIn;
+				containerOut = argOut;
+			} else { // The caller is an object variable. Only variables and castings considered
+				final String className = clause.getInfo().getClassName();
+				final Node calleeNameNode = edg.getChild(callee, Node.Type.Name);
+				final String calleeName = edg.getChildren(calleeNameNode).get(0).getName();
+
+				containerIn = this.addPolymorphicCallNode(objectVar, className + "." + calleeName);
+				incomingInCFGEdges = edg.getEdges(objectVar, LAST.Direction.Backwards, Edge.Type.ControlFlow);
+				edg.addEdge(containerIn, objectVar, Edge.Type.ControlFlow);
+
+				if (defUses.definitions.isEmpty())
+				{
+					containerOut = argOut;
+					incomingOutCFGEdges = edg.getEdges(argOut, LAST.Direction.Backwards, Edge.Type.ControlFlow);
+				}
+				else {
+					final Node scopeVarOut = this.getVarOut(argOut, objectVar);;
+					containerOut = defUses.definitions.isEmpty()? argOut : this.addPolymorphicCallNode(scopeVarOut, className + "." + calleeName);
+					incomingOutCFGEdges = edg.getEdges(scopeVarOut, LAST.Direction.Backwards, Edge.Type.ControlFlow);
+					edg.addEdge(containerOut, scopeVarOut, Edge.Type.ControlFlow);
+				}
+			}
+			this.addGlobalVarsStructure(call, containerIn, incomingInCFGEdges, defUses.uses, false);
+			this.addGlobalVarsStructure(call, containerOut, incomingOutCFGEdges, defUses.definitions, true);
+		}
+	}
+
+	/** Adds a polymorphic call node to a object variable node (object unfolding process) */
+	public Node addPolymorphicCallNode(Node objectVar, String nodeName)
+	{
+		final LDASTNodeInfo info = new LDASTNodeInfo(objectVar.getInfo().getFile(), objectVar.getInfo().getClassName(),
+				objectVar.getInfo().getLine(), "polymorphic call");
+		final Node polymorphicCallNode = new Node (nodeName, this.edg.getNextId(), Node.Type.PolymorphicCall,nodeName, info);
+
+		edg.addVertex(polymorphicCallNode);
+		edg.addEdge(objectVar, polymorphicCallNode, Edge.Type.Structural);
+		return polymorphicCallNode;
+	}
+
+	/** Replicates the scope var node in the ArgumentOut node */
+	public Node getVarOut(Node argOut, Node objectVar)
+	{
+		List<Node> children = edg.getChildren(argOut);
+		children.removeIf(node -> node.getType() == Node.Type.Result);
+
+		for (Node child : children)
+			if (child.getName().equals(objectVar.getName()))
+				return child;
+
+		return this.addDefinitionVarCopy(argOut, objectVar, objectVar.getName(), ((Variable) objectVar).getStaticType());
 	}
 
 	// ---------------------------------------------------------------- //
@@ -783,8 +893,8 @@ public class FlowEdgeGeneratorNew extends EdgeGenerator {
 						final Node definition = workMap.get(v.getName());
 						if (definition != null)
 							edg.addEdge(edg.getResFromNode(definition), edg.getResFromNode(workNode), Edge.Type.Flow);
-						else
-							throw new RuntimeException("The definition node cannot be null");
+//						else
+//							throw new RuntimeException("The definition node cannot be null");
 						break;
 					default:
 						break;
@@ -845,4 +955,57 @@ public class FlowEdgeGeneratorNew extends EdgeGenerator {
 		return res;
 	}
 
+
+	// JAVA EXCLUSIVE METHODS RELATED TO JAVA TYPES
+	public boolean isPrimitiveType(String type)
+	{
+		String rawType = type;
+		if(type.endsWith("[]"))
+			rawType = type.substring(0,type.lastIndexOf("["));
+		switch(rawType)
+		{
+			case "boolean":
+			case "byte":
+			case "short":
+			case "int":
+			case "long":
+			case "float":
+			case "double":
+			case "char":
+			// case "String": // ??
+				return true;
+			default:
+				return false;
+		}
+	}
+
+	/** Add a new node, copy of a variable node varNode with varName and varType as a child of a container node */
+	public Node addDefinitionVarCopy(Node container, Node varNode, String varName, String varType)
+	{
+		final LDASTNodeInfo ldNodeInfo = new LDASTNodeInfo(varNode.getInfo().getFile(), varNode.getInfo().getClassName(),
+				varNode.getInfo().getLine(), true, "var", null);
+		final int nodeId = LASTBuilder.addVariable(this.edg, container.getId(), null,
+				varName, varType, false, true, false, true, ldNodeInfo);
+		final Node newVarNode = edg.getNode(nodeId);
+		final LDASTNodeInfo resultInfo = new LDASTNodeInfo(varNode.getInfo().getFile(), varNode.getInfo().getClassName(),
+				varNode.getInfo().getLine(), "var");
+		final Node result = new Node("result", this.edg.getNextFictitiousId(), Node.Type.Result, "", resultInfo);
+
+		edg.addVertex(result);
+		edg.registerNodeResPair(newVarNode, result);
+		edg.addEdge(newVarNode, result, Edge.Type.Value);
+		edg.addEdge(newVarNode, result, Edge.Type.ControlFlow);
+		edg.addStructuralEdge(container, result);
+
+		if (container.getType() == Node.Type.Variable)
+			edg.addEdge(edg.getResFromNode(container), result, Edge.Type.TotalDefinition);
+
+		Set<Edge> incomingEdges = edg.getEdges(container, LAST.Direction.Backwards, Edge.Type.ControlFlow);
+		for (Edge edge : incomingEdges){
+			edg.addEdge(edg.getEdgeSource(edge), newVarNode, Edge.Type.ControlFlow);
+			edg.removeEdge(edge);
+		}
+		edg.addEdge(result, container, Edge.Type.ControlFlow);
+		return newVarNode;
+	}
 }

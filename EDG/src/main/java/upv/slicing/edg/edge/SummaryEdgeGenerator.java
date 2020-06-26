@@ -35,8 +35,8 @@ public class SummaryEdgeGenerator extends EdgeGenerator {
 		{
 			final Node callee = edg.getChild(call, Node.Type.Callee);
 			final Node calleeResult = edg.getResFromNode(callee);
-			final List<Node> inputs = edg.getInputs(calleeResult, LAST.Direction.Forwards);
-			if (!inputs.isEmpty())
+			final Set<Edge> callEdges = edg.getEdges(calleeResult, LAST.Direction.Forwards, Edge.Type.Call);
+			if (!callEdges.isEmpty())
 				continue;
 
 			final Node callResult = edg.getResFromNode(call);
@@ -75,7 +75,11 @@ public class SummaryEdgeGenerator extends EdgeGenerator {
 
 				// When we reach a clause node when generating summaries, there is no need to continue, and
 				// The routine must not be treated (there is a control arc between the clause result and the routine)
-				if (currentNode.getType() == Node.Type.Clause || currentNode.getType() == Node.Type.Routine)
+				// Declaration arcs to data members must be ignored
+
+				if (currentNode.getType() == Node.Type.Clause ||
+						currentNode.getType() == Node.Type.Routine ||
+						currentNode.getType() == Node.Type.Module)
 					continue;
 
 				// ESTO SE USA PARA EVITAR BUCLES INFINITOS AL GENERAR SUMMARIES,
@@ -83,8 +87,7 @@ public class SummaryEdgeGenerator extends EdgeGenerator {
 				if (workList.getDoneNodes().contains(currentNode) && edg.getNodeFromRes(initialNode).getType() != Node.Type.Clause)
 					continue;
 
-				if (isFormalIn = this.isFormalIn(currentNode, initialNode))
-				{	
+				if (isFormalIn = this.isFormalIn(currentNode, initialNode)) {
 					final List<Node> nodesToContinue = this.createSummaryEdges(initialNode, currentNode, constraints);
 					this.rependWorks(workList, nodesToContinue);
 				}
@@ -144,7 +147,9 @@ public class SummaryEdgeGenerator extends EdgeGenerator {
 		final Node parent = edg.getParent(node);
 		final Node.Type parentType = parent.getType();
 
-		if (parent == null)
+		// TODO: Parent module in global variable declaration arcs
+		//  (Make them interprocedural to avoid traversals in summaries?)
+		if (parent == null || parent.getType() == Node.Type.Module)
 			return false;
 
 		if (parentType != Node.Type.Parameters && parentType != Node.Type.ParameterIn)
@@ -189,9 +194,9 @@ public class SummaryEdgeGenerator extends EdgeGenerator {
 			}
 			else { // PART FOR ARG OUT SUMMARIES
 				final int argOutIndex = edg.getChildIndex(formalOut);
-				final Node callArgOut = edg.getChild(call, Node.Type.ArgumentOut);
+				final Node callArgOut = edg.getPolymorphicNode(call, formalIn.getInfo().getClassName(), Edge.Type.Output);
 				final Node argOut = edg.getChild(callArgOut, argOutIndex);
-				this.edg.addEdge(input, callArgOut, new Edge(Edge.Type.Summary, grammarConstraint));
+				this.edg.addEdge(input, argOut, new Edge(Edge.Type.Summary, grammarConstraint));
 				nodesToContinue.add(callArgOut);
 			}
 		}
@@ -204,5 +209,31 @@ public class SummaryEdgeGenerator extends EdgeGenerator {
 			final String id = nodeToContinue.getId() + "";
 			workList.repend(id);
 		}
+	}
+
+	private Node getOutNode(Node call, String className)
+	{
+		final Node callee = edg.getChild(call, Node.Type.Callee);
+		final Node name = edg.getChild(callee, Node.Type.Name);
+		final String routineName = edg.getChild(name, Node.Type.Value).getName();
+
+		Node objectVar;
+		final Node argOut = edg.getChild(call, Node.Type.ArgumentOut);
+		final List<Node> argOutChildren = edg.getChildren(argOut);
+
+		if (argOutChildren.size() == 0 || routineName.equals("<constructor>"))
+			return argOut;
+
+		objectVar = edg.getChildren(argOut).get(0);
+
+		if (objectVar == null)
+			throw new RuntimeException("The scope expression type is not contemplated");
+
+		final List<Node> polymorphicNodes = edg.getChildren(objectVar);
+		for (Node node : polymorphicNodes)
+			if (node.getName().startsWith(className + "."))
+				return node;
+
+		throw new RuntimeException("There is no polymorphic node for class " + className);
 	}
 }
