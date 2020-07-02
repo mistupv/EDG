@@ -109,12 +109,11 @@ public class DynamicTypesGenerator extends EdgeGenerator {
                                             if (funName.equals("<constructor>")) {
                                                 final String scopeType = edg.getChild(scope,0).getName();
                                                 dynamicTypes0.add(scopeType);
-                                                work.dynTypeMap.put(var.getName(), dynamicTypes0);
                                             } else {
                                                 // TODO: Possible Return Types
                                                 dynamicTypes0.add("StaticType");
-                                                // String staticReturnType = (String) rightHandSide.getInfo().getInfo()[0];
                                             }
+                                            work.dynTypeMap.put(var.getName(), dynamicTypes0);
                                             var.setDynamicTypes(dynamicTypes0);
                                             break;
                                         default:

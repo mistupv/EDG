@@ -76,7 +76,6 @@ public class SummaryEdgeGenerator extends EdgeGenerator {
 				// When we reach a clause node when generating summaries, there is no need to continue, and
 				// The routine must not be treated (there is a control arc between the clause result and the routine)
 				// Declaration arcs to data members must be ignored
-
 				if (currentNode.getType() == Node.Type.Clause ||
 						currentNode.getType() == Node.Type.Routine ||
 						currentNode.getType() == Node.Type.Module)
@@ -114,6 +113,14 @@ public class SummaryEdgeGenerator extends EdgeGenerator {
 			// Summary Edges for the result node
 			final Node clauseResult = edg.getResFromNode(clause);
 			workList.add(new NodeWork(clauseResult, clauseResult, new Constraints()));
+
+			// Summary for constructor result children
+			final List<Node> clauseResChildren = edg.getChildren(clauseResult);
+			if (!clauseResChildren.isEmpty()) {
+				clauseResChildren.removeIf(child -> child.getType() != Node.Type.Result);
+				for (Node child : clauseResChildren)
+					workList.add(new NodeWork(child, child, new Constraints()));
+			}
 
 			// Summary Edges for Reference variables (Global Variables)
 			final Node clauseParameterOut = edg.getChild(clause, Node.Type.ParameterOut);
@@ -159,10 +166,16 @@ public class SummaryEdgeGenerator extends EdgeGenerator {
 		final Node clause = edg.getAncestor(node, Node.Type.Clause);
 		final Node clauseResult = edg.getResFromNode(clause);
 
+		final Node formalOutParent = edg.getParent(formalOutNode);
 		// The corresponding clause result for parameter out summaries
-		if (edg.getParent(formalOutNode).getType() == Node.Type.ParameterOut) {
+		if (formalOutParent.getType() == Node.Type.ParameterOut) {
 			final Node routineFormalOut = edg.getResFromNode(edg.getAncestor(formalOutNode, Node.Type.Clause));
 			return clauseResult == routineFormalOut;
+		}
+
+		// The corresponding clause result for result out summaries
+		if (formalOutParent.getType() == Node.Type.Result){
+			return formalOutParent == clauseResult;
 		}
 
 		return clauseResult == formalOutNode;
@@ -194,7 +207,12 @@ public class SummaryEdgeGenerator extends EdgeGenerator {
 			}
 			else { // PART FOR ARG OUT SUMMARIES
 				final int argOutIndex = edg.getChildIndex(formalOut);
-				final Node callArgOut = edg.getPolymorphicNode(call, formalIn.getInfo().getClassName(), Edge.Type.Output);
+				final Node callArgOut;
+				if (edg.getParent(formalOut).getType() == Node.Type.Result)
+					// Only in constructors DM are children of the result node
+					callArgOut = edg.getResFromNode(call);
+				else
+					callArgOut = edg.getPolymorphicNode(call, formalIn.getInfo().getClassName(), Edge.Type.Output);
 				final Node argOut = edg.getChild(callArgOut, argOutIndex);
 				this.edg.addEdge(input, argOut, new Edge(Edge.Type.Summary, grammarConstraint));
 				nodesToContinue.add(callArgOut);

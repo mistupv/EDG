@@ -1,5 +1,7 @@
 package upv.slicing.edg.graph;
 
+import upv.slicing.edg.LASTBuilder.ClassInfo;
+
 import java.util.*;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
@@ -752,7 +754,7 @@ public class LAST extends GraphWithRoot {
 			final List<Node> argOutChildren = this.getChildren(argOut);
 			argOutChildren.removeIf(node -> node.getType() == Node.Type.Result);
 
-			if (argOutChildren.size() == 0 || argOutChildren.size() > 1 || routineName.equals("<constructor>"))
+			if (argOutChildren.size() == 0 || argOutChildren.size() > 1)
 				return argOut;
 
 			objectVar = this.getChildren(argOut).get(0);
@@ -774,5 +776,29 @@ public class LAST extends GraphWithRoot {
 				return node;
 
 		throw new RuntimeException("There is no polymorphic node for class " + className);
+	}
+
+	public List<String> getChildrenClasses(String className){
+		final List<Node> modules = this.getNodes(Node.Type.Module);
+		final List<String> childrenTypes = new LinkedList<>();
+		for (Node module : modules)
+			if (module.getName().equals(className)) {
+				childrenTypes.add(module.getName());
+
+				final ClassInfo ci = (ClassInfo) module.getInfo().getInfo()[2];
+				List<ClassInfo> childrenModules = ci.getChildrenClasses();
+
+				while(!childrenModules.isEmpty()){
+					final ClassInfo child = childrenModules.remove(0);
+					childrenTypes.add(child.getClassNode().getName());
+					childrenModules.addAll(child.getChildrenClasses());
+				}
+			}
+		return childrenTypes;
+	}
+
+	public List<String> getExtendedClasses(String className){
+		// TODO: Implement when needed
+		return List.of(className);
 	}
 }

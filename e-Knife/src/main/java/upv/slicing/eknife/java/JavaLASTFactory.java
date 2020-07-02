@@ -657,7 +657,7 @@ public class JavaLASTFactory extends LASTFactory {
 		final LDASTNodeInfo ldNodeInfo0 = new LDASTNodeInfo(line, true, "name", "name");
 		final Literal function = new Literal(methodCall.getName(), ldNodeInfo0);
 		final List<Object> arguments = this.treatExpressions(methodCall.getArguments(), false, false, true,
-															 line); // TODO Paso de argumentos por referencia, OJO!!
+															 line);
 		final String returnType = methodCall.resolve().getReturnType().describe();
 		final LDASTNodeInfo ldNodeInfo = new LDASTNodeInfo(line, true, "method", returnType);
 
@@ -745,7 +745,7 @@ public class JavaLASTFactory extends LASTFactory {
 	private void process(ExplicitConstructorInvocationStmt eciExpr) // super(x)
 	{
 		final long line = eciExpr.getRange().get().begin.line;
-		final LDASTNodeInfo ldNodeInfo = new LDASTNodeInfo(line, "explicit constructor invocation");
+		final LDASTNodeInfo ldNodeInfo = new LDASTNodeInfo(line, true,"explicit constructor invocation");
 		final boolean isThis = eciExpr.isThis();
 		final Literal scope = isThis ? new Literal(new SimpleName("this"), ldNodeInfo) : new Literal(
 				new SimpleName("super"), ldNodeInfo);

@@ -604,14 +604,17 @@ public class LASTBuilder {
 			}
 		}
 		LDASTNodeInfo nodeInfo = node.getInfo();
-		ClassInfo classInfo = new ClassInfo(methods, variables);
+		ClassInfo classInfo = new ClassInfo(node, methods, variables);
 		nodeInfo.addInfo(classInfo);
 	}
 	public static void addExtendedClassInfo(LAST last, Node node, Node parent)
 	{
 		ClassInfo parentClassInfo = (ClassInfo) parent.getInfo().getInfo()[2];
-		ClassInfo nodeClassInfo = new ClassInfo(parentClassInfo);
-		
+		ClassInfo nodeClassInfo = new ClassInfo(node, parentClassInfo);
+
+		if (nodeClassInfo.methods.containsKey("<constructor>"))
+			nodeClassInfo.methods.put("super<constructor>", nodeClassInfo.methods.get("<constructor>"));
+
 		final List<Node> children = last.getChildren(node);
 		children.removeIf(child -> child.getType() == Node.Type.Result);
 
@@ -627,29 +630,29 @@ public class LASTBuilder {
 				final List<Node> methodClauses = last.getChildren(child);
 				methodClauses.removeIf(n -> n.getType() == Node.Type.Result);
 
-				final List<Integer> resultArities = new LinkedList<>();
-				for (Node clause : methodClauses)
-				{	
-					final int arity = last.getChildren(last.getChild(clause, 0)).size();
-					if (!resultArities.contains(arity))
-						resultArities.add(arity);
-				}
-
-				// TODO: Con mas de un constructor esto falla
-				if (nodeClassInfo.methods.containsKey(methodName) && methodName.equals("<constructor>"))
-					nodeClassInfo.methods.put("super<constructor>", nodeClassInfo.methods.get("<constructor>"));
-				
-				if (nodeClassInfo.methods.containsKey(methodName))
+				if (!nodeClassInfo.methods.containsKey(methodName))
+					nodeClassInfo.methods.put(methodName, methodClauses);
+				else
 				{
-					final List<Node> parentMethodClauses = nodeClassInfo.methods.get(methodName);
-					for (Node parentMethodClause : parentMethodClauses)
-					{
-						final int existentArity = last.getChildren(last.getChild(parentMethodClause, 0)).size();
-						if (!resultArities.contains(existentArity))
-							methodClauses.add(parentMethodClause);
+					List<Node> parentClauses = nodeClassInfo.methods.get(methodName);
+					boolean found;
+					for (Node clause : methodClauses) {
+						found = false;
+						final List<Node> finalClauses = new LinkedList<>();
+						for (Node parentClause : parentClauses) {
+							if (!found && areMatchingClauses(last, clause, parentClause)) {
+								finalClauses.add(clause);
+								found = true;
+							}
+							else
+								finalClauses.add(parentClause);
+						}
+						if (!found)
+							finalClauses.add(clause);
+						parentClauses = finalClauses;
 					}
+					nodeClassInfo.methods.put(methodName, parentClauses);
 				}
-				nodeClassInfo.methods.put(methodName, methodClauses);
 			}
 		}
 		LDASTNodeInfo nodeInfo = node.getInfo();
@@ -657,6 +660,30 @@ public class LASTBuilder {
 		
 		parentClassInfo.addChildClass(nodeClassInfo);
 	}
+	public static boolean areMatchingClauses(LAST last, Node clause1, Node clause2){
+    	final Node params1 = last.getChild(clause1, Node.Type.Parameters);
+		final Node params2 = last.getChild(clause2, Node.Type.Parameters);
+
+		final List<Node> paramList1 = last.getChildren(params1);
+		final List<Node> paramList2 = last.getChildren(params2);
+
+		if (paramList1.size() != paramList2.size())
+			return false;
+
+		paramList1.removeIf(param -> param.getType() == Node.Type.Result);
+		paramList2.removeIf(param -> param.getType() == Node.Type.Result);
+
+		for (int index = 0; index < paramList1.size(); index++)
+		{
+			Variable param1 = (Variable) paramList1.get(index);
+			Variable param2 = (Variable) paramList2.get(index);
+			if (param1.getStaticType() != param2.getStaticType())
+				return false;
+		}
+		return true;
+	}
+
+
 	public static void completeFieldAccessTypes(LAST last)
 	{
 		List<Node> fieldAccesses = last.getNodes(Node.Type.FieldAccess);
@@ -953,6 +980,7 @@ public class LASTBuilder {
 			case ArgumentOut:
 			case PolymorphicCall:
 			case Variable:
+			case Result:
 				if (where == null)
 					return parentNode;
 			default:
@@ -1015,18 +1043,21 @@ public class LASTBuilder {
 
 	public static class ClassInfo
 	{
+		private Node classNode;
 		private Map<String, List<Node>> methods;
 		private Map<String, Node> variables;
 		private List<ClassInfo> childrenClasses = new LinkedList<>();
 		
-		public ClassInfo(ClassInfo ci)
+		public ClassInfo(Node clazz, ClassInfo ci)
 		{
+			classNode = clazz;
 			this.methods = new HashMap<>(ci.methods);
 			this.variables = new HashMap<>(ci.variables);
 		}
 		
-		public ClassInfo(Map<String, List<Node>> methodMap, Map<String, Node> variableMap)
+		public ClassInfo(Node clazz, Map<String, List<Node>> methodMap, Map<String, Node> variableMap)
 		{
+			classNode = clazz;
 			methods = methodMap;
 			variables = variableMap;
 		}
@@ -1047,5 +1078,6 @@ public class LASTBuilder {
 		{
 			return this.variables;
 		}
+		public Node getClassNode() { return this.classNode; }
 	}
 }

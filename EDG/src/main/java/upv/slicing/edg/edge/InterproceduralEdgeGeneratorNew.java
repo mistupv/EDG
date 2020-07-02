@@ -1,29 +1,20 @@
 package upv.slicing.edg.edge;
 
 import upv.slicing.edg.LASTBuilder.ClassInfo;
+import upv.slicing.edg.LDASTNodeInfo;
 import upv.slicing.edg.constraint.GlobalVariableConstraint;
 import upv.slicing.edg.constraint.PhaseConstraint;
 import upv.slicing.edg.constraint.SeekingConstraint;
-import upv.slicing.edg.graph.EDG;
-import upv.slicing.edg.graph.Edge;
-import upv.slicing.edg.graph.LAST;
-import upv.slicing.edg.graph.Node;
+import upv.slicing.edg.graph.*;
 import upv.slicing.edg.slicing.Phase;
 
 import java.util.*;
 
 public class InterproceduralEdgeGeneratorNew extends EdgeGenerator {
-	public InterproceduralEdgeGeneratorNew(EDG edg)
-	{
-		super(edg);
-	}
+	public InterproceduralEdgeGeneratorNew(EDG edg) { super(edg); }
 
 	public void generateCallEdges()
 	{
-		// TODO: Usar JavaParser SymbolSolver para determinar las method declarations a las que apunta cada call.
-		//  Contra: esto solo se podria usar en Java, otros lenguajes no tienen estos mecanismos.
-		//  Plantearse implementar ambas aproximaciones
-
 		final List<Node> calls = this.edg.getNodes(Node.Type.Call);
 
 		for (Node call : calls) {
@@ -44,9 +35,9 @@ public class InterproceduralEdgeGeneratorNew extends EdgeGenerator {
 
 		// Module of the caller
 		// TODO: Can be a list of modules in a polymorphic scenario
-		final Node callerModule = this.getCallerModule(scopeNode);
-		if (callerModule == null)
-			return List.of();
+		final List<Node> callerModules = this.getCallerModules(scopeNode);
+		if (callerModules.isEmpty())
+			return callerModules;
 
 		final Node nameNode = edg.getChild(callee, Node.Type.Name);
 		final List<Node> nameChildren = edg.getChildren(nameNode);
@@ -56,10 +47,12 @@ public class InterproceduralEdgeGeneratorNew extends EdgeGenerator {
 		final Node routineNameNode = nameChildren.get(0);;
 		final String routineName = routineNameNode.getName();
 
-		final ClassInfo moduleInfo = (ClassInfo) callerModule.getInfo().getInfo()[2];
-		final List<Node> possibleClauses = moduleInfo.getMethods().get(routineName);
+		final List<Node> possibleClauses = new LinkedList<>();
 
-		// TODO Treatment for "constructors" included ?
+		for (Node callerModule : callerModules) {
+			final ClassInfo moduleInfo = (ClassInfo) callerModule.getInfo().getInfo()[2];
+			possibleClauses.addAll(moduleInfo.getMethods().get(routineName));
+		}
 
 		return possibleClauses;
 
@@ -90,13 +83,14 @@ public class InterproceduralEdgeGeneratorNew extends EdgeGenerator {
 		else*/
 	}
 
-	private Node getCallerModule(Node scopeNode)
+	private List<Node> getCallerModules(Node scopeNode)
 	{
 		final List<Node> scopeChildren = edg.getChildren(scopeNode);
 		scopeChildren.removeIf(node -> node.getType() == Node.Type.Result);
 
+		// TODO: SURE? TEST IN JAVA
 		if (scopeChildren.isEmpty())
-			return edg.getAncestor(scopeNode, Node.Type.Module);
+			return List.of(edg.getAncestor(scopeNode, Node.Type.Module));
 
 		assert(scopeChildren.size() == 1);
 		final Node scopeExprNode = scopeChildren.get(0);
@@ -104,28 +98,52 @@ public class InterproceduralEdgeGeneratorNew extends EdgeGenerator {
 
 		switch (scopeExprNode.getType())
 		{
-			case Reference: // this, super, TODO: Static Calls
-				final String className = scopeExprNode.getName();
-				if (className.equals("this"))
-					return edg.getAncestor(scopeNode, Node.Type.Module);
-				// if (className.equals("super")) TODO: Implement super
-				//	return this.getSuperClass(edg.getAncestor(scopeNode, Node.Type.Module));
-				return null;
 			case TypeTransformation:
-				final Node type = edg.getChild(scopeExprNode, Node.Type.Type);
-				final Node variable = edg.getChild(scopeExprNode, Node.Type.Variable);
-				// TODO: Which type is more specific? Dynamic type of variable?
-				return this.getModuleByName(type.getName(), modules);
 			case Variable:
-				return this.getModuleByName(scopeExprNode.getInfo().getInfo()[1].toString(), modules);
+				final Variable variable;
+				if (scopeExprNode.getType() == Node.Type.TypeTransformation)
+					variable = (Variable) edg.getChild(scopeExprNode, Node.Type.Variable);
+				else
+					variable = (Variable) scopeExprNode;
+				final List<String> dynTypes = variable.getDynamicTypes();
+				final List<Node> moduleNodes = new LinkedList<>();
+
+				for (String dynType : dynTypes) {
+					if (!dynType.equals("StaticType"))
+						moduleNodes.add(this.getModuleByName(dynType, modules));
+					else {
+						final Node module = this.getModuleByName(variable.getStaticType(), modules);
+						moduleNodes.add(module);
+						final ClassInfo moduleInfo = (ClassInfo) module.getInfo().getInfo()[2];
+						List<ClassInfo> classInfo = moduleInfo.getChildrenClasses();
+						for (ClassInfo ci : classInfo)
+							if (!moduleNodes.contains(ci.getClassNode()))
+								moduleNodes.add(ci.getClassNode());
+					}
+				}
+
+				return moduleNodes;
 			case Type:
-				return this.getModuleByName(scopeExprNode.getName(), modules);
+				return List.of(this.getModuleByName(scopeExprNode.getName(), modules));
 			// TODO:
 			// case FieldAccess:
 			// case DataConstructorAccess:
-			// case Literal:
+			case Reference: // TODO: Static Calls
+			case Literal:
+				final String className = scopeExprNode.getName();
+				if (className.equals("this"))
+					return List.of(edg.getAncestor(scopeNode, Node.Type.Module));
+				if (className.equals("super")) {
+					final ClassInfo ci = (ClassInfo) edg.getAncestor(scopeNode, Node.Type.Module).getInfo().getInfo()[2];
+					final List<Node> clauses = ci.getMethods().get("super<constructor>");
+
+					if (clauses.isEmpty())
+						throw new RuntimeException("There is no super constructor to be called.");
+
+					return List.of(edg.getAncestor(clauses.get(0),Node.Type.Module));
+				}
 			default:
-				return null;
+				throw new RuntimeException("The caller module cannot be found: " + scopeExprNode.getType());
 		}
 	}
 
@@ -163,6 +181,8 @@ public class InterproceduralEdgeGeneratorNew extends EdgeGenerator {
 		// TODO: Tratar el caso de el ultimo argumento con "..."
 		if (argumentNodes.size() < parameterNodes.size())
 			return false;
+		if (argumentNodes.size() > 0 && parameterNodes.size() == 0)
+			return false;
 
 		for (int argIndex = 0; argIndex < argumentNodes.size(); argIndex++)
 		{
@@ -170,11 +190,6 @@ public class InterproceduralEdgeGeneratorNew extends EdgeGenerator {
 			final Node parameter = parameterNodes.get(argIndex);
 			if (!isMatch(parameter, argument))
 				return false;
-
-			// 	final List<Node[]> matches = this.getMatches(parameter, argument);
-
-			// 	if (matches.isEmpty())
-			// 		return false;
 		}
 		return true;
 	}
@@ -183,8 +198,37 @@ public class InterproceduralEdgeGeneratorNew extends EdgeGenerator {
 	//  in Erlang about matching patterns and expressions
 	private boolean isMatch(Node param, Node arg)
 	{
-		// TODO: Resolve the conflict and implement
-		return true;
+		Variable parameter = (Variable) param;
+		String paramType = parameter.getStaticType();
+
+		switch(arg.getType()){
+			case Literal:
+				final LDASTNodeInfo ldNodeInfo = arg.getInfo();
+				final String construction = ldNodeInfo.getConstruction();
+				if (paramType.equals(construction))
+					return true;
+				return false;
+
+			case Variable:
+				Variable argument = (Variable) arg;
+				if (argument.getStaticType().equals(paramType))
+					return true;
+
+				List<String> childrenTypes = edg.getChildrenClasses(paramType);
+				return childrenTypes.contains(argument.getStaticType());
+
+			case Call:
+				String returnType = (String) arg.getInfo().getInfo()[0];
+
+				if (returnType.equals(paramType))
+					return true;
+
+				List<String> childrenTypes0 = edg.getChildrenClasses(paramType);
+				return childrenTypes0.contains(returnType);
+
+			default: // TODO: the rest of types are non contemplated
+				throw new RuntimeException("This argument type is not considered");
+		}
 	}
 
 	public void generateIO()
@@ -219,7 +263,6 @@ public class InterproceduralEdgeGeneratorNew extends EdgeGenerator {
 			this.generateInputArcs(argInNode, paramInNode);
 
 			// OUTPUT GLOBAL VARIABLES
-			// final Node argOutNode = edg.getChild(call, Node.Type.ArgumentOut);
 			final Node argOutNode = edg.getPolymorphicNode(call, clause.getInfo().getClassName(),Edge.Type.Output);
 			final Node paramOutNode = edg.getChild(clause, Node.Type.ParameterOut);
 			this.generateOutputArcs(argOutNode, paramOutNode);
@@ -274,9 +317,23 @@ public class InterproceduralEdgeGeneratorNew extends EdgeGenerator {
 	private void generateCallResultArcs(Node call, Node clause)
 	{
 		final String routineName = edg.getParent(clause).getName();
+		final Node clauseRes = edg.getResFromNode(clause);
+		final Node callRes = edg.getResFromNode(call);
 		if (!routineName.equals("<constructor>"))
-			this.edg.addEdge(edg.getResFromNode(clause), edg.getResFromNode(call),
-					new Edge(Edge.Type.Output, new PhaseConstraint(Phase.Output)));
+			this.edg.addEdge(clauseRes, callRes, new Edge(Edge.Type.Output, new PhaseConstraint(Phase.Output)));
+
+		final List<Node> clauseResChildren = edg.getChildren(clauseRes);
+		if (!clauseResChildren.isEmpty())
+		{
+			final List<Node> callResChildren = edg.getChildren(callRes);
+
+			clauseResChildren.removeIf(child -> child.getType() == Node.Type.Result);
+			callResChildren.removeIf(child -> child.getType() == Node.Type.Result);
+			for (int index = 0; index < clauseResChildren.size(); index++)
+				this.edg.addEdge(edg.getResFromNode(clauseResChildren.get(index)),
+						edg.getResFromNode(callResChildren.get(index)),
+						new Edge(Edge.Type.Output, new PhaseConstraint(Phase.Output)));
+		}
 	}
 
 
