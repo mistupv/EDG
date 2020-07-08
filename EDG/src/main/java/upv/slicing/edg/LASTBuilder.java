@@ -223,13 +223,6 @@ public class LASTBuilder {
 		
 		return label.getId();
 	}
-//	public static void addArgumentsInOut(LAST last, int callId, Where where, LDASTNodeInfo info)
-//	{
-//		final Node callNode = LASTTraverser.getNode(last, callId);
-//		final Node argumentsNode = ASTBuilder.getCallChildNode(callNode, where);
-//		ASTBuilder.addNode(last, argumentsNode, Node.Info.Type.ArgumentIn, "in", null);
-//		ASTBuilder.addNode(last, argumentsNode, Node.Info.Type.ArgumentOut, "out", null);
-//	}
 
 	public static int addExHandler(LAST last, int parentId, Where where, LDASTNodeInfo info)
 	{
@@ -314,11 +307,6 @@ public class LASTBuilder {
 		// EN ORDEN DE APARICION EN EL CODIGO, NECESARIO A LA HORA DE MIRAR DEFINICIONES PREVIAS
 		LASTBuilder.addNode(last, loop, Node.Type.Body, "body", null);
 		LASTBuilder.addNode(last, loop, Node.Type.Condition, "condition", null);
-		
-// THE ORDER COND-BODY EASE THE TRAVESAL TO GENERATE CONTROL DEPENDENCIES GUARD/COND -> BODY, FINISHING THE TRAVERSAL AT THE BODY NODE.
-// IT IS NOT VALID BECAUSE THE ORDER OF APPEAREANCE RUINS THE SCOPE USED IN DEF-USE FLOW DEPENDENCIES
-//		ASTBuilder.addNode(last, loop, Node.Info.Type.Condition, "condition", null);
-//		ASTBuilder.addNode(last, loop, Node.Info.Type.Body, "body", null);
 		
 		return loop.getId();
 	}
@@ -611,9 +599,18 @@ public class LASTBuilder {
 	{
 		ClassInfo parentClassInfo = (ClassInfo) parent.getInfo().getInfo()[2];
 		ClassInfo nodeClassInfo = new ClassInfo(node, parentClassInfo);
+		
+		final List<String> methodNames = new LinkedList<>();
+		for (String name : nodeClassInfo.methods.keySet())
+			methodNames.add(name);
 
-		if (nodeClassInfo.methods.containsKey("<constructor>"))
-			nodeClassInfo.methods.put("super<constructor>", nodeClassInfo.methods.get("<constructor>"));
+		// Copy the parentMethods to maintain a reference for super calls
+		for (String methodName : methodNames) {
+			if (methodName.equals("<constructor>"))
+				nodeClassInfo.methods.put("super<constructor>", nodeClassInfo.methods.get(methodName));
+			else
+				nodeClassInfo.methods.put("super." + methodName, nodeClassInfo.methods.get(methodName));
+		}
 
 		final List<Node> children = last.getChildren(node);
 		children.removeIf(child -> child.getType() == Node.Type.Result);
@@ -660,6 +657,7 @@ public class LASTBuilder {
 		
 		parentClassInfo.addChildClass(nodeClassInfo);
 	}
+
 	public static boolean areMatchingClauses(LAST last, Node clause1, Node clause2){
     	final Node params1 = last.getChild(clause1, Node.Type.Parameters);
 		final Node params2 = last.getChild(clause2, Node.Type.Parameters);
@@ -682,7 +680,6 @@ public class LASTBuilder {
 		}
 		return true;
 	}
-
 
 	public static void completeFieldAccessTypes(LAST last)
 	{
@@ -714,7 +711,6 @@ public class LASTBuilder {
 			}
 		}
 	}
-
 
 	// Child node
 	private static Node getClauseChildNode(LAST last, Node clause, Where where)

@@ -149,13 +149,10 @@ public class InterproceduralEdgeGeneratorNew extends EdgeGenerator {
 
 	private Node getModuleByName(String moduleName, List<Node> modules)
 	{
-		Node result = null;
-
 		for (Node module : modules)
 			if (module.getName().equals(moduleName))
-				result = module;
-
-		return result;
+				return module;
+		return null;
 	}
 
 	private List<Node> getMatchingClauses(List<Node> possibleClauses, Node call)
@@ -168,6 +165,7 @@ public class InterproceduralEdgeGeneratorNew extends EdgeGenerator {
 
 		return matchingClauses;
 	}
+
 	private boolean matchClause(Node possibleClause, Node call)
 	{
 		final Node parameters = edg.getChild(possibleClause, Node.Type.Parameters);
@@ -178,11 +176,12 @@ public class InterproceduralEdgeGeneratorNew extends EdgeGenerator {
 		final List<Node> argumentNodes = edg.getChildren(arguments);
 		argumentNodes.removeIf(node -> node.getType() == Node.Type.Result);
 
-		// TODO: Tratar el caso de el ultimo argumento con "..."
-		if (argumentNodes.size() < parameterNodes.size())
+		// TODO: Tratar el caso de el ultimo argumento con "...". Ahora args.size() == parameters.size
+		if (argumentNodes.size() != parameterNodes.size())
 			return false;
-		if (argumentNodes.size() > 0 && parameterNodes.size() == 0)
-			return false;
+		// if (argumentNodes.size() > 0 && parameterNodes.size() == 0)
+		// 	return false;
+
 
 		for (int argIndex = 0; argIndex < argumentNodes.size(); argIndex++)
 		{
@@ -202,14 +201,14 @@ public class InterproceduralEdgeGeneratorNew extends EdgeGenerator {
 		String paramType = parameter.getStaticType();
 
 		switch(arg.getType()){
-			case Literal:
+			case Literal:	// Only for primitive types
 				final LDASTNodeInfo ldNodeInfo = arg.getInfo();
 				final String construction = ldNodeInfo.getConstruction();
 				if (paramType.equals(construction))
 					return true;
 				return false;
 
-			case Variable:
+			case Variable: // May be object or primitive type
 				Variable argument = (Variable) arg;
 				if (argument.getStaticType().equals(paramType))
 					return true;

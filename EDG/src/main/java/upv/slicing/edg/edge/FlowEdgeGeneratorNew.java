@@ -1,6 +1,7 @@
 package upv.slicing.edg.edge;
 
 import upv.slicing.edg.LASTBuilder;
+import upv.slicing.edg.LASTBuilder.ClassInfo;
 import upv.slicing.edg.LDASTNodeInfo;
 import upv.slicing.edg.graph.*;
 import upv.slicing.edg.graph.Variable;
@@ -153,85 +154,6 @@ public class FlowEdgeGeneratorNew extends EdgeGenerator {
 		}
 
 	}
-	/*private static class Variable
-	{
-		private final VariableId variableId;
-		private final Node node;
-
-		private Variable(VariableId variableId, Node node)
-		{
-			this.variableId = variableId;
-			this.node = node;
-		}
-	}*/
-	/*private static class VariableId {
-		private final String variableId;
-		private final Node index;
-
-		private VariableId(String variableId) {
-			this(variableId, null);
-		}
-
-		private VariableId(String variableId, Node index) {
-			this.variableId = variableId;
-			this.index = index;
-		}
-
-		public String toString() {
-			return this.variableId;
-		}
-
-		public boolean equals(Object o) {
-			if (o == this)
-				return true;
-			if (!(o instanceof VariableId))
-				return false;
-
-			final VariableId variableId = (VariableId) o;
-
-			return this.variableId.equals(variableId.variableId);
-		}
-
-		public int hashCode() {
-			return this.variableId.hashCode();
-		}
-
-		public String getVariableName() {
-			return this.split()[0];
-		}
-
-		public String getFullName() {
-			if (this.index != null)
-				return this.getVariableName() + this.index.getName();
-			return this.getVariableName();
-		}
-
-		public Node getVariableIndex() {
-			return this.index;
-		}
-
-		public Node.Type getVariableIndexType() {
-			if (index == null)
-				return null;
-			return this.index.getType();
-		}
-
-		public boolean greater(VariableId variableId) {
-			final String[] split = variableId.split();
-			if (split.length < 2)
-				return false;
-			final String variable = split[0];
-			return this.variableId.equals(variable);
-		}
-
-		private String[] split() {
-			final StringTokenizer st = new StringTokenizer(this.variableId, "[]");
-			final List<String> split = new LinkedList<>();
-			while (st.hasMoreTokens())
-				split.add(st.nextToken());
-			return split.toArray(new String[0]);
-		}
-	}*/
 
 	public FlowEdgeGeneratorNew(EDG edg) {
 		super(edg);
@@ -290,6 +212,7 @@ public class FlowEdgeGeneratorNew extends EdgeGenerator {
 	{
 		final Set<State> doneWorks = new HashSet<>();
 		boolean suspended = false;
+		boolean pendingCFGPath = false;
 		while (!pendingWorks.isEmpty()) {
 			final State work = pendingWorks.iterator().next();
 			final Node workNode = work.traversalNode;
@@ -333,14 +256,17 @@ public class FlowEdgeGeneratorNew extends EdgeGenerator {
 					this.suspendWork(suspendedWorks,work,calledClause);
 					suspended = true;
 				}
-				if (suspended)
+				if (suspended) {
+					pendingCFGPath = true;
+					suspended = false;
 					continue;
+				}
 			}
 			doneWorks.add(work);
 			final Set<Node> nextNodes = ControlFlowTraverser.step(this.edg, workNode, LAST.Direction.Forwards);
 			nextNodes.forEach(nextNode -> pendingWorks.add(new State(work.clauseNode, nextNode, new DefUseState(work.defUseState.uses, work.defUseState.definitions))));
 		}
-		return suspended;
+		return pendingCFGPath;
 	}
 
 	/** Add a global variable to the corresponding DEF or USE set if necessary */
@@ -625,6 +551,9 @@ public class FlowEdgeGeneratorNew extends EdgeGenerator {
 		{
 			final DefUseState defUses = clauseMap.get(clause);
 			this.createParamInOutNodes(clause, defUses);
+
+			final List<Node> modules = edg.getNodes(Node.Type.Module);
+			this.unfoldObjectParameters(clause, modules);
 		}
 	}
 
@@ -715,6 +644,160 @@ public class FlowEdgeGeneratorNew extends EdgeGenerator {
 		}
 	}
 
+	/** Limit of unfolding levels for objects parameters */
+	final int kLimit = 1;
+
+	/** Creates the structure tree structure for object parameters with all
+	 * their data members using a k-limiting approach */
+	public void unfoldObjectParameters(Node clause, List<Node> modules){
+		int unfoldingLvl = 0;
+		final Node parameters = edg.getChild(clause, Node.Type.Parameters);
+		final List<Node> parameterChildren = edg.getChildren(parameters);
+		parameterChildren.removeIf(child -> child.getType() == Node.Type.Result);
+
+		// Unfold object parameters
+		for (Node child : parameterChildren){
+			if (!(child instanceof Variable))
+				throw new RuntimeException("All parameters must be variable nodes");
+
+			final Variable param = (Variable) child;
+			List<Variable> unfoldingSet = new LinkedList<>();
+			unfoldingSet.add(param);
+
+			while(unfoldingLvl < kLimit) {
+				List<Variable> newDM = new LinkedList<>();
+				for (Variable var : unfoldingSet)
+					newDM.addAll(this.unfoldObject(var, modules));
+				unfoldingSet = newDM;
+				unfoldingLvl++;
+			}
+		}
+
+		// Copy structure to parameter out node
+		for (Node child : parameterChildren){
+			final Variable param = (Variable) child;
+			final String paramType = param.getStaticType();
+			final Node paramOut = edg.getChild(clause, Node.Type.ParameterOut);
+			if (!DynamicTypesGenerator.isPrimitiveType(paramType)){
+				final Node paramOutVarNode = this.copyVariable(param, paramOut, false, false);
+				this.copySubtree(param, paramOutVarNode, false);
+			}
+		}
+	}
+
+	public List<Variable> unfoldObject(Variable param, List<Node> modules){
+		final String paramType = param.getStaticType();
+		if (DynamicTypesGenerator.isPrimitiveType(paramType))
+			return List.of();
+
+		final List<Variable> dataMembers = new LinkedList<>();
+		final List<String> possibleTypes = edg.getChildrenClasses(paramType);
+
+		final List<Node> polymorphicNodes = new LinkedList<>();
+
+		for (String type : possibleTypes){
+			final Node module = this.getModuleByName(type, modules);
+			if (module == null) // Source code unavailable in the implementation
+				continue;
+
+			final ClassInfo ci = (ClassInfo) module.getInfo().getInfo()[2];
+			final Map<String, Node> variables = ci.getVariables();
+
+			final Node polymorphicNode = this.addPolymorphicNode(param, type);
+			polymorphicNodes.add(polymorphicNode);
+			this.addPolymorphicCFGEdges(param, polymorphicNode);
+
+			for (String varName : variables.keySet()) {
+				final Variable var = (Variable) variables.get(varName);
+				final Node DMNode = this.addDefinitionVarCopy(polymorphicNode, param, param.getName()+ "." + varName, var.getStaticType());
+				dataMembers.add((Variable) DMNode);
+			}
+		}
+		this.updatePolymorphicCFGEdges(param, polymorphicNodes);
+
+		return dataMembers;
+	}
+
+	// TODO: THIS METHOD IS ALSO IMPLEMENTED IN InterproceduralEdgeGenerator.java
+	public Node getModuleByName(String name, List<Node> modules){
+		for (Node module : modules)
+			if (module.getName().equals(name))
+				return module;
+		return null;
+	}
+
+	/** Duplicates the incoming CFG edges of an object parameter to the Polymorphic node given */
+	public void addPolymorphicCFGEdges(Node parent, Node child){
+		Set<Edge> incomingEdges = edg.getEdges(parent, LAST.Direction.Backwards, Edge.Type.ControlFlow);
+		for (Edge edge : incomingEdges)
+			edg.addEdge(edg.getEdgeSource(edge), child, Edge.Type.ControlFlow);
+	}
+
+	/** Deletes the incoming CFG edges of an object parameter and adds an
+	 * edge from the Polymorphic node to the parameter. */
+	public void updatePolymorphicCFGEdges(Node parent, List<Node> polymorphicNodes){
+		Set<Edge> incomingEdges = edg.getEdges(parent, LAST.Direction.Backwards, Edge.Type.ControlFlow);
+		for(Edge e : incomingEdges)
+			edg.removeEdge(e);
+		for (Node node : polymorphicNodes)
+			edg.addEdge(node, parent, Edge.Type.ControlFlow);
+	}
+
+	public Node copyVariable(Variable var, Node container, boolean isDefinition, boolean isGlobal){
+		final LDASTNodeInfo ldNodeInfo = new LDASTNodeInfo(var.getInfo().getFile(), var.getInfo().getClassName(),
+				var.getInfo().getLine(), true, "var", null);
+		final int nodeId = LASTBuilder.addVariable(this.edg, container.getId(), null,
+				var.getName(), var.getStaticType(), false, isDefinition, !isDefinition, isGlobal, ldNodeInfo);
+		final Node newVarNode = edg.getNode(nodeId);
+		final LDASTNodeInfo resultInfo = new LDASTNodeInfo(var.getInfo().getFile(), var.getInfo().getClassName(),
+				var.getInfo().getLine(), "var");
+		final Node result = new Node("result", this.edg.getNextFictitiousId(), Node.Type.Result, "", resultInfo);
+
+		edg.addVertex(result);
+		edg.registerNodeResPair(newVarNode, result);
+		edg.addEdge(newVarNode, result, Edge.Type.Value);
+		edg.addEdge(newVarNode, result, Edge.Type.ControlFlow);
+		edg.addStructuralEdge(container, result);
+
+		Set<Edge> incomingEdges = edg.getEdges(container, LAST.Direction.Backwards, Edge.Type.ControlFlow);
+		for (Edge edge : incomingEdges) {
+			edg.addEdge(edg.getEdgeSource(edge), newVarNode, Edge.Type.ControlFlow);
+			edg.removeEdge(edge);
+		}
+		edg.addEdge(result, container, Edge.Type.ControlFlow);
+		return newVarNode;
+	}
+
+	/** Copy the whole subtree of origin in container, adding the corresponding CFG into the new structure */
+	public void copySubtree(Node origin, Node container, boolean isDefinition){
+		final List<Node> children = edg.getChildren(origin);
+		children.removeIf(child -> child.getType() == Node.Type.Result);
+
+		final Set<Edge> incomingContainerEdges = edg.getEdges(container, LAST.Direction.Backwards, Edge.Type.ControlFlow);
+		boolean isPolymorphicLvl = false;
+
+		for (Node varNode : children) {
+			final Node newContainer;
+			if (varNode.getType() == Node.Type.PolymorphicCall) {
+				isPolymorphicLvl = true;
+				newContainer = this.addPolymorphicNode(container, varNode.getName());
+				// The control flow is independent for each Polymorphic Type
+				for (Edge incoming : incomingContainerEdges)
+					edg.addEdge(edg.getEdgeSource(incoming), newContainer, Edge.Type.ControlFlow);
+				edg.addEdge(newContainer, container, Edge.Type.ControlFlow);
+			}
+			else {
+				Variable var = (Variable) varNode;
+				newContainer = this.copyVariable(var, container, isDefinition, false);
+			}
+			this.copySubtree(varNode, newContainer, isDefinition);
+		}
+
+		if (isPolymorphicLvl)
+			for (Edge e : incomingContainerEdges)
+				edg.removeEdge(e);
+	}
+
 	// -------------------------------------------------------------------------- //
 	// ------ CREATE NODES IN ARGUMENT IN AND ARGUMENT OUT OF METHOD CALLS ------ //
 	// -------------------------------------------------------------------------- //
@@ -728,7 +811,7 @@ public class FlowEdgeGeneratorNew extends EdgeGenerator {
 			if (edg.getParent(clause).getName().equals("<constructor>"))
 				this.addConstructorCallStructures(clause, pendingResClauses);
 			else
-				this.addCallStructures(clause); // PENDING
+				this.addCallStructures(clause);
 		}
 
 		// Methods that return object creations
@@ -739,6 +822,9 @@ public class FlowEdgeGeneratorNew extends EdgeGenerator {
 		}
 	}
 
+	/** Create the argument out nodes of constructors calls. This argument out nodes are associated to the result
+	 * node of the constructor call. If the constructor call is inside a return statement this structure is propagated
+	 * across the result node of the method, and the method is annotated for possible further propagation */
 	public void addConstructorCallStructures(Node clause, Set<Node> pendingResClauses)
 	{
 		final Set<Edge> callEdges = edg.getEdges(clause, LAST.Direction.Backwards, Edge.Type.Call);
@@ -778,14 +864,21 @@ public class FlowEdgeGeneratorNew extends EdgeGenerator {
 		}
 	}
 
+	/** Create the argument out nodes of non-constructors calls, this nodes are located at the argument out node
+	 * but can be inside a polymorphic variable node if the caller is an object variable. */
 	public void addCallStructures(Node clause)
 	{
 		final Set<Edge> callEdges = edg.getEdges(clause, LAST.Direction.Backwards, Edge.Type.Call);
 		final DefUseState defUses = clauseMap.get(clause);
+		final Node parameters = edg.getChild(clause, Node.Type.Parameters);
 
 		for (Edge edge : callEdges) {
 			final Node callee = edg.getNodeFromRes(edg.getEdgeSource(edge));
 			final Node call = edg.getParent(callee);
+
+			final Node arguments = edg.getChild(call, Node.Type.Arguments);
+			this.unfoldObjectArguments(arguments, parameters);
+
 			final Node scope = edg.getChild(callee, Node.Type.Scope);
 			final Node objectVar =  edg.getScopeLeaf(scope);
 			final Node argOut = edg.getChild(call, Node.Type.ArgumentOut);
@@ -796,7 +889,8 @@ public class FlowEdgeGeneratorNew extends EdgeGenerator {
 			final Set<Edge> incomingInCFGEdges, incomingOutCFGEdges;
 			final Node containerIn, containerOut;
 
-			if (objectVar == null) { // The caller is not an object variable
+			// The caller is not an object variable
+			if (objectVar == null || objectVar.getType() == Node.Type.Reference) {
 				final Node argIn = edg.getChild(call, Node.Type.ArgumentIn);
 
 				incomingInCFGEdges = edg.getEdges(argIn, LAST.Direction.Backwards, Edge.Type.ControlFlow);
@@ -809,7 +903,7 @@ public class FlowEdgeGeneratorNew extends EdgeGenerator {
 				final Node calleeNameNode = edg.getChild(callee, Node.Type.Name);
 				final String calleeName = edg.getChildren(calleeNameNode).get(0).getName();
 
-				containerIn = this.addPolymorphicCallNode(objectVar, className + "." + calleeName);
+				containerIn = this.addPolymorphicNode(objectVar, className + "." + calleeName);
 				incomingInCFGEdges = edg.getEdges(objectVar, LAST.Direction.Backwards, Edge.Type.ControlFlow);
 				edg.addEdge(containerIn, objectVar, Edge.Type.ControlFlow);
 
@@ -819,7 +913,7 @@ public class FlowEdgeGeneratorNew extends EdgeGenerator {
 				}
 				else {
 					final Node scopeVarOut = this.getVarOut(argOut, objectVar);;
-					containerOut = defUses.definitions.isEmpty()? argOut : this.addPolymorphicCallNode(scopeVarOut, className + "." + calleeName);
+					containerOut = defUses.definitions.isEmpty()? argOut : this.addPolymorphicNode(scopeVarOut, className + "." + calleeName);
 					incomingOutCFGEdges = edg.getEdges(scopeVarOut, LAST.Direction.Backwards, Edge.Type.ControlFlow);
 					edg.addEdge(containerOut, scopeVarOut, Edge.Type.ControlFlow);
 				}
@@ -828,6 +922,78 @@ public class FlowEdgeGeneratorNew extends EdgeGenerator {
 			this.addGlobalVarsStructure(call, containerOut, incomingOutCFGEdges, defUses.definitions, true);
 		}
 	}
+
+	public void unfoldObjectArguments(Node argumentsNode, Node parametersNode){
+		final List<Node> argsList = edg.getChildren(argumentsNode);
+		argsList.removeIf(arg -> arg.getType() == Node.Type.Result);
+
+		final List<Node> paramList = edg.getChildren(parametersNode);
+		paramList.removeIf(param -> param.getType() == Node.Type.Result);
+
+		for (int index = 0; index < argsList.size(); index++){
+			final Node arg = argsList.get(index);
+			final List<String> possibleTypes = this.getTypes(arg);
+			if (DynamicTypesGenerator.isPrimitiveType(possibleTypes.get(0)))
+				continue;
+
+			if (arg.getType() != Node.Type.Variable)
+				continue;
+
+			final Node param = paramList.get(index);
+
+			if (possibleTypes.contains("StaticType")){
+				// TODO: Possibility to join arguments and parameters. Interprocedural arcs.
+				this.copySubtree(param, arg, false);
+			}
+			else{
+				// Unfold object in arguments node
+				final List<Node> polymorphicParams = edg.getChildren(param);
+				// The incoming edges to the arg now goes to the new polymorphicNode
+				final Set<Edge> incomingEdges = edg.getEdges(arg, LAST.Direction.Backwards, Edge.Type.ControlFlow);
+
+				for (Node polymorphicParam : polymorphicParams) {
+					if (possibleTypes.contains(polymorphicParam.getName())) {
+						// This is for variables
+						final Node polymorphicArg = this.addPolymorphicNode(arg, polymorphicParam.getName());
+						for (Edge edge : incomingEdges)
+							edg.addEdge(edg.getEdgeSource(edge), polymorphicArg, Edge.Type.ControlFlow);
+						edg.addEdge(polymorphicArg, arg, Edge.Type.ControlFlow);
+						this.copySubtree(polymorphicParam, polymorphicArg, false);
+					}
+				}
+
+				for (Edge edge : incomingEdges)
+					edg.removeEdge(edge);
+
+				// Unfold object in argument out node
+				final Node argumentOut = edg.getChild(edg.getParent(argumentsNode), Node.Type.ArgumentOut);
+				final Node outArgVar = this.copyVariable((Variable) arg, argumentOut, true, false);
+				this.copySubtree(arg, outArgVar, true);
+			}
+		}
+	}
+
+	private List<String> getTypes(Node arg)
+	{
+		switch(arg.getType()){
+			case Literal:	// Only for primitive types
+				final LDASTNodeInfo ldNodeInfo = arg.getInfo();
+				return List.of(ldNodeInfo.getConstruction());
+			case Variable: // May be object or primitive type
+				Variable argument = (Variable) arg;
+				return argument.getDynamicTypes();
+			case Call:
+				String returnType = (String) arg.getInfo().getInfo()[0];
+				// Return the primitive type
+				if (DynamicTypesGenerator.isPrimitiveType(returnType))
+					return List.of(returnType);
+				// Return all the possible dynamic types of the call return type
+				return edg.getChildrenClasses(returnType);
+			default: // TODO: the rest of types are non contemplated
+				throw new RuntimeException("This argument type is not considered");
+		}
+	}
+
 
 	/** Completes those methods that returns an object creation treat the recursive return.
 	 * This method only add the corresponding structure to the result node */
@@ -866,46 +1032,42 @@ public class FlowEdgeGeneratorNew extends EdgeGenerator {
 		}
 	}
 
+	/** Copy the children of a node "origin" (usually a set of data members) to another node "container" to
+	 * replicate the structure. The set of data members can be definitions or uses according to the
+	 * "isDefinition" parameter. */
 	public void copyChildren(Node origin, Node container, boolean isDefinition){
 		final List<Node> children = edg.getChildren(origin);
 		children.removeIf(child -> child.getType() == Node.Type.Result);
 
+		final List<Node> containerChildren = edg.getChildren(container);
+
 		for (Node varNode : children) {
 			Variable var = (Variable) varNode;
-			final LDASTNodeInfo ldNodeInfo = new LDASTNodeInfo(varNode.getInfo().getFile(), varNode.getInfo().getClassName(),
-					varNode.getInfo().getLine(), true, "var", null);
-			final int nodeId = LASTBuilder.addVariable(this.edg, container.getId(), null,
-					var.getName(), var.getStaticType(), false, isDefinition, !isDefinition, true, ldNodeInfo);
-			final Node newVarNode = edg.getNode(nodeId);
-			final LDASTNodeInfo resultInfo = new LDASTNodeInfo(varNode.getInfo().getFile(), varNode.getInfo().getClassName(),
-					varNode.getInfo().getLine(), "var");
-			final Node result = new Node("result", this.edg.getNextFictitiousId(), Node.Type.Result, "", resultInfo);
 
-			edg.addVertex(result);
-			edg.registerNodeResPair(newVarNode, result);
-			edg.addEdge(newVarNode, result, Edge.Type.Value);
-			edg.addEdge(newVarNode, result, Edge.Type.ControlFlow);
-			edg.addStructuralEdge(container, result);
+			if (this.isContained(var.getName(), containerChildren))
+				continue;
 
-			Set<Edge> incomingEdges = edg.getEdges(container, LAST.Direction.Backwards, Edge.Type.ControlFlow);
-			for (Edge edge : incomingEdges) {
-				edg.addEdge(edg.getEdgeSource(edge), newVarNode, Edge.Type.ControlFlow);
-				edg.removeEdge(edge);
-			}
-			edg.addEdge(result, container, Edge.Type.ControlFlow);
+			this.copyVariable(var, container, isDefinition, true);
 		}
+	}
 
+	/** Returns true if a node with the name "name" is contained in a list of nodes */
+	public boolean isContained(String name, List<Node> list){
+		for (Node node : list)
+			if (node.getName().equals(name))
+				return true;
+		return false;
 	}
 
 	/** Adds a polymorphic call node to a object variable node (object unfolding process) */
-	public Node addPolymorphicCallNode(Node objectVar, String nodeName)
+	public Node addPolymorphicNode(Node container, String nodeName)
 	{
-		final LDASTNodeInfo info = new LDASTNodeInfo(objectVar.getInfo().getFile(), objectVar.getInfo().getClassName(),
-				objectVar.getInfo().getLine(), "polymorphic call");
-		final Node polymorphicCallNode = new Node (nodeName, this.edg.getNextId(), Node.Type.PolymorphicCall,nodeName, info);
+		final LDASTNodeInfo info = new LDASTNodeInfo(container.getInfo().getFile(), container.getInfo().getClassName(),
+				container.getInfo().getLine(), "polymorphic call");
+		final Node polymorphicCallNode = new Node (nodeName, this.edg.getNextId(), Node.Type.PolymorphicCall, nodeName, info);
 
 		edg.addVertex(polymorphicCallNode);
-		edg.addEdge(objectVar, polymorphicCallNode, Edge.Type.Structural);
+		edg.addEdge(container, polymorphicCallNode, Edge.Type.Structural);
 		return polymorphicCallNode;
 	}
 
@@ -1055,30 +1217,6 @@ public class FlowEdgeGeneratorNew extends EdgeGenerator {
 		res.addAll(s2Aux);
 
 		return res;
-	}
-
-
-	// JAVA EXCLUSIVE METHODS RELATED TO JAVA TYPES
-	public boolean isPrimitiveType(String type)
-	{
-		String rawType = type;
-		if(type.endsWith("[]"))
-			rawType = type.substring(0,type.lastIndexOf("["));
-		switch(rawType)
-		{
-			case "boolean":
-			case "byte":
-			case "short":
-			case "int":
-			case "long":
-			case "float":
-			case "double":
-			case "char":
-			// case "String": // ??
-				return true;
-			default:
-				return false;
-		}
 	}
 
 	/** Add a new node, copy of a variable node varNode with varName and varType as a child of a container node */

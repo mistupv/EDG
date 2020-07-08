@@ -929,12 +929,13 @@ public class JavaCodeFactory {
 		final NodeList<Modifier> modifiers = (NodeList<Modifier>) ldNodeInfo.getInfo()[0];
 
 		final NodeList<VariableDeclarator> variableDeclarator = new NodeList<>();
+		// TODO: This behaviour will be no longer needed after object flow dependence and total definition dependence
 		if (type instanceof PrimitiveType)
 			variableDeclarator.add(new VariableDeclarator(type, name));
 		else
 		{
 			final Expression initializer = new ObjectCreationExpr(null, (ClassOrInterfaceType) type, new NodeList<>());
-			variableDeclarator.add(new VariableDeclarator(type, name,initializer));
+			variableDeclarator.add(new VariableDeclarator(type, name, initializer));
 		}
 		return List.of(new VariableDeclarationExpr(new NodeList<>(modifiers), variableDeclarator));
 	}

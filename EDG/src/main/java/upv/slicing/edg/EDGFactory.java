@@ -84,8 +84,8 @@ public class EDGFactory {
 			new InterproceduralEdgeGenerator(edg).generateNoInheritance(); // TODO Implement without module analysis
 
 		new FlowEdgeGeneratorNew(edg).generate(); // TODO Testear y verlo paso a paso con el ControlFlowTraverser
-		ieg.generateIO();
-		new SummaryEdgeGenerator(edg).generate();
+//		ieg.generateIO();
+//		new SummaryEdgeGenerator(edg).generate();
 //		new ExceptionEdgeGenerator(edg).generate();
 	}
 

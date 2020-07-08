@@ -61,8 +61,14 @@ public class Variable extends Node {
 
 	public void setDynamicTypes(List<String> types) {
 		this.dynamicTypes.clear();
-		this.dynamicTypes.addAll(types);
+		for (String type : types)
+			if (!this.dynamicTypes.contains(type))
+				this.dynamicTypes.add(type);
 	}
-	public void addDynamicTypes(List<String> types) { this.dynamicTypes.addAll(types); }
+	public void addDynamicTypes(List<String> types) {
+		for (String type : types)
+			if (!this.dynamicTypes.contains(type))
+				this.dynamicTypes.add(type);
+	}
 
 }

@@ -27,7 +27,7 @@ public class DotFactory {
 	static final int lowerBound = Integer.MIN_VALUE;
 	static final int upperBound = Integer.MAX_VALUE;
 	// Specific nodes, for which all edges must be included (all if empty)
-	static final List<Integer> nodeIds = Arrays.asList();
+	static final List<Integer> nodeIds = Arrays.asList(66,137,138,139,140,141,142,143,144,145,146,147,-77);
 	// =========================== END DEBUG CONFIGURATION =========================== //
 
     public static void createDot(File outputFile, EDG edg)

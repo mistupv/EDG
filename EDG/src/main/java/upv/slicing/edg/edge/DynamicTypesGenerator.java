@@ -134,7 +134,7 @@ public class DynamicTypesGenerator extends EdgeGenerator {
         }
     }
 
-    public boolean isPrimitiveType(String type)
+    public static boolean isPrimitiveType(String type)
     {
         String rawType = type;
         if(type.endsWith("[]"))
@@ -149,6 +149,7 @@ public class DynamicTypesGenerator extends EdgeGenerator {
             case "float":
             case "double":
             case "char":
+            case "String":
                 return true;
             default:
                 return false;
