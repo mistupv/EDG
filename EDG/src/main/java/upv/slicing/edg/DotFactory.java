@@ -27,7 +27,7 @@ public class DotFactory {
 	static final int lowerBound = Integer.MIN_VALUE;
 	static final int upperBound = Integer.MAX_VALUE;
 	// Specific nodes, for which all edges must be included (all if empty)
-	static final List<Integer> nodeIds = Arrays.asList(66,137,138,139,140,141,142,143,144,145,146,147,-77);
+	static final List<Integer> nodeIds = Arrays.asList();
 	// =========================== END DEBUG CONFIGURATION =========================== //
 
     public static void createDot(File outputFile, EDG edg)
@@ -87,6 +87,7 @@ public class DotFactory {
 	private static final Attribute BLACK  = DefaultAttribute.createAttribute("black");
 	private static final Attribute BLUE   = DefaultAttribute.createAttribute("blue");
 	private static final Attribute GREEN  = DefaultAttribute.createAttribute("green");
+	private static final Attribute GREEN4  = DefaultAttribute.createAttribute("green4");
 	private static final Attribute GREEN3 = DefaultAttribute.createAttribute("green3");
 	private static final Attribute GRAY   = DefaultAttribute.createAttribute("gray");
 	private static final Attribute RED    = DefaultAttribute.createAttribute("red");
@@ -96,6 +97,7 @@ public class DotFactory {
 	private static final Attribute TURQUOISE  = DefaultAttribute.createAttribute("turquoise");
 	// Numbers
 	private static final Attribute ONE   = DefaultAttribute.createAttribute(1);
+	private static final Attribute TWO   = DefaultAttribute.createAttribute(2);
 	private static final Attribute THREE = DefaultAttribute.createAttribute(3);
 	private static final Attribute FOUR  = DefaultAttribute.createAttribute(4);
 	// Booleans
@@ -187,6 +189,12 @@ public class DotFactory {
 					attrs.put("constraint", FALSE);
 					attrs.put("style", DOTTED);
 					break;
+				case ObjectFlow:
+					attrs.put("color", GREEN4);
+					attrs.put("penwidth", TWO);
+					attrs.put("constraint", FALSE);
+					attrs.put("style", DASHED);
+					break;
 				case Call:
 				case Input:
 					attrs.put("color", GREEN3);
@@ -202,7 +210,7 @@ public class DotFactory {
 					break;
 				case Summary:
 					attrs.put("color", BROWN);
-					attrs.put("penwidth", FOUR);
+					attrs.put("penwidth", THREE);
 					attrs.put("constraint", FALSE);
 					break;
 				case Exception:

@@ -1,23 +1,387 @@
 package upv.slicing.edg.edge;
 
 import upv.slicing.edg.LASTBuilder.ClassInfo;
+import upv.slicing.edg.LDASTNodeInfo;
 import upv.slicing.edg.constraint.GlobalVariableConstraint;
 import upv.slicing.edg.constraint.PhaseConstraint;
 import upv.slicing.edg.constraint.SeekingConstraint;
-import upv.slicing.edg.graph.EDG;
-import upv.slicing.edg.graph.Edge;
-import upv.slicing.edg.graph.LAST;
-import upv.slicing.edg.graph.Node;
+import upv.slicing.edg.graph.*;
 import upv.slicing.edg.slicing.Phase;
 
-import java.util.LinkedList;
-import java.util.List;
+import java.util.*;
 
 public class InterproceduralEdgeGenerator extends EdgeGenerator {
-	public InterproceduralEdgeGenerator(EDG edg)
+	public InterproceduralEdgeGenerator(EDG edg) { super(edg); }
+
+	public void generateCallEdges()
 	{
-		super(edg);
+		final List<Node> calls = this.edg.getNodes(Node.Type.Call);
+
+		for (Node call : calls) {
+			final List<Node> possibleClauses = this.getPossibleClauses(call);
+			final List<Node> matchingClauses = this.getMatchingClauses(possibleClauses, call);
+			final Node callee = edg.getChild(call, Node.Type.Callee);
+			final Node calleeResultNode = edg.getResFromNode(callee);
+
+			for( Node matchingClause : matchingClauses)
+				this.edg.addEdge(calleeResultNode, matchingClause, new Edge(Edge.Type.Call, new PhaseConstraint(Phase.Input)));
+		}
 	}
+
+	private List<Node> getPossibleClauses(Node call)
+	{
+		final Node callee = edg.getChild(call, Node.Type.Callee);
+		final Node scopeNode = edg.getChild(callee, Node.Type.Scope);
+
+		// Module of the caller
+		// TODO: Can be a list of modules in a polymorphic scenario
+		final List<Node> callerModules = this.getCallerModules(scopeNode);
+		if (callerModules.isEmpty())
+			return callerModules;
+
+		final Node nameNode = edg.getChild(callee, Node.Type.Name);
+		final List<Node> nameChildren = edg.getChildren(nameNode);
+		nameChildren.removeIf(node -> node.getType() == Node.Type.Result);
+
+		// Called routine
+		final Node routineNameNode = nameChildren.get(0);;
+		final String routineName = routineNameNode.getName();
+
+		final List<Node> possibleClauses = new LinkedList<>();
+
+		for (Node callerModule : callerModules) {
+			final ClassInfo moduleInfo = (ClassInfo) callerModule.getInfo().getInfo()[2];
+			possibleClauses.addAll(moduleInfo.getMethods().get(routineName));
+		}
+
+		return possibleClauses;
+
+		// TODO: ERLANG behaviour
+		 /*- M:R()	all routines of all modules				=> _:_
+		 - m:R()	all routines of module m				=> m:_
+		 - M:r()	routine r of all modules				=> _:r
+		 - m:r()	routine f of module m					=> m:r
+		 - r()	routine f of current module				=> m:r
+		 - ar()	this anonymous routine					=> null:_
+		 - X()	all routines (including anonymous ones)	=> null:null
+		if (moduleRefType != Node.Type.Variable && moduleRefType != Node.Type.Literal && moduleRefType != Node.Type.Module)
+			moduleName = "_";
+		if (nameType != Node.Type.Literal)
+			routineName = "_";
+		if (nameType != Node.Type.Literal && scopeChildren.isEmpty())
+			moduleName = null;
+		if (moduleName == null && nameType != Node.Type.Routine)
+			routineName = null;
+		if (moduleName.equals("_"))
+		{
+			final Node callModule = EDGTraverserNew.getAncestor(call, Node.Info.Type.Module);
+			final ClassInfo moduleInfo = (ClassInfo) callModule.getInfo().getInfo()[2];
+			final List<Node> classClauses = this.getAllClauses(moduleInfo, routineName);
+			System.out.println("STOP");
+			return classClauses;
+		}
+		else*/
+	}
+
+	private List<Node> getCallerModules(Node scopeNode)
+	{
+		final List<Node> scopeChildren = edg.getChildren(scopeNode);
+		scopeChildren.removeIf(node -> node.getType() == Node.Type.Result);
+
+		// TODO: SURE? TEST IN JAVA
+		if (scopeChildren.isEmpty())
+			return List.of(edg.getAncestor(scopeNode, Node.Type.Module));
+
+		assert(scopeChildren.size() == 1);
+		final Node scopeExprNode = scopeChildren.get(0);
+		final List<Node> modules = this.edg.getNodes(Node.Type.Module);
+
+		switch (scopeExprNode.getType())
+		{
+			case TypeTransformation:
+			case Variable:
+				final Variable variable;
+				if (scopeExprNode.getType() == Node.Type.TypeTransformation)
+					variable = (Variable) edg.getChild(scopeExprNode, Node.Type.Variable);
+				else
+					variable = (Variable) scopeExprNode;
+				final List<String> dynTypes = variable.getDynamicTypes();
+				final List<Node> moduleNodes = new LinkedList<>();
+
+				for (String dynType : dynTypes) {
+					if (!dynType.equals("StaticType"))
+						moduleNodes.add(this.getModuleByName(dynType, modules));
+					else {
+						final Node module = this.getModuleByName(variable.getStaticType(), modules);
+						moduleNodes.add(module);
+						final ClassInfo moduleInfo = (ClassInfo) module.getInfo().getInfo()[2];
+						List<ClassInfo> classInfo = moduleInfo.getChildrenClasses();
+						for (ClassInfo ci : classInfo)
+							if (!moduleNodes.contains(ci.getClassNode()))
+								moduleNodes.add(ci.getClassNode());
+					}
+				}
+
+				return moduleNodes;
+			case Type:
+				return List.of(this.getModuleByName(scopeExprNode.getName(), modules));
+			// TODO:
+			// case FieldAccess:
+			// case DataConstructorAccess:
+			case Reference: // TODO: Static Calls
+			case Literal:
+				final String className = scopeExprNode.getName();
+				if (className.equals("this"))
+					return List.of(edg.getAncestor(scopeNode, Node.Type.Module));
+				if (className.equals("super")) {
+					final ClassInfo ci = (ClassInfo) edg.getAncestor(scopeNode, Node.Type.Module).getInfo().getInfo()[2];
+					final List<Node> clauses = ci.getMethods().get("super<constructor>");
+
+					if (clauses.isEmpty())
+						throw new RuntimeException("There is no super constructor to be called.");
+
+					return List.of(edg.getAncestor(clauses.get(0),Node.Type.Module));
+				}
+			default:
+				throw new RuntimeException("The caller module cannot be found: " + scopeExprNode.getType());
+		}
+	}
+
+	private Node getModuleByName(String moduleName, List<Node> modules)
+	{
+		for (Node module : modules)
+			if (module.getName().equals(moduleName))
+				return module;
+		return null;
+	}
+
+	private List<Node> getMatchingClauses(List<Node> possibleClauses, Node call)
+	{
+		final List<Node> matchingClauses = new LinkedList<>();
+
+		for (Node possibleClause : possibleClauses)
+			if (this.matchClause(possibleClause, call))
+				matchingClauses.add(possibleClause);
+
+		return matchingClauses;
+	}
+
+	private boolean matchClause(Node possibleClause, Node call)
+	{
+		final Node parameters = edg.getChild(possibleClause, Node.Type.Parameters);
+		final List<Node> parameterNodes = edg.getChildren(parameters);
+		parameterNodes.removeIf(node -> node.getType() == Node.Type.Result);
+
+		final Node arguments = edg.getChild(call, Node.Type.Arguments);
+		final List<Node> argumentNodes = edg.getChildren(arguments);
+		argumentNodes.removeIf(node -> node.getType() == Node.Type.Result);
+
+		// TODO: Tratar el caso de el ultimo argumento con "...". Ahora args.size() == parameters.size
+		if (argumentNodes.size() != parameterNodes.size())
+			return false;
+		// if (argumentNodes.size() > 0 && parameterNodes.size() == 0)
+		// 	return false;
+
+
+		for (int argIndex = 0; argIndex < argumentNodes.size(); argIndex++)
+		{
+			final Node argument = argumentNodes.get(argIndex);
+			final Node parameter = parameterNodes.get(argIndex);
+			if (!isMatch(parameter, argument))
+				return false;
+		}
+		return true;
+	}
+
+	// TODO: This function is language dependent. In Java is about types,
+	//  in Erlang about matching patterns and expressions
+	private boolean isMatch(Node param, Node arg)
+	{
+		Variable parameter = (Variable) param;
+		String paramType = parameter.getStaticType();
+
+		switch(arg.getType()){
+			case Literal:	// Only for primitive types
+				final LDASTNodeInfo ldNodeInfo = arg.getInfo();
+				final String construction = ldNodeInfo.getConstruction();
+				if (paramType.equals(construction))
+					return true;
+				return false;
+
+			case Variable: // May be object or primitive type
+				Variable argument = (Variable) arg;
+				if (argument.getStaticType().equals(paramType))
+					return true;
+
+				List<String> childrenTypes = edg.getChildrenClasses(paramType);
+				return childrenTypes.contains(argument.getStaticType());
+
+			case Call:
+				String returnType = (String) arg.getInfo().getInfo()[0];
+
+				if (returnType.equals(paramType))
+					return true;
+
+				List<String> childrenTypes0 = edg.getChildrenClasses(paramType);
+				return childrenTypes0.contains(returnType);
+
+			default: // TODO: the rest of types are non contemplated
+				throw new RuntimeException("This argument type is not considered");
+		}
+	}
+
+	public void generateIO()
+	{
+		final List<Node> calls = this.edg.getNodes(Node.Type.Call);
+		for (Node call : calls)
+			this.generateInputOutput(call);
+	}
+
+	/* **************************************** */
+	/* *********** Input-Output edges ********* */
+	/* **************************************** */
+	private void generateInputOutput(Node call)
+	{
+		final Node callee = edg.getChild(call, Node.Type.Callee);
+		final Node calleeResultNode = edg.getResFromNode(callee);
+		final Set<Edge> callEdges = edg.getEdges(calleeResultNode, LAST.Direction.Forwards, Edge.Type.Call);
+
+		final Set<Node> clauses = new HashSet<>();
+		callEdges.stream().forEach(edge -> clauses.add(edg.getEdgeTarget(edge)));
+
+		for (Node clause : clauses)
+		{
+			// EXPLICIT ARGUMENTS
+			final Node argumentsNode = edg.getChild(call, Node.Type.Arguments);
+			final Node parametersNode = edg.getChild(clause, Node.Type.Parameters);
+			this.generateInputArcs(argumentsNode, parametersNode);
+
+			// INPUT GLOBAL VARIABLES
+			final Node argInNode = edg.getPolymorphicNode(call, clause.getInfo().getClassName(), Edge.Type.Input);
+			final Node paramInNode = edg.getChild(clause, Node.Type.ParameterIn);
+			this.generateInputArcs(argInNode, paramInNode);
+
+			// OUTPUT GLOBAL VARIABLES
+			final Node argumentOutNode = edg.getChild(call, Node.Type.ArgumentOut);
+			final Node GVContainer = edg.getPolymorphicNode(call, clause.getInfo().getClassName(), Edge.Type.Output);
+			final Node paramOutNode = edg.getChild(clause, Node.Type.ParameterOut);
+			this.generateOutputArcs(GVContainer, argumentOutNode, paramOutNode);
+
+			// CALL RESULT ARC
+			this.generateCallResultArcs(call, clause);
+		}
+	}
+
+	private void generateInputArcs(Node argumentOutNode, Node parametersNode)
+	{
+		final List<Node> arguments = edg.getChildren(argumentOutNode);
+		arguments.removeIf(n -> n.getType() == Node.Type.Result);
+
+		final List<Node> parameters = edg.getChildren(parametersNode);
+		parameters.removeIf(n -> n.getType() == Node.Type.Result);
+
+		for (int argumentIndex = 0; argumentIndex < arguments.size(); argumentIndex++)
+		{
+			final Node argument = arguments.get(argumentIndex);
+			final Node parameter = parameters.get(argumentIndex);
+
+			final Node argumentResult = edg.getResFromNode(argument);
+			final Node parameterResult = edg.getResFromNode(parameter);
+
+			this.edg.addEdge(argumentResult, parameterResult,
+					new Edge(Edge.Type.Input, new PhaseConstraint(Phase.Input)));
+
+			if (edg.getChildren(argument).size() > 0 && edg.getChildren(parameter).size() > 0)
+				this.addInterproceduralUnfolding(argument, parameter, Edge.Type.Input);
+		}
+	}
+
+	private void generateOutputArcs(Node GVContainer, Node argumentsNode, Node parametersNode)
+	{
+		// Parameter_out generation order: 1) GV defined 2) Object Parameter Trees
+		// Argument_out generation order: 1) GV defined/Scope Trees 2) Object Parameter Trees
+		final List<Node> arguments = edg.getChildren(GVContainer);
+
+		if (GVContainer != argumentsNode) {
+			arguments.addAll(edg.getChildren(argumentsNode));
+			arguments.remove(edg.getParent(GVContainer)); // Delete the scope copy node
+		}
+
+		arguments.removeIf(n -> n.getType() == Node.Type.Result);
+
+		final List<Node> parameters = edg.getChildren(parametersNode);
+		parameters.removeIf(n -> n.getType() == Node.Type.Result);
+
+		for (int argumentIndex = 0; argumentIndex < arguments.size(); argumentIndex++)
+		{
+			final Node argument = arguments.get(argumentIndex);
+			final Node parameter = parameters.get(argumentIndex);
+
+			final Node argumentResult = edg.getResFromNode(argument);
+			final Node parameterResult = edg.getResFromNode(parameter);
+
+			this.edg.addEdge(parameterResult, argumentResult,
+					new Edge(Edge.Type.Output, new PhaseConstraint(Phase.Output)));
+
+			if (edg.getChildren(argument).size() > 0 && edg.getChildren(parameter).size() > 0)
+				this.addInterproceduralUnfolding(argument, parameter, Edge.Type.Output);
+		}
+	}
+
+	private void addInterproceduralUnfolding(Node arg, Node param, Edge.Type edgeType){
+		final List<Node> argChildren = edg.getChildren(arg);
+		argChildren.removeIf(child -> child.getType() == Node.Type.Result);
+
+		final List<Node> paramChildren = edg.getChildren(param);
+		paramChildren.removeIf(child -> child.getType() == Node.Type.Result);
+
+		for (Node argument : argChildren){
+			if (argument.getType() == Node.Type.PolymorphicCall){
+				final String argumentClassName = argument.getName();
+				for (Node parameter : paramChildren)
+					if (parameter.getName().equals(argumentClassName))
+						this.addInterproceduralUnfolding(argument, parameter, edgeType);
+			}
+			else{
+				final Node parameter = paramChildren.get(argChildren.indexOf(argument));
+				if (edgeType == Edge.Type.Output)
+					this.edg.addEdge(edg.getResFromNode(parameter), edg.getResFromNode(argument),
+							new Edge(Edge.Type.Output, new PhaseConstraint(Phase.Output)));
+				else
+					this.edg.addEdge(edg.getResFromNode(argument), edg.getResFromNode(parameter),
+							new Edge(Edge.Type.Input, new PhaseConstraint(Phase.Input)));
+
+				if (edg.getChildren(argument).size() > 0)
+					this.addInterproceduralUnfolding(argument, parameter, edgeType);
+			}
+		}
+	}
+
+	private void generateCallResultArcs(Node call, Node clause)
+	{
+		final String routineName = edg.getParent(clause).getName();
+		final Node clauseRes = edg.getResFromNode(clause);
+		final Node callRes = edg.getResFromNode(call);
+		if (!routineName.equals("<constructor>"))
+			this.edg.addEdge(clauseRes, callRes, new Edge(Edge.Type.Output, new PhaseConstraint(Phase.Output)));
+
+		final List<Node> clauseResChildren = edg.getChildren(clauseRes);
+		if (!clauseResChildren.isEmpty())
+		{
+			final List<Node> callResChildren = edg.getChildren(callRes);
+
+			clauseResChildren.removeIf(child -> child.getType() == Node.Type.Result);
+			callResChildren.removeIf(child -> child.getType() == Node.Type.Result);
+			for (int index = 0; index < clauseResChildren.size(); index++)
+				this.edg.addEdge(edg.getResFromNode(clauseResChildren.get(index)),
+						edg.getResFromNode(callResChildren.get(index)),
+						new Edge(Edge.Type.Output, new PhaseConstraint(Phase.Output)));
+		}
+	}
+
+
+
+	/** DAVID CODE **/
 
 	public void generate()
 	{
@@ -65,162 +429,7 @@ public class InterproceduralEdgeGenerator extends EdgeGenerator {
 			this.edg.addEdge(argumentsIn, parameterIn, new Edge(Edge.Type.Call, new PhaseConstraint(Phase.Input)));
 		}
 	}
-	private List<Node> getPossibleClauses(Node call)
-	{
-		final Node callee = edg.getChild(call, Node.Type.Callee);
-		final Node scopeNode = edg.getChild(callee, Node.Type.Scope);
-		final Node nameNode = edg.getChild(callee, Node.Type.Name);
-		final List<Node> scopeChildren = edg.getChildren(scopeNode);
-		final Node routineArguments = edg.getChild(call, Node.Type.Arguments);
-		final List<Node> arguments = edg.getChildren(routineArguments);
 
-		// Module
-		final Node moduleRef0 = scopeChildren.isEmpty() ? edg.getAncestor(call, Node.Type.Module) : scopeChildren.get(0);
-		final Node moduleRef1 = moduleRef0.getType() != Node.Type.Expression ? moduleRef0 : edg.getChild(moduleRef0, Node.Type.Value);
-		final Node moduleRef =
-				moduleRef1.getType() != Node.Type.TypeTransformation ? moduleRef1 : edg.getChild(edg.getChild(moduleRef1, Node.Type.Variable), Node.Type.Value);
-		final Node.Type moduleRefType = moduleRef.getType();
-
-		//String moduleName = moduleRefType == Node.Info.Type.Literal ? moduleRef.getName() : null;//moduleRef.getInfo().getClassName();
-		final String moduleName0 =
-				moduleRefType == Node.Type.Variable ? moduleRef.getInfo().getInfo()[1].toString() : null;
-		final String moduleName1 = moduleRefType == Node.Type.Literal ? moduleRef.getName() : moduleName0;
-		String moduleName = scopeChildren.size() == 0 ? moduleRef.getName() : moduleName1;
-
-		// Function
-		final Node name0 = edg.getChild(nameNode, 0);
-		final Node name = name0.getType() != Node.Type.Expression ? name0 : edg.getChild(name0, Node.Type.Value);
-		final Node.Type nameType = name.getType();
-		String routineName = name.getName();
-
-		// - M:R()	all routines of all modules				=> _:_
-		// - m:R()	all routines of module m				=> m:_
-		// - M:r()	routine r of all modules				=> _:r
-		// - m:r()	routine f of module m					=> m:r
-		// - r()	routine f of current module				=> m:r
-		// - ar()	this anonymous routine					=> null:_
-		// - X()	all routines (including anonymous ones)	=> null:null
-		if (moduleRefType != Node.Type.Variable && moduleRefType != Node.Type.Literal && moduleRefType != Node.Type.Module)
-			moduleName = "_";
-		if (nameType != Node.Type.Literal)
-			routineName = "_";
-		if (nameType != Node.Type.Literal && scopeChildren.isEmpty())
-			moduleName = null;
-		if (moduleName == null && nameType != Node.Type.Routine)
-			routineName = null;
-		
-//		if (moduleName.equals("_"))
-//		{
-//			final Node callModule = EDGTraverserNew.getAncestor(call, Node.Info.Type.Module);
-//			final ClassInfo moduleInfo = (ClassInfo) callModule.getInfo().getInfo()[2];
-//			final List<Node> classClauses = this.getAllClauses(moduleInfo, routineName);
-//			System.out.println("STOP");
-//			return classClauses;
-//		}
-//		else 
-		if (moduleName != null)
-		{
-			final String moduleScopeName = moduleName;
-			if (moduleScopeName.equals("super"))
-			{
-				final Node module = edg.getAncestor(call, Node.Type.Module);
-				moduleName = module.getName();
-			}
-			final List<Node> modules = this.edg.getNodes(Node.Type.Module);
-			for (Node module : modules)
-			{
-				final String moduleText = module.getName();
-				if (moduleName.equals(moduleText))
-				{
-					final ClassInfo moduleInfo = (ClassInfo) module.getInfo().getInfo()[2];
-					final List<Node> classClauses;
-					if (!scopeChildren.isEmpty())
-					{
-						if (moduleScopeName.equals("super") && routineName.equals("<constructor>"))
-							routineName = moduleScopeName+routineName;
-						classClauses = this.getAllClauses(moduleInfo, routineName);
-					}
-					else
-					{	
-						final Node parentRoutineNode = edg.getAncestor(call, Node.Type.Routine);
-						if (parentRoutineNode != null)
-						{
-							final String parentRoutineName = edg.getAncestor(call, Node.Type.Routine).getName();
-							classClauses = this.getClassClauses(moduleInfo, routineName, parentRoutineName);
-						}
-						else 
-							classClauses = this.getAllClauses(moduleInfo, routineName);
-					}
-					return classClauses;
-				}
-			}
-		}
-		
-		final List<Node> possibleClauses = new LinkedList<>();
-		final List<Node> clauses = this.edg.getNodes(Node.Type.Clause); // ONLY WHEN THERE IS ONLY A DEFINITION OF A FUNCTION, NOT FOR POLIMORPHIC CALLS
-		final boolean thisAnonymousRoutine = moduleName == null && routineName != null;
-		final boolean allRoutines = moduleName == null && routineName == null;
-
-		for (Node clause : clauses)
-		{
-			final Node routine = edg.getParent(clause);
-			if (thisAnonymousRoutine && routine != name)
-				continue;
-			
-			if (!thisAnonymousRoutine && !allRoutines)
-			{
-				final Node module = edg.getParent(routine);
-				final Node.Type moduleType = module.getType();
-				if (moduleType != Node.Type.Module)
-					continue;
-				final String moduleText = module.getName();
-				if (!moduleName.equals(moduleText) && !moduleName.equals("_"))
-					continue;
-				final String routineText = routine.getName();
-				if (!routineName.equals(routineText) && !routineName.equals("_"))
-					continue;
-			}
-
-			final Node parameters = edg.getChild(clause, 0);
-			final List<Node> parameterNodes = edg.getChildren(parameters);
-			if (arguments.size() != parameterNodes.size())
-				continue;
-
-			possibleClauses.add(clause);
-		}
-
-		return possibleClauses;
-	}
-	private List<Node> getMatchingClauses(List<Node> possibleClauses, Node call)
-	{
-		final List<Node> matchingClauses = new LinkedList<>();
-
-		for (Node possibleClause : possibleClauses)
-			if (this.matchClause(possibleClause, call))
-				matchingClauses.add(possibleClause);
-
-		return matchingClauses;
-	}
-	private boolean matchClause(Node possibleClause, Node call)
-	{
-		final Node parameters = edg.getChild(possibleClause, 0);
-		final List<Node> parameterNodes = edg.getChildren(parameters);
-		final Node arguments = edg.getChild(call, 1);
-		final List<Node> argumentNodes = edg.getChildren(arguments);
-		if (argumentNodes.size() != parameterNodes.size())
-			return false;
-
-		for (int parameterIndex = 0; parameterIndex < parameterNodes.size(); parameterIndex++)
-		{
-			final Node parameter = parameterNodes.get(parameterIndex);
-			final Node argument = argumentNodes.get(parameterIndex);
-			final List<Node[]> matches = this.getMatches(parameter, argument);
-
-			if (matches.isEmpty())
-				return false;
-		}
-		return true;
-	}
 
 	/************************************/
 	/*********** Output edges ***********/

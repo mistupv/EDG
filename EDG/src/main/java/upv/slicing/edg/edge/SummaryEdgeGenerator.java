@@ -122,7 +122,7 @@ public class SummaryEdgeGenerator extends EdgeGenerator {
 					workList.add(new NodeWork(child, child, new Constraints()));
 			}
 
-			// Summary Edges for Reference variables (Global Variables)
+			// Summary Edges for Reference variables (Global Variables & Object Parameters)
 			final Node clauseParameterOut = edg.getChild(clause, Node.Type.ParameterOut);
 			final List<Node> gvDefinitions = edg.getChildren(clauseParameterOut);
 			gvDefinitions.removeIf(node -> node.getType() == Node.Type.Result);
@@ -130,56 +130,70 @@ public class SummaryEdgeGenerator extends EdgeGenerator {
 			for (Node gvDefinition : gvDefinitions) {
 				final Node gvRes = edg.getResFromNode(gvDefinition);
 				workList.add(new NodeWork(gvRes, gvRes, new Constraints()));
+				this.addChildrenResults(gvDefinition, workList);
 			}
 		}
 
 		return workList;
 	}
+
+	private void addChildrenResults(Node definition, List<Work> workList){
+		final List<Node> definitionChildren = edg.getChildren(definition);
+		if (!definitionChildren.isEmpty()) {
+			definitionChildren.removeIf(child -> child.getType() == Node.Type.Result);
+			for (Node child : definitionChildren) {
+				final Node childRes = edg.getResFromNode(child);
+				if (childRes.getType() != Node.Type.PolymorphicCall)
+					workList.add(new NodeWork(childRes, childRes, new Constraints()));
+				this.addChildrenResults(child, workList);
+			}
+		}
+	}
+
 	private boolean isFormalIn(Node node, Node formalOutNode)
 	{
-/*		final Node parent = edg.getParent(node);
-		final Node.Type nodeType = node.getType();
-		final Node.Type parentType = parent == null ? null : parent.getType();
-		if (parent == null)
-			return false;
-
-		if (nodeType != Node.Type.Parameters)
-			if (nodeType != Node.Type.Result || parentType != Node.Type.Parameters)
-				return false;
-*/
 		if (node == formalOutNode)
 			return false;
 
-		// TODO: Only formal-ins of 1 lvl depth (Erlang may differ due to tuple parameters)
-		final Node parent = edg.getParent(node);
-		final Node.Type parentType = parent.getType();
-
-		// TODO: Parent module in global variable declaration arcs
-		//  (Make them interprocedural to avoid traversals in summaries?)
-		if (parent == null || parent.getType() == Node.Type.Module)
-			return false;
-
-		if (parentType != Node.Type.Parameters && parentType != Node.Type.ParameterIn)
+		final Node parameters = edg.getAncestor(node, Node.Type.Parameters);
+		final Node parameterIn = edg.getAncestor(node, Node.Type.ParameterIn);
+		if (parameters == null && parameterIn == null)
 			return false;
 
 		// The formal in must be related to the formal out
 		final Node clause = edg.getAncestor(node, Node.Type.Clause);
 		final Node clauseResult = edg.getResFromNode(clause);
+		final Node parameterOut = edg.getAncestor(formalOutNode, Node.Type.ParameterOut);
 
-		final Node formalOutParent = edg.getParent(formalOutNode);
-		// The corresponding clause result for parameter out summaries
-		if (formalOutParent.getType() == Node.Type.ParameterOut) {
-			final Node routineFormalOut = edg.getResFromNode(edg.getAncestor(formalOutNode, Node.Type.Clause));
-			return clauseResult == routineFormalOut;
+		// The formal in and formal out are contained inside the same Polymorphic Call Path
+		if (!this.sharePolymorphicPath(node, formalOutNode))
+			return false;
+
+		// The corresponding clause result for parameter out summaries (GV and Object Parameters)
+		if (parameterOut != null) {
+			final Node clauseFormalOut = edg.getResFromNode(edg.getParent(parameterOut));
+			return clauseResult == clauseFormalOut;
 		}
 
 		// The corresponding clause result for result out summaries
-		if (formalOutParent.getType() == Node.Type.Result){
-			return formalOutParent == clauseResult;
+		final Node resultOut = edg.getAncestor(formalOutNode, Node.Type.Result);
+		if (resultOut != null ){
+			return resultOut == clauseResult;
 		}
 
 		return clauseResult == formalOutNode;
 	}
+
+	private boolean sharePolymorphicPath(Node node, Node formalOut){
+		final Node polymorphicNodeIn = edg.getAncestor(node, Node.Type.PolymorphicCall);
+		final Node polymorphicNodeOut = edg.getAncestor(formalOut, Node.Type.PolymorphicCall);
+		if (polymorphicNodeIn == null)
+			return true;
+		if (!polymorphicNodeIn.getName().equals(polymorphicNodeOut.getName()))
+			return false;
+		return sharePolymorphicPath(polymorphicNodeIn, polymorphicNodeOut);
+	}
+
 	private List<Node> createSummaryEdges(Node formalOut, Node formalIn, Constraints constraints)
 	{
 		final Grammar grammar = this.edg.getGrammar();
@@ -188,6 +202,7 @@ public class SummaryEdgeGenerator extends EdgeGenerator {
 
 		final List<Node> nodesToContinue = new LinkedList<>();
 		final List<Node> inputs = edg.getInputs(formalIn, LAST.Direction.Backwards);
+		final List<Node> outputs = edg.getOutputs(formalOut, LAST.Direction.Forwards);
 
 		for (Node input : inputs)
 		{
@@ -206,16 +221,20 @@ public class SummaryEdgeGenerator extends EdgeGenerator {
 				nodesToContinue.add(callResult);
 			}
 			else { // PART FOR ARG OUT SUMMARIES
-				final int argOutIndex = edg.getChildIndex(formalOut);
-				final Node callArgOut;
-				if (edg.getParent(formalOut).getType() == Node.Type.Result)
-					// Only in constructors DM are children of the result node
-					callArgOut = edg.getResFromNode(call);
-				else
-					callArgOut = edg.getPolymorphicNode(call, formalIn.getInfo().getClassName(), Edge.Type.Output);
-				final Node argOut = edg.getChild(callArgOut, argOutIndex);
-				this.edg.addEdge(input, argOut, new Edge(Edge.Type.Summary, grammarConstraint));
-				nodesToContinue.add(callArgOut);
+				// Part for nodes inside ArgOut Node
+				for (Node output : outputs) {
+					Node outCallNode = edg.getAncestor(output, Node.Type.Call);
+
+					// Part for constructors in Result Nodes
+					if (outCallNode == null)
+						outCallNode = edg.getNodeFromRes(edg.getAncestor(output, Node.Type.Result));
+
+					if (call == outCallNode) {
+						this.edg.addEdge(input, output, new Edge(Edge.Type.Summary, grammarConstraint));
+						nodesToContinue.add(output);
+						break;
+					}
+				}
 			}
 		}
 		return nodesToContinue;

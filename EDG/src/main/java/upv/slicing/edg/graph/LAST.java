@@ -740,11 +740,12 @@ public class LAST extends GraphWithRoot {
 		final Node name = this.getChild(callee, Node.Type.Name);
 		final String routineName = this.getChild(name, Node.Type.Value).getName();
 
-		Node objectVar;
+		final Node scope = this.getChild(callee, Node.Type.Scope);
+		final List<Node> scopeChildren = this.getChildren(scope);
+
+		Node objectVar = null;
 
 		if (edgeType == Edge.Type.Input) {
-			final Node scope = this.getChild(callee, Node.Type.Scope);
-			final List<Node> scopeChildren = this.getChildren(scope);
 
 			if (scopeChildren.size() == 0 || routineName.equals("<constructor>"))
 				return this.getChild(call, Node.Type.ArgumentIn);
@@ -757,20 +758,22 @@ public class LAST extends GraphWithRoot {
 
 		} else {
 			final Node argOut = this.getChild(call, Node.Type.ArgumentOut);
+			if (scopeChildren.size() == 0)
+				return argOut;
+
 			final List<Node> argOutChildren = this.getChildren(argOut);
 			argOutChildren.removeIf(node -> node.getType() == Node.Type.Result);
 
-			if (argOutChildren.size() == 0 || argOutChildren.size() > 1)
+			final Node scopeVar = this.getScopeLeaf(scope);
+			if (scopeVar == null) // Constructor calls
 				return argOut;
 
-			objectVar = this.getChildren(argOut).get(0);
+			for (Node child : argOutChildren)
+				if (child.getName().equals(scopeVar.getName()))
+					objectVar = child;
 
-			if (argOutChildren.size() == 1)
-			{
-				 List<Node> objectVarChildren = this.getChildren(objectVar);
-				 if (objectVarChildren.size() == 0 || objectVarChildren.get(0).getType() != Node.Type.PolymorphicCall)
-				 	return argOut;
-			}
+			if (objectVar == null)
+				return argOut;
 		}
 
 		if (objectVar == null)
@@ -792,7 +795,7 @@ public class LAST extends GraphWithRoot {
 				childrenTypes.add(module.getName());
 
 				final ClassInfo ci = (ClassInfo) module.getInfo().getInfo()[2];
-				List<ClassInfo> childrenModules = ci.getChildrenClasses();
+				List<ClassInfo> childrenModules = new LinkedList<>(ci.getChildrenClasses());
 
 				while(!childrenModules.isEmpty()){
 					final ClassInfo child = childrenModules.remove(0);

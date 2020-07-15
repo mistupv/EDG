@@ -12,7 +12,7 @@ public class Variable extends Node {
 	private Context context;
 	private boolean global;
 	private String staticType;
-	private List<String> dynamicTypes = new LinkedList<>(); // TODO: Determine dynamic type in the last definition (may be difficult)
+	private List<String> dynamicTypes = new LinkedList<>();
 
 	public Variable(int id, Node.Type type, String name, LDASTNodeInfo ldASTNodeInfo)
 	{
@@ -70,5 +70,24 @@ public class Variable extends Node {
 			if (!this.dynamicTypes.contains(type))
 				this.dynamicTypes.add(type);
 	}
-
+	public boolean isObjectType(){
+		String rawType = staticType;
+		if(staticType.endsWith("[]"))
+			rawType = staticType.substring(0,staticType.lastIndexOf("["));
+		switch(rawType)
+		{
+			case "boolean":
+			case "byte":
+			case "short":
+			case "int":
+			case "long":
+			case "float":
+			case "double":
+			case "char":
+			case "String":
+				return false;
+			default:
+				return true;
+		}
+	}
 }

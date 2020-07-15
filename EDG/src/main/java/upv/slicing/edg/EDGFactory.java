@@ -77,15 +77,15 @@ public class EDGFactory {
 	{
 		new ControlEdgeGenerator(edg).generate();
 
-		InterproceduralEdgeGeneratorNew ieg = new InterproceduralEdgeGeneratorNew(edg);
+		InterproceduralEdgeGenerator ieg = new InterproceduralEdgeGenerator(edg);
 		if (isOOLanguage)
 			ieg.generateCallEdges(); // Specially Generated for OOPrograms
 		else
 			new InterproceduralEdgeGenerator(edg).generateNoInheritance(); // TODO Implement without module analysis
 
-		new FlowEdgeGeneratorNew(edg).generate(); // TODO Testear y verlo paso a paso con el ControlFlowTraverser
-//		ieg.generateIO();
-//		new SummaryEdgeGenerator(edg).generate();
+		new FlowEdgeGenerator(edg).generate(); // TODO Testear y verlo paso a paso con el ControlFlowTraverser
+		ieg.generateIO();
+		new SummaryEdgeGenerator(edg).generate();
 //		new ExceptionEdgeGenerator(edg).generate();
 	}
 
