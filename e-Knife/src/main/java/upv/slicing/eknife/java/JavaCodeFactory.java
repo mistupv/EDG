@@ -324,6 +324,12 @@ public class JavaCodeFactory {
 			case Continue:
 				parserFunc = this::parseContinue;
 				break;
+			case Call:
+				boolean cond = this.isExplicitConstructor(statement);
+				if (cond) {
+					parserFunc = this::parseExplicitConstructorCall;
+					break;
+				}
 			default:
 				parserFunc = this::parseExpressionStmt;
 				break;
@@ -990,8 +996,7 @@ public class JavaCodeFactory {
 	 * @param call Call node to be parsed.
 	 * @return A list of javaparser expressions of the given node contained in the slice.
 	 */
-	private List<Expression> parseCall(Node call)
-	{
+	private List<Expression> parseCall(Node call) {
 		/*
 		 * Possibilities:
 		 * 	1) One/Some args needed
@@ -1056,6 +1061,21 @@ public class JavaCodeFactory {
 						new SimpleName(nameText), argumentsList));
 		}
 	}
+
+	private List<Statement> parseExplicitConstructorCall(Node call){
+		final Node callee = edg.getChild(call, Node.Type.Callee);
+		final Node scope = edg.getChild(callee, Node.Type.Scope);
+		final Node args = edg.getChild(call, Node.Type.Arguments);
+
+		final NodeList<Expression> argumentsList = new NodeList<>();
+		argumentsList.addAll(this.parseArguments(args, true));
+
+		final Node scopeValue = edg.getChild(scope, Value);
+		if (scopeValue.getName().equals("super"))
+			return List.of(new ExplicitConstructorInvocationStmt(false, null, argumentsList));
+		return List.of(new ExplicitConstructorInvocationStmt(true, null, argumentsList));
+	}
+
 
 	/**
 	 * Parse to javaparser the arguments node of a call in the EDG (only the parts contained in the slice).
@@ -1582,5 +1602,15 @@ public class JavaCodeFactory {
 				return false;
 		}
 	}
+	private boolean isExplicitConstructor(Node call){
+		final Node callee = edg.getChild(call, Node.Type.Callee);
+		final Node scope = edg.getChild(callee, Node.Type.Scope);
+		final Node name = edg.getChild(callee, Node.Type.Name);
 
+		final Node scopeValue = edg.getChild(scope, Value);
+		final Node nameValue = edg.getChild(name, Value);
+
+		return nameValue.getName().equals("<constructor>") &&
+				(scopeValue.getName().equals("super")|| scopeValue.getName().equals("this"));
+	}
 }
