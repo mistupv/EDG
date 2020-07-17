@@ -720,7 +720,8 @@ public class FlowEdgeGenerator extends EdgeGenerator {
 
 			for (String varName : variables.keySet()) {
 				final Variable var = (Variable) variables.get(varName);
-				final Node DMNode = this.addDefinitionVarCopy(polymorphicNode, param, param.getName()+ "." + varName, var.getStaticType());
+				final Node DMNode = this.addDefinitionVarCopy(polymorphicNode, param,
+						param.getName()+ "." + varName, var.getStaticType(), var.isGlobal());
 				dataMembers.add((Variable) DMNode);
 			}
 		}
@@ -883,10 +884,12 @@ public class FlowEdgeGenerator extends EdgeGenerator {
 			}
 			else // Objects created and directly assigned
 			{
-				final Node objectVar = edg.getChild(callParent, Node.Type.Pattern);
+				final Variable objectVar = (Variable) edg.getChild(callParent, Node.Type.Pattern);
 				for (VarTypeInfo def : defUses.definitions) {
-					final Node varDataMember = this.addDefinitionVarCopy(objectVar, objectVar, objectVar.getName() + "." + def.variable, def.type);
-					final Node dataMemberOutVar = this.addDefinitionVarCopy(callResult, objectVar, objectVar.getName() + "." + def.variable, def.type);
+					final Node varDataMember = this.addDefinitionVarCopy(objectVar, objectVar,
+							objectVar.getName() + "." + def.variable, def.type, objectVar.isGlobal());
+					final Node dataMemberOutVar = this.addDefinitionVarCopy(callResult, objectVar,
+							objectVar.getName() + "." + def.variable, def.type, objectVar.isGlobal());
 					edg.addEdge(edg.getResFromNode(dataMemberOutVar), edg.getResFromNode(varDataMember), Edge.Type.Value);
 				}
 			}
@@ -1046,15 +1049,17 @@ public class FlowEdgeGenerator extends EdgeGenerator {
 				}
 			}
 			else {
-				final Node objectVar = edg.getChild(callParent, Node.Type.Pattern);
+				final Variable objectVar = (Variable) edg.getChild(callParent, Node.Type.Pattern);
 				final List<Node> clauseResChildren = edg.getChildren(clauseRes);
 				clauseResChildren.removeIf(child -> child.getType() == Node.Type.Result);
 
 				for (Node varNode : clauseResChildren) {
 					Variable var = (Variable) varNode;
 					String varName = var.getName().substring(var.getName().indexOf(".") + 1);
-					final Node varDataMember = this.addDefinitionVarCopy(objectVar, objectVar, objectVar.getName() + "." + varName, var.getStaticType());
-					final Node dataMemberOutVar = this.addDefinitionVarCopy(callResult, objectVar, objectVar.getName() + "." + varName, var.getStaticType());
+					final Node varDataMember = this.addDefinitionVarCopy(objectVar, objectVar,
+							objectVar.getName() + "." + varName, var.getStaticType(), objectVar.isGlobal());
+					final Node dataMemberOutVar = this.addDefinitionVarCopy(callResult, objectVar,
+							objectVar.getName() + "." + varName, var.getStaticType(), objectVar.isGlobal());
 					edg.addEdge(edg.getResFromNode(dataMemberOutVar), edg.getResFromNode(varDataMember), Edge.Type.Value);
 				}
 			}
@@ -1110,7 +1115,8 @@ public class FlowEdgeGenerator extends EdgeGenerator {
 			if (child.getName().equals(objectVar.getName()))
 				return child;
 
-		return this.addDefinitionVarCopy(argOut, objectVar, objectVar.getName(), ((Variable) objectVar).getStaticType());
+		return this.addDefinitionVarCopy(argOut, objectVar, objectVar.getName(),
+				((Variable) objectVar).getStaticType(), ((Variable) objectVar).isGlobal());
 	}
 
 	// ---------------------------------------------------------------- //
@@ -1488,13 +1494,44 @@ public class FlowEdgeGenerator extends EdgeGenerator {
 		return res;
 	}
 
+	// TODO: Can these two functions be replaced by copyVariable function? UNIFY THEM
 	/** Add a new node, copy of a variable node varNode with varName and varType as a child of a container node */
 	public Node addDefinitionVarCopy(Node container, Node varNode, String varName, String varType)
 	{
 		final LDASTNodeInfo ldNodeInfo = new LDASTNodeInfo(varNode.getInfo().getFile(), varNode.getInfo().getClassName(),
 				varNode.getInfo().getLine(), true, "var", null);
 		final int nodeId = LASTBuilder.addVariable(this.edg, container.getId(), null,
-				varName, varType, false, true, false, true, ldNodeInfo);
+				varName, varType, false, true, false, false, ldNodeInfo);
+		final Node newVarNode = edg.getNode(nodeId);
+		final LDASTNodeInfo resultInfo = new LDASTNodeInfo(varNode.getInfo().getFile(), varNode.getInfo().getClassName(),
+				varNode.getInfo().getLine(), "var");
+		final Node result = new Node("result", this.edg.getNextFictitiousId(), Node.Type.Result, "", resultInfo);
+
+		edg.addVertex(result);
+		edg.registerNodeResPair(newVarNode, result);
+		edg.addEdge(newVarNode, result, Edge.Type.Value);
+		edg.addEdge(newVarNode, result, Edge.Type.ControlFlow);
+		edg.addStructuralEdge(container, result);
+
+		if (container.getType() == Node.Type.Variable)
+			edg.addEdge(edg.getResFromNode(container), result, Edge.Type.TotalDefinition);
+
+		Set<Edge> incomingEdges = edg.getEdges(container, LAST.Direction.Backwards, Edge.Type.ControlFlow);
+		for (Edge edge : incomingEdges){
+			edg.addEdge(edg.getEdgeSource(edge), newVarNode, Edge.Type.ControlFlow);
+			edg.removeEdge(edge);
+		}
+		edg.addEdge(result, container, Edge.Type.ControlFlow);
+		return newVarNode;
+	}
+
+	/** Add a new node, copy of a variable node varNode with varName and varType as a child of a container node */
+	public Node addDefinitionVarCopy(Node container, Node varNode, String varName, String varType, boolean isGlobal)
+	{
+		final LDASTNodeInfo ldNodeInfo = new LDASTNodeInfo(varNode.getInfo().getFile(), varNode.getInfo().getClassName(),
+				varNode.getInfo().getLine(), true, "var", null);
+		final int nodeId = LASTBuilder.addVariable(this.edg, container.getId(), null,
+				varName, varType, false, true, false, isGlobal, ldNodeInfo);
 		final Node newVarNode = edg.getNode(nodeId);
 		final LDASTNodeInfo resultInfo = new LDASTNodeInfo(varNode.getInfo().getFile(), varNode.getInfo().getClassName(),
 				varNode.getInfo().getLine(), "var");

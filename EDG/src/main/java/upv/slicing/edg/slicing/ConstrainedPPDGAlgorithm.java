@@ -30,10 +30,14 @@ public class ConstrainedPPDGAlgorithm extends ConstrainedAlgorithm
 
         // PPDG Traversal limiting pseudo-predicates for Control Edges
         boolean pseudoPredicate = isPseudoPredicate(currentNode) && initialNode != currentNode;
-
         final Set<Edge> edges = edg.getEdges(currentNode, sliceDirection);
         if (pseudoPredicate)
             edges.removeIf(edge -> edge.getType() == Edge.Type.Control);
+
+        // Object-Flow edges are only travesed from the SC or when the last traversed edge was an Object-Flow edge
+        boolean traverseObjectFlow = initialNode == currentNode || work.getPreviousEdgeType() == Edge.Type.ObjectFlow;
+        if (!traverseObjectFlow)
+            edges.removeIf(edge -> edge.getType() == Edge.Type.ObjectFlow);
 
         edges.removeIf(Edge::isControlFlowEdge);
         if(phase == Phase.SummaryGeneration)

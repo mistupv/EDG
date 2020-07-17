@@ -114,7 +114,7 @@ public class ConstrainedAlgorithm implements SlicingAlgorithm
 			final List<Constraints> newConstraintsList = constraint.resolve(phase, edg, currentEdge, constraintsClone, lastConstraint, 0);
 
 			for (Constraints newConstraints : newConstraintsList)
-				newWorks.add(new NodeWork(initialNode, nextNode, newConstraints));
+				newWorks.add(new NodeWork(initialNode, nextNode, newConstraints, edgeType));
 
 			return newWorks;
 		}
@@ -122,7 +122,7 @@ public class ConstrainedAlgorithm implements SlicingAlgorithm
 		{
 			if (!phase.isInstanceof(Phase.Slicing))
 				throw new RuntimeException("Constraint situation not contemplated");
-			newWorks.add(new NodeWork(initialNode, nextNode, new Constraints()));
+			newWorks.add(new NodeWork(initialNode, nextNode, new Constraints(), edgeType));
 		}
 
 		return newWorks;
