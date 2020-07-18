@@ -93,19 +93,21 @@ public class FlowEdgeGenerator extends EdgeGenerator {
 		private final Map <String,Node> defPrimitiveMap;
 		private final Map <String,Node> defObjectMap;
 		private final Map <String,Node> decMap;
-		private final Set<Set<String>> pointToSets;
+		private final Map <String,Node> totalDef;
+		private final Set <Set<String>> pointToSets;
 		private EdgeGenState(Node node)
 		{
-			this(node, new HashMap<>(), new HashMap<>(), new HashMap<>(), new HashSet<>());
+			this(node, new HashMap<>(), new HashMap<>(), new HashMap<>(), new HashMap<>(), new HashSet<>());
 		}
 
 		private EdgeGenState(Node node, Map<String,Node> primitiveDefinitions, Map<String,Node> objectDefinitions,
-							 Map<String,Node> declarations, Set<Set<String>> pointToSets)
+							 Map<String,Node> declarations,  Map<String,Node> totalDef, Set<Set<String>> pointToSets)
 		{
 			this.node = node;
 			this.defPrimitiveMap = primitiveDefinitions;
 			this.defObjectMap = objectDefinitions;
 			this.decMap = declarations;
+			this.totalDef = totalDef;
 			this.pointToSets = pointToSets;
 		}
 		public String toString() {
@@ -123,15 +125,15 @@ public class FlowEdgeGenerator extends EdgeGenerator {
 			return Objects.equals(this.node, state.node) &&
 					Objects.equals(this.defPrimitiveMap, state.defPrimitiveMap) &&
 					Objects.equals(this.defObjectMap, state.defObjectMap) &&
+					Objects.equals(this.totalDef, state.totalDef) &&
 					Objects.equals(this.pointToSets, state.pointToSets) &&
 					Objects.equals(this.decMap, state.decMap);
 		}
 		public int hashCode() {
-			return Objects.hash(node.getId(), defPrimitiveMap, defObjectMap, decMap, pointToSets);
+			return Objects.hash(node.getId(), defPrimitiveMap, defObjectMap, decMap, totalDef, pointToSets);
 		}
 	}
-	private static class VarTypeInfo
-	{
+	private static class VarTypeInfo {
 		String variable;
 		String type;
 
@@ -1146,6 +1148,7 @@ public class FlowEdgeGenerator extends EdgeGenerator {
 			final Node workNode = work.node;
 			final Map<String, Node> workPrimitiveMap = work.defPrimitiveMap;
 			final Map<String, Node> workObjectMap = work.defObjectMap;
+			final Map<String, Node> workTotalDefMap = work.totalDef;
 			final Set<Set<String>> workPTS = work.pointToSets;
 			pendingWorks.remove(work);
 
@@ -1162,17 +1165,23 @@ public class FlowEdgeGenerator extends EdgeGenerator {
 				{
 					case Def_Use:
 						final Node defNode = this.getDefinition(v, workPrimitiveMap, workObjectMap);
-						if (defNode != null)
+						if (defNode != null) {
+							if (v.isObjectType())
+								this.addTotalDefinitionEdge(v, workTotalDefMap);
 							this.addFlowEdge(defNode, v); // Edge #1 of paper
+						}
 						else
 							throw new RuntimeException("The definition node cannot be null");
 					case Definition:
-						if (v.isObjectType())
+						if (v.isObjectType()) {
 							if (!this.isTotalDefinition(v))
-								this.addDefDefEdges(v, workPrimitiveMap, workObjectMap); // Edges #2 and #3 of paper
-							else
-								this.updatePointToSets(v, workPrimitiveMap, workObjectMap, workPTS);// TODO: Is Alias definition / TotalDefinition? (Add to POINT-TO-SETS)
-
+								this.addTotalDefinitionEdge(v, workTotalDefMap);
+							else {
+								workTotalDefMap.put(v.getName(), workNode);
+								this.updatePointToSets(v, workPrimitiveMap, workObjectMap, workPTS);
+							}
+							this.addDefDefEdges(v, workPrimitiveMap, workObjectMap); // Edges #2 and #3 of paper
+						}
 						this.putDefinition(v, workPrimitiveMap, workObjectMap, workPTS);
 
 						if (!v.isDeclaration()){
@@ -1200,6 +1209,8 @@ public class FlowEdgeGenerator extends EdgeGenerator {
 					case Use:
 						final Node definition = this.getDefinition(v, workPrimitiveMap, workObjectMap);
 						if (definition != null) {
+							if (v.isObjectType())
+								this.addTotalDefinitionEdge(v, workTotalDefMap);
 							this.addFlowEdge(definition, v); // Edge #1 of paper
 						}
 //						else
@@ -1213,7 +1224,7 @@ public class FlowEdgeGenerator extends EdgeGenerator {
 			doneWorks.add(work);
 			final Set<Node> nextNodes = ControlFlowTraverser.step(this.edg, workNode, LAST.Direction.Forwards);
 			nextNodes.forEach(nextNode -> pendingWorks.add(new EdgeGenState(nextNode, new HashMap<>(workPrimitiveMap),
-					new HashMap<>(workObjectMap), new HashMap<>(work.decMap), new HashSet<>(work.pointToSets))));
+					new HashMap<>(workObjectMap), new HashMap<>(work.decMap), new HashMap<>(work.totalDef), new HashSet<>(work.pointToSets))));
 		}
 	}
 
@@ -1294,6 +1305,14 @@ public class FlowEdgeGenerator extends EdgeGenerator {
 			return getObjectVar(parent);
 
 		return (Variable) parent;
+	}
+
+	private void addTotalDefinitionEdge(Variable target, Map<String,Node> totalDefMap){
+		final Node source = totalDefMap.get(target.getName());
+		if (source == null)
+			throw new RuntimeException("Variable " + target.getName() + " has not been totally defined");
+
+		edg.addEdge(edg.getResFromNode(source), target, Edge.Type.TotalDefinition);
 	}
 
 	private void addFlowEdge(Node source, Variable target) {
@@ -1513,8 +1532,8 @@ public class FlowEdgeGenerator extends EdgeGenerator {
 		edg.addEdge(newVarNode, result, Edge.Type.ControlFlow);
 		edg.addStructuralEdge(container, result);
 
-		if (container.getType() == Node.Type.Variable)
-			edg.addEdge(edg.getResFromNode(container), result, Edge.Type.TotalDefinition);
+//		if (container.getType() == Node.Type.Variable)
+//			edg.addEdge(edg.getResFromNode(container), result, Edge.Type.TotalDefinition);
 
 		Set<Edge> incomingEdges = edg.getEdges(container, LAST.Direction.Backwards, Edge.Type.ControlFlow);
 		for (Edge edge : incomingEdges){
@@ -1543,8 +1562,8 @@ public class FlowEdgeGenerator extends EdgeGenerator {
 		edg.addEdge(newVarNode, result, Edge.Type.ControlFlow);
 		edg.addStructuralEdge(container, result);
 
-		if (container.getType() == Node.Type.Variable)
-			edg.addEdge(edg.getResFromNode(container), result, Edge.Type.TotalDefinition);
+//		if (container.getType() == Node.Type.Variable)
+//			edg.addEdge(edg.getResFromNode(container), result, Edge.Type.TotalDefinition);
 
 		Set<Edge> incomingEdges = edg.getEdges(container, LAST.Direction.Backwards, Edge.Type.ControlFlow);
 		for (Edge edge : incomingEdges){
