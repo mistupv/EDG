@@ -829,6 +829,9 @@ public class JavaCodeFactory {
 			case Reference:
 				parserFunc = this::parseReference;
 				break;
+			case Type:
+				parserFunc = this::parseNameType;
+				break;
 			default:
 				throw new IllegalArgumentException("Unexpected expression type found: " + expressionType);
 		}
@@ -1017,11 +1020,13 @@ public class JavaCodeFactory {
 			return this.parseArguments(args, false);
 
 		final Node name = edg.getChild(callee, Node.Type.Name);
+		final Node nameValue = edg.getChild(name, Value);
+		final String nameText = nameValue.getName();
 
 		if (this.slice != null && this.slice.contains(scope))
 		{
 			final Node scopeValue = edg.getChild(scope, Value);
-			if (scopeValue.getType() == Node.Type.Type)
+			if (scopeValue.getType() == Node.Type.Type && nameText.equals("<constructor>"))
 				scopeType = (ClassOrInterfaceType) this.parseType(scopeValue);
 			else
 				scopeExpr = this.parseExpression(scopeValue);
@@ -1037,9 +1042,6 @@ public class JavaCodeFactory {
 		// Case 3
 		if (this.slice == null || !this.slice.contains(name))
 			return Util.join(scopeExpr, argumentsList);
-
-		final Node nameValue = edg.getChild(name, Value);
-		final String nameText = nameValue.getName();
 
 		switch(nameText)
 		{
@@ -1274,6 +1276,16 @@ public class JavaCodeFactory {
 		if (this.slice != null && !this.slice.contains(type))
 			return new ClassOrInterfaceType("Object");
 		return new ClassOrInterfaceType(type.getName());
+	}
+
+	/**
+	 * Parse to Javaparser a Type node of the EDG in an static call caller (NameExpr).
+	 * @param type Node to be transformed to a NameExpr
+	 * @return a list of expressions of the type NameExpr
+	 */
+	private List<Expression> parseNameType(Node type){
+		final String value = type.getName();
+		return List.of(new NameExpr(value));
 	}
 
 	/**

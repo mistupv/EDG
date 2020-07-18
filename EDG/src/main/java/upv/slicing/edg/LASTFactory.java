@@ -494,6 +494,29 @@ public abstract class LASTFactory {
 		this.branches.pop();
 	}
 
+	protected <R, S, T> void addStaticCall(String scopeName, S function, List<T> arguments, LDASTNodeInfo info)
+	{
+		final Branch parent = this.branches.peek();
+		final int parentId = parent.getNodeId();
+		final Where where = parent.getWhere();
+		final int callId = LASTBuilder.addCall(this.last, parentId, where, info);
+		final Branch branch = new Branch(callId, Node.Type.Call, info);
+		this.branches.push(branch);
+
+		branch.setWhere(Where.Scope);
+		this.addType(scopeName, info);
+		branch.setWhere(Where.Name);
+		if (function != null)
+			this.processElement(function, 2, 2);
+		branch.setWhere(Where.ArgumentIn);
+		branch.setWhere(Where.Arguments);
+		this.processElements(arguments);
+		branch.setWhere(Where.ArgumentOut);
+
+		this.branches.pop();
+	}
+
+
 	protected <R, S> void addListComprehension(Iterable<R> restrictions, S value, LDASTNodeInfo info)
 	{
 		final List<R> restrictions0 = iterableToList(restrictions);

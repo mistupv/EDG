@@ -661,7 +661,12 @@ public class JavaLASTFactory extends LASTFactory {
 		final String returnType = methodCall.resolve().getReturnType().describe();
 		final LDASTNodeInfo ldNodeInfo = new LDASTNodeInfo(line, true, "method", returnType);
 
-		super.addCall(scope, function, arguments, ldNodeInfo);
+		final boolean staticCall = methodCall.resolve().isStatic();
+
+		if (staticCall)
+			super.addStaticCall(scope.asNameExpr().getName().asString(), function, arguments, ldNodeInfo);
+		else
+			super.addCall(scope, function, arguments, ldNodeInfo);
 	}
 
 	private void process(BinaryExpr binaryExpression)
@@ -920,7 +925,7 @@ public class JavaLASTFactory extends LASTFactory {
 		final LDASTNodeInfo ldNodeInfo = new LDASTNodeInfo(line, true, "var", info);
 // 		super.addVariable(name, false, true, true, global, ldNodeInfo);
 
-		// Variables sueltas son usos, no definiciones y usos. Esto afecta a llamadas con objetos (b.foo() define b? Esto habrá que analizarlo y generar nodos en funcion de ello)
+		// Variables sueltas son usos, no definiciones y usos.
 		super.addVariable(name, nameExpression.resolve().getType().describe(),false, false, true, global, ldNodeInfo);
 	}
 

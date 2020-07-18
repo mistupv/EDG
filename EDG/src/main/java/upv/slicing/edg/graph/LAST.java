@@ -747,7 +747,7 @@ public class LAST extends GraphWithRoot {
 
 		if (edgeType == Edge.Type.Input) {
 
-			if (scopeChildren.size() == 0 || routineName.equals("<constructor>"))
+			if (scopeChildren.size() == 0 || scopeChildren.get(0).getType() == Node.Type.Type)//routineName.equals("<constructor>"))
 				return this.getChild(call, Node.Type.ArgumentIn);
 
 			objectVar = this.getScopeLeaf(scope);
