@@ -21,7 +21,7 @@ public class DotFactory {
 	// Edge types that will be ignored (none if empty)
 	static final List<Edge.Type> ignoreEdgeTypes = Arrays.asList();
 	// Edge types that will be included (all if empty)
-	static final List<Edge.Type> edgeTypes = Arrays.asList();
+	static final List<Edge.Type> edgeTypes = Arrays.asList(Edge.Type.Call, Edge.Type.Flow, Edge.Type.ObjectFlow, Edge.Type.Class);
 	// Lower and upper bound for node inclusion (both ends of an edge must be included for
 	// the edge to be included)
 	static final int lowerBound = Integer.MIN_VALUE;
@@ -95,6 +95,8 @@ public class DotFactory {
 	private static final Attribute PINK   = DefaultAttribute.createAttribute("pink");
 	private static final Attribute BROWN  = DefaultAttribute.createAttribute("brown");
 	private static final Attribute TURQUOISE  = DefaultAttribute.createAttribute("turquoise");
+	private static final Attribute DEEPPINK = DefaultAttribute.createAttribute("deeppink");
+	private static final Attribute SKYBLUE = DefaultAttribute.createAttribute("skyblue");
 	// Numbers
 	private static final Attribute ONE   = DefaultAttribute.createAttribute(1);
 	private static final Attribute TWO   = DefaultAttribute.createAttribute(2);
@@ -202,6 +204,12 @@ public class DotFactory {
 					attrs.put("constraint", FALSE);
 					attrs.put("style", DASHED);
 					break;
+				case CallReq:
+					attrs.put("color", SKYBLUE);
+					attrs.put("penwidth", TWO);
+					attrs.put("constraint", FALSE);
+					attrs.put("style", DASHED);
+					break;
 				case Output:
 					attrs.put("color", PINK);
 					attrs.put("penwidth", THREE);
@@ -222,6 +230,12 @@ public class DotFactory {
 					attrs.put("color", TURQUOISE);
 					attrs.put("penwidth", THREE);
 					attrs.put("constraint", FALSE);
+					break;
+				case Class:
+					attrs.put("color", DEEPPINK);
+					attrs.put("penwidth", TWO);
+					attrs.put("constraint", FALSE);
+					attrs.put("style", DASHED);
 					break;
 				default:
 					throw new RuntimeException("Edge type not contemplated: " + edgeType);

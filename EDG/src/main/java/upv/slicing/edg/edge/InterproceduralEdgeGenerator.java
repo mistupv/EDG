@@ -25,6 +25,10 @@ public class InterproceduralEdgeGenerator extends EdgeGenerator {
 
 			for( Node matchingClause : matchingClauses)
 				this.edg.addEdge(calleeResultNode, matchingClause, new Edge(Edge.Type.Call, new PhaseConstraint(Phase.Input)));
+
+			// Add an edge from the call to the definition of the static type class method
+			// if the dynamic types don't contain the static type.
+			this.addCallReqEdges(call);
 		}
 	}
 
@@ -124,7 +128,10 @@ public class InterproceduralEdgeGenerator extends EdgeGenerator {
 
 				return moduleNodes;
 			case Type:
-				return List.of(this.getModuleByName(scopeExprNode.getName(), modules));
+				Node module = this.getModuleByName(scopeExprNode.getName(), modules);
+				if (module != null)
+					return List.of(module);
+				return List.of();
 			// TODO:
 			// case FieldAccess:
 			// case DataConstructorAccess:
@@ -142,9 +149,11 @@ public class InterproceduralEdgeGenerator extends EdgeGenerator {
 
 					return List.of(edg.getAncestor(clauses.get(0),Node.Type.Module));
 				}
+				break;
 			default:
-				throw new RuntimeException("The caller module cannot be found: " + scopeExprNode.getType());
+				 throw new RuntimeException("The caller module cannot be found: " + scopeExprNode.getType());
 		}
+		return List.of();
 	}
 
 	private Node getModuleByName(String moduleName, List<Node> modules)
@@ -203,14 +212,14 @@ public class InterproceduralEdgeGenerator extends EdgeGenerator {
 		switch(arg.getType()){
 			case Literal:	// Only for primitive types
 				final LDASTNodeInfo ldNodeInfo = arg.getInfo();
-				final String construction = ldNodeInfo.getConstruction();
-				if (paramType.equals(construction))
+				final String argumentType = ldNodeInfo.getConstruction();
+				if (this.isValidJavaType(paramType, argumentType))
 					return true;
 				return false;
 
 			case Variable: // May be object or primitive type
 				Variable argument = (Variable) arg;
-				if (argument.getStaticType().equals(paramType))
+				if (this.isValidJavaType(paramType, argument.getStaticType()))
 					return true;
 
 				List<String> childrenTypes = edg.getChildrenClasses(paramType);
@@ -219,27 +228,125 @@ public class InterproceduralEdgeGenerator extends EdgeGenerator {
 			case Call:
 				String returnType = (String) arg.getInfo().getInfo()[0];
 
-				if (returnType.equals(paramType))
+				if (this.isValidJavaType(paramType, returnType))
 					return true;
 
 				List<String> childrenTypes0 = edg.getChildrenClasses(paramType);
 				return childrenTypes0.contains(returnType);
+
+			case TypeTransformation:
+				final Node type = edg.getChild(arg, Node.Type.Type);
+				if (this.isValidJavaType(paramType, type.getName()))
+					return true;
+
+				return false;
 
 			default: // TODO: the rest of types are non contemplated
 				throw new RuntimeException("This argument type is not considered");
 		}
 	}
 
-	public void generateIO()
-	{
-		final List<Node> calls = this.edg.getNodes(Node.Type.Call);
-		for (Node call : calls)
-			this.generateInputOutput(call);
+	public boolean isValidJavaType(String paramType, String argType){
+		if (paramType.equals(argType))
+			return true;
+
+		switch(argType){
+			case "byte":
+				switch(paramType){
+					case "short":
+					case "int":
+					case "long":
+					case "float":
+					case "double":
+						return true;
+					default:
+						return false;
+				}
+			case "short":
+			case "char":
+				switch(paramType){
+					case "int":
+					case "long":
+					case "float":
+					case "double":
+						return true;
+					default:
+						return false;
+				}
+			case "int":
+				switch(paramType){
+					case "long":
+					case "float":
+					case "double":
+						return true;
+					default:
+						return false;
+				}
+			case "long":
+				switch(paramType){
+					case "float":
+					case "double":
+						return true;
+					default:
+						return false;
+				}
+			case "float":
+				switch(paramType){
+					case "double":
+						return true;
+					default:
+						return false;
+				}
+			default:
+				return false;
+		}
+	}
+
+
+	public void addCallReqEdges(Node call){
+		final Node callee = edg.getChild(call, Node.Type.Callee);
+		final Node scopeNode = edg.getChild(callee, Node.Type.Scope);
+		final Node scopeExpr = edg.getScopeLeaf(scopeNode);
+
+		if (scopeExpr instanceof Variable) {
+			final Variable scopeVar = (Variable) scopeExpr;
+			if (scopeVar.getDynamicTypes().contains("StaticType") ||
+					scopeVar.getDynamicTypes().contains(scopeVar.getStaticType()))
+				return;
+
+			final Node nameNode = edg.getChild(callee, Node.Type.Name);
+			final List<Node> nameChildren = edg.getChildren(nameNode);
+
+			// Called routine
+			final Node routineNameNode = nameChildren.get(0);;
+			final String routineName = routineNameNode.getName();
+
+			final List<Node> modules = this.edg.getNodes(Node.Type.Module);
+			final Node callerModule = this.getModuleByName(scopeVar.getStaticType(), modules);
+			final ClassInfo moduleInfo = (ClassInfo) callerModule.getInfo().getInfo()[2];
+
+			final List<Node> possibleClauses = new LinkedList<>();
+			possibleClauses.addAll(moduleInfo.getMethods().get(routineName));
+			final List<Node> matchingClauses = this.getMatchingClauses(possibleClauses, call);
+
+			for (Node matchingClause : matchingClauses)
+				edg.addEdge(matchingClause, edg.getResFromNode(callee), Edge.Type.CallReq);
+		}
 	}
 
 	/* **************************************** */
 	/* *********** Input-Output edges ********* */
 	/* **************************************** */
+
+	public void generateIO()
+	{
+		final List<Node> calls = this.edg.getNodes(Node.Type.Call);
+		for (Node call : calls)
+			this.generateInputOutput(call);
+
+		this.addConstructorParamInDependences(); // TODO: Change the behaviour for a CFG of the static/dynamic_init
+	}
+
 	private void generateInputOutput(Node call)
 	{
 		final Node callee = edg.getChild(call, Node.Type.Callee);
@@ -336,7 +443,7 @@ public class InterproceduralEdgeGenerator extends EdgeGenerator {
 		paramChildren.removeIf(child -> child.getType() == Node.Type.Result);
 
 		for (Node argument : argChildren){
-			if (argument.getType() == Node.Type.PolymorphicCall){
+			if (argument.getType() == Node.Type.PolymorphicNode){
 				final String argumentClassName = argument.getName();
 				for (Node parameter : paramChildren)
 					if (parameter.getName().equals(argumentClassName))
@@ -362,7 +469,7 @@ public class InterproceduralEdgeGenerator extends EdgeGenerator {
 		final String routineName = edg.getParent(clause).getName();
 		final Node clauseRes = edg.getResFromNode(clause);
 		final Node callRes = edg.getResFromNode(call);
-		if (!routineName.equals("<constructor>"))
+		//if (!routineName.equals("<constructor>"))
 			this.edg.addEdge(clauseRes, callRes, new Edge(Edge.Type.Output, new PhaseConstraint(Phase.Output)));
 
 		final List<Node> clauseResChildren = edg.getChildren(clauseRes);
@@ -378,6 +485,27 @@ public class InterproceduralEdgeGenerator extends EdgeGenerator {
 						new Edge(Edge.Type.Output, new PhaseConstraint(Phase.Output)));
 		}
 	}
+
+	// TODO: @serperu Added to link implicit data members definitions to initializations in class
+	public void addConstructorParamInDependences() {
+		final List<Node> clauses = this.edg.getNodes(Node.Type.Clause);
+		for (Node clause : clauses)
+			if (edg.getParent(clause).getName().equals("<constructor>")){
+				final Node module = edg.getAncestor(clause, Node.Type.Module);
+				final ClassInfo ci = (ClassInfo) module.getInfo().getInfo()[2];
+				final Map<String,Node> variables = ci.getVariables();
+				final Node paramIn = edg.getChild(clause, Node.Type.ParameterIn);
+				final List<Node> paramInChildren = edg.getChildren(paramIn);
+				paramInChildren.removeIf(param -> param.getType() == Node.Type.Result);
+
+				for (Node param : paramInChildren){
+					final Node dMDef = variables.get(param.getName());
+					edg.addEdge(edg.getResFromNode(dMDef), edg.getResFromNode(param), Edge.Type.Flow);
+				}
+			}
+
+	}
+
 
 
 

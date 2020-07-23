@@ -318,7 +318,7 @@ public class ControlFlowTraverser {
 	}
 
 
-	// FlowEdgeGeneratorNew
+	// FlowEdgeGenerator
 
 	public static Set<Node> step(LAST last, Node node, LAST.Direction direction)
 	{

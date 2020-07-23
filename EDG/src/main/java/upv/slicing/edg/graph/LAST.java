@@ -717,6 +717,7 @@ public class LAST extends GraphWithRoot {
 		final Node scopeExpr = children.get(0);
 		switch(scopeExpr.getType())
 		{
+			case Literal:
 			case Reference:
 			case Variable:
 				return scopeExpr;
@@ -753,7 +754,7 @@ public class LAST extends GraphWithRoot {
 			objectVar = this.getScopeLeaf(scope);
 
 			// If the scope node is a reference to super or this the arguments are located in ArgumentIn node
-			if (objectVar.getType() == Node.Type.Reference)
+			if (objectVar.getType() == Node.Type.Literal)
 				return this.getChild(call, Node.Type.ArgumentIn);
 
 		} else {
@@ -769,8 +770,11 @@ public class LAST extends GraphWithRoot {
 				return argOut;
 
 			for (Node child : argOutChildren)
-				if (child.getName().equals(scopeVar.getName()))
+				if (child.getName().equals(scopeVar.getName())) {
+					if (!this.getChildren(child).get(0).getName().contains("."))
+						continue;
 					objectVar = child;
+				}
 
 			if (objectVar == null)
 				return argOut;

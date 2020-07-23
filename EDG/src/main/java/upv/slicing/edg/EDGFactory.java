@@ -76,6 +76,7 @@ public class EDGFactory {
 	private void generateDependencies()
 	{
 		new ControlEdgeGenerator(edg).generate();
+		new ModuleEdgeGenerator(edg).generate();
 
 		InterproceduralEdgeGenerator ieg = new InterproceduralEdgeGenerator(edg);
 		if (isOOLanguage)

@@ -15,7 +15,8 @@ public class Edge
 		Value, Flow,
 		Call, Input, Output, Summary,
 		Exception,
-		TotalDefinition, ObjectFlow
+		TotalDefinition, ObjectFlow,
+		Class, CallReq
 	}
 
 	private boolean mark;

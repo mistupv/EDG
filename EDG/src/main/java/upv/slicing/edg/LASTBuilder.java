@@ -570,6 +570,8 @@ public class LASTBuilder {
 		children.removeIf(n -> n.getType() == Node.Type.Result);
 
 		final Map<String, List<Node>> methods = new HashMap<>();
+		methods.put("<constructor>", new LinkedList<>());
+
 		final Map<String, Node> variables = new HashMap<>();
 		
 		for (Node child : children)
@@ -974,7 +976,7 @@ public class LASTBuilder {
 			case ParameterOut:
 			case ArgumentIn:
 			case ArgumentOut:
-			case PolymorphicCall:
+			case PolymorphicNode:
 			case Variable:
 			case Result:
 				if (where == null)

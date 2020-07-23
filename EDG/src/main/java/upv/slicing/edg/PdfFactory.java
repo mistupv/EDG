@@ -59,6 +59,47 @@ public class PdfFactory
 		}
 	}
 
+	public static void createSvg(File outputFile, EDG edg, Node slicingCriterion, Set<Node> slice)
+	{
+		PdfFactory.createSvg(outputFile, edg, slicingCriterion, slice, null);
+	}
+
+	public static void createSvg(File outputFile, EDG edg, Node slicingCriterion, Set<Node> slice, Map<Edge.Type, Boolean> edgeFlags)
+	{
+		final File dotOutputFile;
+		try {
+			dotOutputFile = File.createTempFile("PdfFactory-graph", ".dot");
+		} catch (IOException e) {
+			e.printStackTrace();
+			return;
+		}
+
+		DotFactory.createDot(dotOutputFile, edg, slicingCriterion, slice, edgeFlags);
+		PdfFactory.createSvg(outputFile, dotOutputFile);
+		dotOutputFile.delete();
+	}
+
+	public static void createSvg(File outputFile, File dotFile)
+	{
+		try
+		{
+			final String dotPath = dotFile.getAbsolutePath();
+			final String outputPath = outputFile.getAbsolutePath();
+			final Process process = new ProcessBuilder()
+					.command("dot", "-Tsvg", "-o", outputPath, dotPath)
+					.inheritIO()
+					.start();
+
+			int result = process.waitFor();
+			if (result != 0)
+				throw new Exception("Error generating pdf from dot file, exit code: " + result);
+		}
+		catch (Exception e)
+		{
+			e.printStackTrace();
+		}
+	}
+
 	private PdfFactory()
 	{
 		

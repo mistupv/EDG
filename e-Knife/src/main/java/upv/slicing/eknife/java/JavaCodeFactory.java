@@ -42,7 +42,7 @@ public class JavaCodeFactory {
 		final String text = cu.toString();
 
 		// SHOW CODE IN TERMINAL
-		System.out.println("\n" + text);
+		// System.out.println("\n" + text);
 
 		outputFile.delete();
 		try (PrintWriter writer = new PrintWriter(outputFile)) {
@@ -589,7 +589,7 @@ public class JavaCodeFactory {
 
 		// TODO: UPDATE AFTER DELETING ITERATOR NODE
 		final Node iterator = edg.getChild(foreach, Node.Type.Iterator);
-		final Node generator = edg.getChild(iterator, Node.Type.Iterator);
+		final Node generator = edg.getChild(iterator, 0);
 		final Node variableDeclaration = edg.getChild(generator, Node.Type.Variable);
 		final Node iterable = edg.getChild(generator, Node.Type.Iterator);
 
@@ -938,14 +938,7 @@ public class JavaCodeFactory {
 		final NodeList<Modifier> modifiers = (NodeList<Modifier>) ldNodeInfo.getInfo()[0];
 
 		final NodeList<VariableDeclarator> variableDeclarator = new NodeList<>();
-		// TODO: This behaviour will be no longer needed after object flow dependence and total definition dependence
-		if (type instanceof PrimitiveType)
-			variableDeclarator.add(new VariableDeclarator(type, name));
-		else
-		{
-			final Expression initializer = new ObjectCreationExpr(null, (ClassOrInterfaceType) type, new NodeList<>());
-			variableDeclarator.add(new VariableDeclarator(type, name, initializer));
-		}
+		variableDeclarator.add(new VariableDeclarator(type, name));
 		return List.of(new VariableDeclarationExpr(new NodeList<>(modifiers), variableDeclarator));
 	}
 
@@ -966,8 +959,13 @@ public class JavaCodeFactory {
 		final List<Expression> targetExprs = this.parseExpression(target);
 		final List<Expression> valueExprs = this.parseExpression(value);
 
-		if (!targetExprs.isEmpty() && !valueExprs.isEmpty())
-			return List.of(new AssignExpr(targetExprs.get(0), valueExprs.get(0), AssignExpr.Operator.ASSIGN));
+		if (!targetExprs.isEmpty() && !valueExprs.isEmpty()) {
+			AssignExpr.Operator assignOp = AssignExpr.Operator.ASSIGN;
+			final Object[] info = definition.getInfo().getInfo();
+			if (info.length != 0)
+				assignOp = (AssignExpr.Operator) info[0];
+			return List.of(new AssignExpr(targetExprs.get(0), valueExprs.get(0), assignOp));
+		}
 		if (!targetExprs.isEmpty())
 			return targetExprs;
 		return valueExprs;
@@ -1463,7 +1461,8 @@ public class JavaCodeFactory {
 			case "array creation": // TODO: TREAT THESE TYPES ACCORDINGLY
 				throw new RuntimeException("Returning a null also returns in a broken slicer :/");
 			default:
-				return new ObjectCreationExpr(null, new ClassOrInterfaceType(type), new NodeList<>());
+				return new NullLiteralExpr();
+				// return new ObjectCreationExpr(null, new ClassOrInterfaceType(type), new NodeList<>());
 		}
 	}
 
@@ -1618,6 +1617,9 @@ public class JavaCodeFactory {
 		final Node callee = edg.getChild(call, Node.Type.Callee);
 		final Node scope = edg.getChild(callee, Node.Type.Scope);
 		final Node name = edg.getChild(callee, Node.Type.Name);
+
+		if (edg.getChildren(scope).size() == 0)
+			return false;
 
 		final Node scopeValue = edg.getChild(scope, Value);
 		final Node nameValue = edg.getChild(name, Value);

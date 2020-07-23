@@ -5,7 +5,6 @@ import upv.slicing.edg.constraint.*;
 import upv.slicing.edg.graph.*;
 import upv.slicing.edg.slicing.ConstrainedAlgorithm;
 import upv.slicing.edg.slicing.Phase;
-import upv.slicing.edg.slicing.SlicingAlgorithm;
 import upv.slicing.edg.work.NodeWork;
 import upv.slicing.edg.work.Work;
 import upv.slicing.edg.work.WorkList;
@@ -143,7 +142,7 @@ public class SummaryEdgeGenerator extends EdgeGenerator {
 			definitionChildren.removeIf(child -> child.getType() == Node.Type.Result);
 			for (Node child : definitionChildren) {
 				final Node childRes = edg.getResFromNode(child);
-				if (childRes.getType() != Node.Type.PolymorphicCall)
+				if (childRes.getType() != Node.Type.PolymorphicNode)
 					workList.add(new NodeWork(childRes, childRes, new Constraints()));
 				this.addChildrenResults(child, workList);
 			}
@@ -185,8 +184,8 @@ public class SummaryEdgeGenerator extends EdgeGenerator {
 	}
 
 	private boolean sharePolymorphicPath(Node node, Node formalOut){
-		final Node polymorphicNodeIn = edg.getAncestor(node, Node.Type.PolymorphicCall);
-		final Node polymorphicNodeOut = edg.getAncestor(formalOut, Node.Type.PolymorphicCall);
+		final Node polymorphicNodeIn = edg.getAncestor(node, Node.Type.PolymorphicNode);
+		final Node polymorphicNodeOut = edg.getAncestor(formalOut, Node.Type.PolymorphicNode);
 		if (polymorphicNodeIn == null)
 			return true;
 		if (!polymorphicNodeIn.getName().equals(polymorphicNodeOut.getName()))

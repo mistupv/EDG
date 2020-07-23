@@ -22,7 +22,7 @@ public class Node implements Visitable {
 		Block, Operation, Equality, Pattern, Enclosed,
 		If, Condition(true), Then, Else,
 		Switch, Selector(true), Cases(true), Case, DefaultCase, Selectable(true),
-		Call, Callee, Scope(true), Name(true), Arguments(true), PolymorphicCall,
+		Call, Callee, Scope(true), Name(true), Arguments(true), PolymorphicNode,
 		ListComprehension, Restrictions(true), Generator, Filter, Value(true),
 		Loop, // <- DEPRECATED USED IN PHP
 		CLoop, FLoop, RLoop, Foreach, Iterator, // LOOPS

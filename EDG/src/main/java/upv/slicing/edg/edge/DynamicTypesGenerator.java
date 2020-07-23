@@ -74,6 +74,7 @@ public class DynamicTypesGenerator extends EdgeGenerator {
                         final List<String> varTypes = new LinkedList<>();
                         varTypes.add(var.getStaticType());
                         work.dynTypeMap.put(var.getName(), varTypes);
+                        var.setDynamicTypes(varTypes);
                     } else {
                         switch (var.getContext()) {
                             case Use:

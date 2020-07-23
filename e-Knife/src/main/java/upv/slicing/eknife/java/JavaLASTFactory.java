@@ -228,7 +228,7 @@ public class JavaLASTFactory extends LASTFactory {
 		else
 		{
 			final ClassOrInterfaceType extendedClassName = extended.get(0);
-			extended0 = extendedClassName.toString();
+			extended0 = extendedClassName.getName().toString();
 		}
 
 		final NodeList<ClassOrInterfaceType> implemented = _class.getImplementedTypes();
@@ -602,21 +602,27 @@ public class JavaLASTFactory extends LASTFactory {
 	private void process(AssignExpr assignation)
 	{
 		final long line = assignation.getRange().get().begin.line;
-		//final LDASTNodeInfo ldNodeInfo0 = new LDASTNodeInfo(line, "var");
-		//final Variable target = new Variable(assignation.getTarget(), false, true, false, ldNodeInfo0); // TODO This is not always a variable
-		final Object target = this.treatExpression(assignation.getTarget(), false, true, false, line);
 		final Object value = this.treatExpression(assignation.getValue(), false, false, true, line);
-		final String operator = assignation.getOperator().asString();
+		final AssignExpr.Operator operator = assignation.getOperator();
 		final LDASTNodeInfo ldNodeInfo;
-
-		if (operator.equals("="))
-		{
-			ldNodeInfo = new LDASTNodeInfo(line, true, "assign");
-			super.addEquality(target, value, ldNodeInfo);
-		} else
-		{
-			ldNodeInfo = new LDASTNodeInfo(line, true, "assign", operator);
-			super.addEquality(operator, target, value, ldNodeInfo);
+		final Object target;
+		switch(operator){
+			case ASSIGN:
+				ldNodeInfo = new LDASTNodeInfo(line, true, "assign");
+				target = this.treatExpression(assignation.getTarget(), false, true, false, line);
+				super.addEquality(target, value, ldNodeInfo);
+				break;
+			case PLUS:
+			case MINUS:
+			case DIVIDE:
+			case MULTIPLY:
+			case BINARY_AND:
+			case BINARY_OR:
+			default:
+				ldNodeInfo = new LDASTNodeInfo(line, true, "assign", operator);
+				target = this.treatExpression(assignation.getTarget(), false, true, true, line);
+				super.addEquality(operator.asString(), target, value, ldNodeInfo);
+				break;
 		}
 	}
 
@@ -663,7 +669,7 @@ public class JavaLASTFactory extends LASTFactory {
 
 		final boolean staticCall = methodCall.resolve().isStatic();
 
-		if (staticCall)
+		if (staticCall && scope != null)
 			super.addStaticCall(scope.asNameExpr().getName().asString(), function, arguments, ldNodeInfo);
 		else
 			super.addCall(scope, function, arguments, ldNodeInfo);
@@ -688,11 +694,26 @@ public class JavaLASTFactory extends LASTFactory {
 		final long line = unaryExpression.getRange().get().begin.line;
 		final String operation = unaryExpression.getOperator().asString();
 		final boolean isPostfix = unaryExpression.isPostfix(); // DECIDIR SI ES ++i o i++ 
-		//final LDASTNodeInfo ldNodeInfo = new LDASTNodeInfo(line, "unary", postfix);
-		final LDASTNodeInfo ldNodeInfo = new LDASTNodeInfo(line, true, "unary", isPostfix);
+		final Expression innerExpr = unaryExpression.getExpression();
+		if (innerExpr instanceof LiteralExpr) {
+			final String construction;
+			if (innerExpr instanceof CharLiteralExpr)
+				construction = "char";
+			else if (innerExpr instanceof DoubleLiteralExpr)
+				construction = "double";
+			else if (innerExpr instanceof IntegerLiteralExpr)
+				construction = "int";
+			else
+				construction = "long";
 
-		final Object operand = this.treatExpression(unaryExpression.getExpression(), false, true, true, line);
-		super.addUnaryOperation(operation, operand, ldNodeInfo);
+			final LDASTNodeInfo ldNodeInfo0 = new LDASTNodeInfo(line, true, construction);
+			super.addLiteral(operation + innerExpr.toString(), ldNodeInfo0);
+		}
+		else{
+			final LDASTNodeInfo ldNodeInfo = new LDASTNodeInfo(line, true, "unary", isPostfix);
+			final Object operand = this.treatExpression(innerExpr, false, true, true, line);
+			super.addUnaryOperation(operation, operand, ldNodeInfo);
+		}
 	}
 
 	private void process(ObjectCreationExpr objectCreationExpression)
@@ -824,6 +845,7 @@ public class JavaLASTFactory extends LASTFactory {
 		// ((A) o).x		EnclosedExpr		SimpleName				Casting Type
 		// a[3].x			ArrayAccessExpr		SimpleName				a[] type
 		// f(5).x			MethodCallExpr		SimpleName				return type
+		// this.x
 
 		// TODO: Any kind of expression can be allowed here Example: TernaryExpr.
 		//  We need a mechanism to obtain the final type of an expression and a correct
@@ -893,8 +915,20 @@ public class JavaLASTFactory extends LASTFactory {
 			super.addFieldAccess(initialScopeExpr, nameVar, ldNodeInfo);
 
 		}
-		else
-			throw new RuntimeException("The provided scope type has not been considered");
+		else if (scopeExpr.isThisExpr()) {
+
+			final NameExpr expr = (NameExpr) scopeExpr;
+			scopeType = expr.resolve().getType().describe();
+			final Variable scopeVar = new Variable(expr.getName(), expr.getNameAsString(), scopeType,
+					false, true, true, new LDASTNodeInfo(line, true, "var"));
+
+			final boolean patternZone = (boolean) info.get("patternZone");
+			final Variable nameVar = new Variable(nameExpr, expr.getNameAsString() + "." + nameExpr.asString(), scopeType,false, patternZone, !patternZone, new LDASTNodeInfo(line, true, "var"));
+			super.addFieldAccess(scopeVar, nameVar, ldNodeInfo);
+
+			// TODO: Field Accesses with 'this.x'
+			throw new RuntimeException("The provided scope type has not been considered: "+ scopeExpr.toString());
+		}
 	}
 
 	private void process(NameExpr nameExpression)
@@ -910,8 +944,7 @@ public class JavaLASTFactory extends LASTFactory {
 		final boolean isStaticClassname = newContextVariable0 == null;
 
 		final Object[] info;
-		if (!isStaticClassname)
-		{
+		if (!isStaticClassname) {
 			info = new Object[2];
 			info[0] = newContextVariable0.varModifiers;
 			info[1] = newContextVariable0.varType;
