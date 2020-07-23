@@ -12,6 +12,7 @@ import java.util.stream.Collectors;
 
 public class FlowEdgeGenerator extends EdgeGenerator {
 
+	/** Contains the GV definitions and uses together with the number of possible paths in a function definition */
 	private static class DefUseState {
 		private int numOfPaths = 0;
 		private final Set<VarTypeInfo> uses;
@@ -51,8 +52,39 @@ public class FlowEdgeGenerator extends EdgeGenerator {
 		public int hashCode() {
 			return Objects.hash( uses, definitions);
 		}
+	}
+	/** Contains a variable name and its static type */
+	private static class VarTypeInfo {
+		String variable;
+		String type;
+
+		private VarTypeInfo(String var, String type)
+		{
+			this.variable = var;
+			this.type = type;
+		}
+		public String toString() {
+			return this.type + " " + this.variable;
+		}
+
+		public boolean equals(Object o) {
+			if (o == this)
+				return true;
+			if (!(o instanceof VarTypeInfo))
+				return false;
+
+			final VarTypeInfo vti = (VarTypeInfo) o;
+			return Objects.equals(this.variable, vti.variable) &&
+					Objects.equals(this.type, vti.type);
+		}
+
+		public int hashCode() {
+			return Objects.hash(variable, type);
+		}
 
 	}
+	/** Used in the function CFG traversal to compute the GV defined and used. Contains the clause
+	 * node of the function, the current traversal node and the current state of the traversal (DefUseState) */
 	private static class State {
 		private final Node clauseNode;
 		private final Node traversalNode;
@@ -88,6 +120,8 @@ public class FlowEdgeGenerator extends EdgeGenerator {
 			return Objects.hash(traversalNode.getId(), defUseState);
 		}
 	}
+	/** Used in the CFG traversal to generate Flow/Object-Flow dependences. Contains all the info related to
+	 * declarations, definitions (object and primitive), point-to-sets and last object total definitions */
 	public static class EdgeGenState {
 		private final Node node;
 		private final Map <String,Node> defPrimitiveMap;
@@ -133,34 +167,35 @@ public class FlowEdgeGenerator extends EdgeGenerator {
 			return Objects.hash(node.getId(), defPrimitiveMap, defObjectMap, decMap, totalDef, pointToSets);
 		}
 	}
-	private static class VarTypeInfo {
-		String variable;
-		String type;
+	/** Structure used in the "return a" statements when a is an object variable. It is used in the backwards
+	 * traversal from the retuned variable to determine where the last data member definitions are located. */
+	private static class VarNodeDM {
+		Node node;
+		List<Node> dMDefs;
 
-		private VarTypeInfo(String var, String type)
-		{
-			this.variable = var;
-			this.type = type;
+		public VarNodeDM(Node node, List<Node> definitions){
+			this.node = node;
+			this.dMDefs = definitions;
 		}
+
 		public String toString() {
-			return this.type + " " + this.variable;
+			return this.node + " " + this.dMDefs;
 		}
 
 		public boolean equals(Object o) {
 			if (o == this)
 				return true;
-			if (!(o instanceof VarTypeInfo))
+			if (!(o instanceof VarNodeDM))
 				return false;
 
-			final VarTypeInfo vti = (VarTypeInfo) o;
-			return Objects.equals(this.variable, vti.variable) &&
-					Objects.equals(this.type, vti.type);
+			final VarNodeDM vn = (VarNodeDM) o;
+			return Objects.equals(this.node, vn.node) &&
+					Objects.equals(this.dMDefs, vn.dMDefs);
 		}
 
 		public int hashCode() {
-			return Objects.hash(variable, type);
+			return Objects.hash(node, dMDefs);
 		}
-
 	}
 
 	public FlowEdgeGenerator(EDG edg) {
@@ -173,6 +208,8 @@ public class FlowEdgeGenerator extends EdgeGenerator {
 		this.createArgInOutNodes(); // Add defined and used GV to arg-in and arg-out of call nodes modifying the CFG
 		this.addEdges();
 		this.addOrphanClauseEdges();
+
+		this.addConstructorSuperEdges(); // Join constructor clauses with the call of super() to include it in the slice
 	}
 
 	/** Map that contains each clause with definitions and uses of global variables */
@@ -209,7 +246,7 @@ public class FlowEdgeGenerator extends EdgeGenerator {
 		final State initialWork = new State(initialNode, initialNode);
 		pendingWorks.add(initialWork);
 
-		boolean anySuspended = processWorks(suspendedWorks, resolvedClauses, pendingWorks, clauseMap);
+		final boolean anySuspended = processWorks(suspendedWorks, resolvedClauses, pendingWorks, clauseMap);
 
 		if (!anySuspended)
 			resolvedClauses.add(initialNode);
@@ -221,9 +258,11 @@ public class FlowEdgeGenerator extends EdgeGenerator {
 	public boolean processWorks(Map<Node,Set<State>> suspendedWorks, List<Node> resolvedClauses,
 							 Set<State> pendingWorks, Map<Node,DefUseState> usedClauseMap)
 	{
+		final Node clauseNode = pendingWorks.iterator().next().clauseNode;
 		final Set<State> doneWorks = new HashSet<>();
 		boolean suspended = false;
 		boolean pendingCFGPath = false;
+
 		while (!pendingWorks.isEmpty()) {
 			final State work = pendingWorks.iterator().next();
 			final Node workNode = work.traversalNode;
@@ -255,13 +294,31 @@ public class FlowEdgeGenerator extends EdgeGenerator {
 					if (resolvedClauses.contains(calledClause)) {
 						final Node nameNode = edg.getChild(callee, Node.Type.Name);
 						final String funName = edg.getChild(nameNode, 0).getName();
-						DefUseState defUses = usedClauseMap.get(calledClause);;
+						DefUseState defUses = usedClauseMap.get(calledClause);
+
+						// Scope info
+						final Node scope = edg.getChild(callee, Node.Type.Scope);
+
+						// This and super calls in constructor methods does not define more GVs
 						if (funName.equals("<constructor>")) {
-							final Node scope = edg.getChild(callee, Node.Type.Scope);
 							final Node scopeExpr = edg.getChild(scope, Node.Type.Value);
 							final String scopeName = scopeExpr.getName();
 							if (!scopeName.equals("this") && !scopeName.equals("super"))
 								defUses = new DefUseState();
+							else
+								// TODO: @serperu Added for constructor implicit definitions
+								defUses = new DefUseState(new HashSet<>(), defUses.definitions);
+						}
+						// If the scope of the call is an object, the GV definitions are not propagated
+						else{
+							if (edg.getChildren(scope).size() > 0) {
+								final Node scopeExpr = edg.getChild(scope, Node.Type.Value);
+								if (scopeExpr.getType() == Node.Type.Variable) {
+									Variable scopeVar = (Variable) scopeExpr;
+									if (scopeVar.isObjectType())
+										defUses = new DefUseState();
+								}
+							}
 						}
 
 						this.treatCall(work, defUses);
@@ -281,6 +338,10 @@ public class FlowEdgeGenerator extends EdgeGenerator {
 			final Set<Node> nextNodes = ControlFlowTraverser.step(this.edg, workNode, LAST.Direction.Forwards);
 			nextNodes.forEach(nextNode -> pendingWorks.add(new State(work.clauseNode, nextNode, new DefUseState(work.defUseState.uses, work.defUseState.definitions))));
 		}
+
+		if (!pendingCFGPath) // TODO: @serperu Added for constructor implicit definitions
+			this.addNonDefinedConstructorDataMembers(clauseNode);
+
 		return pendingCFGPath;
 	}
 
@@ -554,6 +615,26 @@ public class FlowEdgeGenerator extends EdgeGenerator {
 		}
 	}
 
+	public void addNonDefinedConstructorDataMembers(Node clause){
+		if (edg.getParent(clause).getName().equals("<constructor>")) {
+			final Node module = edg.getAncestor(clause, Node.Type.Module);
+			final ClassInfo ci = (ClassInfo) module.getInfo().getInfo()[2];
+			final DefUseState dus = clauseMap.get(clause);
+
+			final Map<String, Node> variables = ci.getVariables();
+			for (Node value : variables.values()) {
+				Variable valueVar = (Variable) value;
+				final VarTypeInfo item = new VarTypeInfo(valueVar.getName(), valueVar.getStaticType());
+				if (dus.definitions.contains(item))
+					continue;
+				dus.definitions.add(item);
+				dus.uses.add(item);
+			}
+		}
+	}
+
+
+
 	// ----------------------------------------------------------------------------------- //
 	// ------ CREATE NODES IN PARAMETER IN AND PARAMETER OUT OF METHOD DECLARATIONS ------ //
 	// ----------------------------------------------------------------------------------- //
@@ -623,7 +704,7 @@ public class FlowEdgeGenerator extends EdgeGenerator {
 					break;
 				default:
 					final Node objectVar;
-					if (container.getType() == Node.Type.PolymorphicCall)
+					if (container.getType() == Node.Type.PolymorphicNode)
 						objectVar = edg.getParent(container);
 					else
 						objectVar = container;
@@ -657,6 +738,103 @@ public class FlowEdgeGenerator extends EdgeGenerator {
 			for (Edge incomingEdge : incomingEdges)
 				edg.removeEdge(incomingEdge);
 		}
+	}
+
+
+	public void createVariableReturnObjectsStructures(List<Node> returns, Set<Node> pendingResClauses){
+		for (Node ret : returns) {
+			final Node returnExpr = edg.getChildren(ret).get(0);
+			if (returnExpr.getType() == Node.Type.Variable && ((Variable) returnExpr).isObjectType()){
+				final Node clause = edg.getAncestor(ret, Node.Type.Clause);
+				final Node clauseRes = edg.getResFromNode(clause);
+				final List<Node> clauseResDescendants = edg.getDescendants(clauseRes);
+				clauseResDescendants.removeIf(node -> node.getType() == Node.Type.Result);
+				final List<Node> lastDefinitions = this.getLastDefinitions((Variable) returnExpr);
+				for (Node def : lastDefinitions){
+					final Variable varDef = (Variable) def;
+					final Edge.Type edgeType = varDef.isObjectType() ? Edge.Type.ObjectFlow : Edge.Type.Flow;
+					final String searchName = "call" + varDef.getName().substring(varDef.getName().indexOf("."));
+					Node descendantNode = this.getDMNode(searchName, clauseResDescendants);
+					// TODO: Reconstruct the object tree
+					if (descendantNode == null){
+						// long count = searchName.chars().filter(ch -> ch == '.').count();
+						final String newVarName = "call" + varDef.getName().substring(varDef.getName().indexOf("."),
+								varDef.getName().lastIndexOf("."));
+						final Node newNode = this.copyVariable(varDef, newVarName, clauseRes, false, false);
+						clauseResDescendants.add(newNode);
+						descendantNode = newNode;
+					}
+					edg.addEdge(edg.getResFromNode(def), edg.getResFromNode(descendantNode), edgeType);
+				}
+				if (!pendingResClauses.contains(clause))
+					pendingResClauses.add(clause);
+			}
+		}
+	}
+
+	// THIS FIRST VERSION IGNORES ALIAS ASSIGNMENTS
+	public List<Node> getLastDefinitions(Variable var){
+		final String varName = var.getName();
+		final List<Node> lastDMDefinitions = new LinkedList<>();
+		final Set<VarNodeDM> pendingWorks = new HashSet<>();
+		pendingWorks.add(new VarNodeDM(var, new LinkedList<>()));
+		final Set<Node> doneWorks = new HashSet<>();
+
+		while(!pendingWorks.isEmpty()) {
+			final VarNodeDM currentWork = pendingWorks.iterator().next();
+			pendingWorks.remove(currentWork);
+			final Node currentNode = currentWork.node;
+			final List<Node> definitions = currentWork.dMDefs;
+
+			if (doneWorks.contains(currentWork))
+				continue;
+
+			if (currentNode.getType() == Node.Type.Variable) {
+				final Variable currentVar = (Variable) currentNode;
+				if (currentVar.getName().equals(varName))
+					if (this.isTotalDefinition(currentVar)) {
+						// TODO: Consider alias assignments
+						this.fillDMDefinitions(currentVar, definitions);
+						lastDMDefinitions.addAll(definitions);
+						continue;
+					}
+				if (currentVar.getName().startsWith(varName + "."))
+					if (!this.containsDMDef(currentVar.getName(), definitions))
+						definitions.add(currentVar);
+			}
+
+			doneWorks.add(currentNode);
+			final Set<Node> nextNodes = ControlFlowTraverser.step(this.edg, currentNode, LAST.Direction.Backwards);
+			nextNodes.forEach(nextNode -> pendingWorks.add(new VarNodeDM(nextNode, new LinkedList<>(definitions))));
+		}
+
+		return lastDMDefinitions;
+	}
+
+	public void fillDMDefinitions(Variable var, List<Node> dMDefs){
+		final List<Node> varChildren = edg.getChildren(var);
+		for (Node varChild : varChildren){ // TODO: Polymorphic Nodes as varChildren not contemplated
+			if (varChild.getType() == Node.Type.Variable){
+				if (!this.containsDMDef(varChild.getName(), dMDefs))
+					dMDefs.add(varChild);
+				if (((Variable) varChild).isObjectType())
+					fillDMDefinitions((Variable) varChild, dMDefs);
+			}
+		}
+	}
+
+	public boolean containsDMDef(String itemName, List<Node> defs){
+		for (Node def : defs)
+			if (def.getName().equals(itemName))
+				return true;
+		return false;
+	}
+
+	public Node getDMNode(String itemName, List<Node> defs){
+		for (Node def : defs)
+			if (def.getName().equals(itemName))
+				return def;
+		return null;
 	}
 
 	/** Limit of unfolding levels for objects parameters */
@@ -724,6 +902,10 @@ public class FlowEdgeGenerator extends EdgeGenerator {
 				final Variable var = (Variable) variables.get(varName);
 				final Node DMNode = this.addDefinitionVarCopy(polymorphicNode, param,
 						param.getName()+ "." + varName, var.getStaticType(), var.isGlobal());
+				// TODO: replace
+				// final Node DMNode = this.copyVariable(param, param.getName()+ "." + varName,
+				// 		polymorphicNode,true, var.isGlobal());
+
 				dataMembers.add((Variable) DMNode);
 			}
 		}
@@ -759,7 +941,9 @@ public class FlowEdgeGenerator extends EdgeGenerator {
 
 
 	public Node copyVariable(Variable var, Node container, boolean isDefinition, boolean isGlobal){
-		return copyVariable(var, var.getName(), container, isDefinition, isGlobal);
+		final String newVarName = var.getName().contains(".") ?
+				var.getName().substring(0, var.getName().lastIndexOf(".")) : var.getName();
+		return copyVariable(var, newVarName, container, isDefinition, isGlobal);
 	}
 
 	public Node copyVariable(Variable var, String newVarName, Node container, boolean isDefinition, boolean isGlobal){
@@ -801,7 +985,7 @@ public class FlowEdgeGenerator extends EdgeGenerator {
 
 		for (Node varNode : children) {
 			final Node newContainer;
-			if (varNode.getType() == Node.Type.PolymorphicCall) {
+			if (varNode.getType() == Node.Type.PolymorphicNode) {
 				isPolymorphicLvl = true;
 				newContainer = this.addPolymorphicNode(container, varNode.getName());
 				// The control flow is independent for each Polymorphic Type
@@ -811,7 +995,7 @@ public class FlowEdgeGenerator extends EdgeGenerator {
 			}
 			else {
 				Variable var = (Variable) varNode;
-				final String newVarName = container.getType() == Node.Type.PolymorphicCall ?
+				final String newVarName = container.getType() == Node.Type.PolymorphicNode ?
 						edg.getParent(container).getName() : container.getName();
 				newContainer = this.copyVariable(var, newVarName, container, isDefinition, false);
 			}
@@ -839,6 +1023,13 @@ public class FlowEdgeGenerator extends EdgeGenerator {
 				this.addCallStructures(clause);
 		}
 
+		// Methods that return an object created inside the function as a variable use:
+		// A a = new A(1,2);
+		// return a;
+		// This process allows to accurately access the data members of "a" inter-procedurally
+		final List<Node> returnNodes = edg.getNodes(Node.Type.Return);
+		this.createVariableReturnObjectsStructures(returnNodes, pendingResClauses);
+
 		// Methods that return object creations
 		while (!pendingResClauses.isEmpty()){
 			final Node clause = pendingResClauses.iterator().next();
@@ -864,7 +1055,7 @@ public class FlowEdgeGenerator extends EdgeGenerator {
 			final Node callResult = edg.getResFromNode(call);
 
 			// Edge from the callee result to the ArgOut node
-			edg.addEdge(edg.getEdgeSource(edge), argOut, Edge.Type.Flow);
+			edg.addEdge(edg.getEdgeSource(edge), argOut, Edge.Type.Value);
 
 			// Objects created but not directly assigned
 			if (callParent.getType() != Node.Type.Equality) {
@@ -873,14 +1064,14 @@ public class FlowEdgeGenerator extends EdgeGenerator {
 					final Node scopeExpr = edg.getChild(scope, Node.Type.Value);
 					final String scopeName = scopeExpr.getName();
 					if (scopeName.equals("this") || scopeName.equals("super"))
-						this.addDefinitionVarCopy(callResult, call, def.variable, def.type);
+						this.addDefinitionVarCopy(callResult, call, def.variable, def.type, false);
 					else
-						this.addDefinitionVarCopy(callResult, call, "call." + def.variable, def.type);
+						this.addDefinitionVarCopy(callResult, call, "call." + def.variable, def.type, false);
 				}
 				if (callParent.getType() == Node.Type.Return){
 					final Node callClause = edg.getAncestor(callParent, Node.Type.Clause);
 					final Node callClauseRes = edg.getResFromNode(callClause);
-					this.copyChildren(callResult, callClauseRes, false);
+					this.copyChildren(callResult, callClauseRes, false, false);
 					pendingResClauses.add(callClause);
 				}
 			}
@@ -976,7 +1167,6 @@ public class FlowEdgeGenerator extends EdgeGenerator {
 			final Node param = paramList.get(index);
 
 			if (possibleTypes.contains("StaticType")){
-				// TODO: Possibility to join arguments and parameters. Interprocedural arcs.
 				this.copySubtree(param, arg, false);
 			}
 			else{
@@ -1002,7 +1192,12 @@ public class FlowEdgeGenerator extends EdgeGenerator {
 				// Unfold object in argument out node
 				final Node argumentOut = edg.getChild(edg.getParent(argumentsNode), Node.Type.ArgumentOut);
 				final Node outArgVar = this.copyVariable((Variable) arg, argumentOut, true, false);
+
 				this.copySubtree(arg, outArgVar, true);
+
+				// Solution for the connection between in and out object pointers
+				// TODO: Review this solution
+				edg.addEdge(arg, outArgVar, Edge.Type.Summary);
 			}
 		}
 	}
@@ -1029,8 +1224,8 @@ public class FlowEdgeGenerator extends EdgeGenerator {
 	}
 
 
-	/** Completes those methods that returns an object creation treat the recursive return.
-	 * This method only add the corresponding structure to the result node */
+	/** Completes those methods that return an object creation.
+	 * This method only adds the corresponding structure to the result node */
 	public void addResCallStructure(Node clause, Set<Node> pendingResClauses){
 		final Set<Edge> callEdges = edg.getEdges(clause, LAST.Direction.Backwards, Edge.Type.Call);
 		final Node clauseRes = edg.getResFromNode(clause);
@@ -1042,11 +1237,11 @@ public class FlowEdgeGenerator extends EdgeGenerator {
 			final Node callParent = edg.getParent(call);
 
 			if (callParent.getType() != Node.Type.Equality) {
-				this.copyChildren(clauseRes, callResult, true);
+				this.copyChildren(clauseRes, callResult, true, false);
 				if (callParent.getType() == Node.Type.Return) {
 					final Node callClause = edg.getAncestor(callParent, Node.Type.Clause);
 					final Node callClauseRes = edg.getResFromNode(callClause);
-					this.copyChildren(callResult, callClauseRes, false);
+					this.copyChildren(callResult, callClauseRes, false, false);
 					pendingResClauses.add(callClause);
 				}
 			}
@@ -1071,7 +1266,7 @@ public class FlowEdgeGenerator extends EdgeGenerator {
 	/** Copy the children of a node "origin" (usually a set of data members) to another node "container" to
 	 * replicate the structure. The set of data members can be definitions or uses according to the
 	 * "isDefinition" parameter. */
-	public void copyChildren(Node origin, Node container, boolean isDefinition){
+	public void copyChildren(Node origin, Node container, boolean isDefinition, boolean isGlobal){
 		final List<Node> children = edg.getChildren(origin);
 		children.removeIf(child -> child.getType() == Node.Type.Result);
 
@@ -1083,7 +1278,7 @@ public class FlowEdgeGenerator extends EdgeGenerator {
 			if (this.isContained(var.getName(), containerChildren))
 				continue;
 
-			this.copyVariable(var, container, isDefinition, true);
+			this.copyVariable(var, container, isDefinition, isGlobal);
 		}
 	}
 
@@ -1100,7 +1295,7 @@ public class FlowEdgeGenerator extends EdgeGenerator {
 	{
 		final LDASTNodeInfo info = new LDASTNodeInfo(container.getInfo().getFile(), container.getInfo().getClassName(),
 				container.getInfo().getLine(), "polymorphic call");
-		final Node polymorphicCallNode = new Node (nodeName, this.edg.getNextId(), Node.Type.PolymorphicCall, nodeName, info);
+		final Node polymorphicCallNode = new Node (nodeName, this.edg.getNextId(), Node.Type.PolymorphicNode, nodeName, info);
 
 		edg.addVertex(polymorphicCallNode);
 		edg.addEdge(container, polymorphicCallNode, Edge.Type.Structural);
@@ -1117,8 +1312,10 @@ public class FlowEdgeGenerator extends EdgeGenerator {
 			if (child.getName().equals(objectVar.getName()))
 				return child;
 
-		return this.addDefinitionVarCopy(argOut, objectVar, objectVar.getName(),
-				((Variable) objectVar).getStaticType(), ((Variable) objectVar).isGlobal());
+		Variable var = (Variable) objectVar;
+		return this.addDefinitionVarCopy(argOut, objectVar, var.getName(), var.getStaticType(), var.isGlobal());
+		// TODO: replace return.
+		// return this.copyVariable(var, argOut, true, var.isGlobal());
 	}
 
 	// ---------------------------------------------------------------- //
@@ -1316,7 +1513,18 @@ public class FlowEdgeGenerator extends EdgeGenerator {
 	}
 
 	private void addFlowEdge(Node source, Variable target) {
-		final Node sourceRes = edg.getResFromNode(source);
+		if (!(source instanceof Variable))
+			throw new RuntimeException("The definition is not a variable");
+
+		final Node sourceParent = edg.getParent(source);
+		final Node sourceRes;
+
+		if (((Variable) source).getContext() == Variable.Context.Def_Use
+				&& sourceParent.getInfo().getConstruction().equals("unary"))
+			sourceRes = edg.getResFromNode(sourceParent);
+		else
+			sourceRes = edg.getResFromNode(source);
+
 		final Node targetRes = edg.getResFromNode(target);
 		if (!target.isObjectType())
 			addIfNotExists(sourceRes, targetRes, Edge.Type.Flow);
@@ -1336,7 +1544,6 @@ public class FlowEdgeGenerator extends EdgeGenerator {
 	private boolean isTotalDefinition(Variable v){ // Only called when "v" is a Definition
 		if (!v.isObjectType())
 			return false;
-
 		if (v.isDeclaration())
 			return true;
 		final Node parent = edg.getParent(v);
@@ -1369,7 +1576,8 @@ public class FlowEdgeGenerator extends EdgeGenerator {
 
 		final Node parent = edg.getParent(var);
 		final String varName = var.getName();
-		if (parent.getType() != Node.Type.Equality){ // Case 1)
+		// Case 1)
+		if (parent.getType() != Node.Type.Equality){
 			final Node parameters = edg.getAncestor(var, Node.Type.Parameters);
 			final Node parameterIn = edg.getAncestor(var, Node.Type.ParameterIn); // For object type data members
 			if (parameters == null && parameterIn == null)
@@ -1513,37 +1721,7 @@ public class FlowEdgeGenerator extends EdgeGenerator {
 		return res;
 	}
 
-	// TODO: Can these two functions be replaced by copyVariable function? UNIFY THEM
-	/** Add a new node, copy of a variable node varNode with varName and varType as a child of a container node */
-	public Node addDefinitionVarCopy(Node container, Node varNode, String varName, String varType)
-	{
-		final LDASTNodeInfo ldNodeInfo = new LDASTNodeInfo(varNode.getInfo().getFile(), varNode.getInfo().getClassName(),
-				varNode.getInfo().getLine(), true, "var", null);
-		final int nodeId = LASTBuilder.addVariable(this.edg, container.getId(), null,
-				varName, varType, false, true, false, false, ldNodeInfo);
-		final Node newVarNode = edg.getNode(nodeId);
-		final LDASTNodeInfo resultInfo = new LDASTNodeInfo(varNode.getInfo().getFile(), varNode.getInfo().getClassName(),
-				varNode.getInfo().getLine(), "var");
-		final Node result = new Node("result", this.edg.getNextFictitiousId(), Node.Type.Result, "", resultInfo);
-
-		edg.addVertex(result);
-		edg.registerNodeResPair(newVarNode, result);
-		edg.addEdge(newVarNode, result, Edge.Type.Value);
-		edg.addEdge(newVarNode, result, Edge.Type.ControlFlow);
-		edg.addStructuralEdge(container, result);
-
-//		if (container.getType() == Node.Type.Variable)
-//			edg.addEdge(edg.getResFromNode(container), result, Edge.Type.TotalDefinition);
-
-		Set<Edge> incomingEdges = edg.getEdges(container, LAST.Direction.Backwards, Edge.Type.ControlFlow);
-		for (Edge edge : incomingEdges){
-			edg.addEdge(edg.getEdgeSource(edge), newVarNode, Edge.Type.ControlFlow);
-			edg.removeEdge(edge);
-		}
-		edg.addEdge(result, container, Edge.Type.ControlFlow);
-		return newVarNode;
-	}
-
+	// TODO: Can this functions be replaced by copyVariable function? UNIFY THEM
 	/** Add a new node, copy of a variable node varNode with varName and varType as a child of a container node */
 	public Node addDefinitionVarCopy(Node container, Node varNode, String varName, String varType, boolean isGlobal)
 	{
@@ -1572,5 +1750,39 @@ public class FlowEdgeGenerator extends EdgeGenerator {
 		}
 		edg.addEdge(result, container, Edge.Type.ControlFlow);
 		return newVarNode;
+	}
+
+
+	// TODO: Esto es un parche cutre para añadir las llamadas a super y el constructor del padre al slice
+	// Parche no valido cuando la llamada a super es implicita
+	private void addConstructorSuperEdges(){
+		final List<Node> routines = edg.getNodes(Node.Type.Routine);
+		routines.removeIf(r -> !r.getName().equals("<constructor>"));
+		for (Node routine : routines){
+			final List<Node> clauses = edg.getChildren(routine);
+			clauses.removeIf(c -> c.getType() == Node.Type.Result);
+			for (Node clause : clauses){
+				final Node body = edg.getChild(clause, Node.Type.Body);
+				final List<Node> bodyChildren = edg.getChildren(body);
+				if (bodyChildren.size() == 0)
+					continue;
+
+				final Node firstStatement = bodyChildren.get(0);
+				if (firstStatement.getType() == Node.Type.Call){
+					final Node callee = edg.getChild(firstStatement, Node.Type.Callee);
+					final Node scope = edg.getChild(callee, Node.Type.Scope);
+					final List<Node> scopeChildren = edg.getChildren(scope);
+					if (scopeChildren.size() == 0)
+						continue;
+
+					final String scopeName = scopeChildren.get(0).getName();
+					if (scopeName.equals("super") || scopeName.equals("this")) {
+						final Node name = edg.getChild(callee, Node.Type.Name);
+						if (edg.getChildren(name).get(0).getName().equals("<constructor>"))
+							edg.addEdge(edg.getResFromNode(firstStatement), clause, Edge.Type.Flow);
+					}
+				}
+			}
+		}
 	}
 }
